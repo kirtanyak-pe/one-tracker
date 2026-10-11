@@ -7,6 +7,8 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Bundle
+import android.util.SizeF
 import android.text.format.DateUtils
 import android.view.View
 import android.widget.RemoteViews
@@ -35,10 +37,33 @@ class SpendWidgetProvider : AppWidgetProvider() {
             for (id in ids) render(context, manager, id)
         }
 
+        // Smallest size (dp) each layout needs; the launcher picks the
+        // largest that fits the widget's current size.
+        private val LAYOUTS = listOf(
+            SizeF(180f, 100f) to R.layout.spend_widget_tiny,
+            SizeF(180f, 135f) to R.layout.spend_widget_compact,
+            SizeF(180f, 175f) to R.layout.spend_widget,
+        )
+
         private fun render(context: Context, manager: AppWidgetManager, id: Int) {
+            val views = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                RemoteViews(LAYOUTS.associate { (size, layout) -> size to bind(context, id, layout) })
+            } else {
+                bind(context, id, layoutFor(manager.getAppWidgetOptions(id)))
+            }
+            manager.updateAppWidget(id, views)
+        }
+
+        /** Pre-Android 12: pick by the height the launcher reports. */
+        private fun layoutFor(options: Bundle): Int {
+            val height = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 180)
+            return LAYOUTS.lastOrNull { (size, _) -> height >= size.height }?.second ?: R.layout.spend_widget_tiny
+        }
+
+        private fun bind(context: Context, id: Int, layout: Int): RemoteViews {
             val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             val period = prefs.getString("period_$id", "month") ?: "month"
-            val views = RemoteViews(context.packageName, R.layout.spend_widget)
+            val views = RemoteViews(context.packageName, layout)
 
             val data = prefs.getString(KEY_DATA, null)?.let { runCatching { JSONObject(it) }.getOrNull() }
             val p = data?.optJSONObject("periods")?.optJSONObject(period)
@@ -107,8 +132,7 @@ class SpendWidgetProvider : AppWidgetProvider() {
                 R.id.widget_body,
                 PendingIntent.getActivity(context, id, open, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE),
             )
-
-            manager.updateAppWidget(id, views)
+            return views
         }
 
         /** Text colour that follows light/dark mode on Android 12+. */
@@ -123,6 +147,10 @@ class SpendWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
         for (id in ids) render(context, manager, id)
+    }
+
+    override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: Bundle) {
+        render(context, manager, id) // resized: re-pick the layout (pre-Android 12)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
