@@ -8,6 +8,7 @@ import '../money.dart';
 import '../ui/bar_chart.dart';
 import '../ui/components.dart';
 import '../ui/format.dart';
+import '../ui/motion.dart';
 import '../ui/tokens.dart';
 import 'home_screen.dart' show push;
 import 'shell.dart';
@@ -31,7 +32,7 @@ class InsightsTab extends StatelessWidget {
         bottom: false,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(Space.gutter, Space.lg, Space.gutter, navClearance),
-          children: [
+          children: staggered([
             Text('Insights', style: text.headlineMedium),
             const SizedBox(height: Space.lg),
             const Center(child: MonthSwitcher()),
@@ -92,7 +93,7 @@ class InsightsTab extends StatelessWidget {
                 TxnDayList(items: i.biggest, currency: appCurrency, grouped: false),
               ],
             ],
-          ],
+          ]),
         ),
       ),
     );

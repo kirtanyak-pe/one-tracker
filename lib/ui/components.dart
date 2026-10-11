@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'motion.dart';
 import 'tokens.dart';
 
 /// Soft vertical canvas gradient behind every screen.
@@ -106,8 +107,8 @@ class SurfaceCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(radius),
       side: BorderSide(color: selected ? t.ink : Colors.transparent, width: 2),
     );
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
+    final card = AnimatedContainer(
+      duration: Motion.of(context, Motion.fast),
       decoration: ShapeDecoration(
         color: t.card,
         shape: shape,
@@ -123,6 +124,7 @@ class SurfaceCard extends StatelessWidget {
         ),
       ),
     );
+    return onTap == null ? card : PressScale(child: card);
   }
 }
 
@@ -182,7 +184,8 @@ class QuickAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    return Material(
+    return PressScale(
+      child: Material(
       color: t.tray,
       borderRadius: BorderRadius.circular(Radii.pill),
       clipBehavior: Clip.antiAlias,
@@ -230,6 +233,7 @@ class QuickAction extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -442,7 +446,7 @@ class PillSegmented<T> extends StatelessWidget {
                   behavior: HitTestBehavior.opaque,
                   onTap: () => onChanged(entry.key),
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
+                    duration: Motion.of(context, Motion.medium),
                     curve: Curves.easeOut,
                     height: 44,
                     alignment: Alignment.center,

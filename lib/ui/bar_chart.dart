@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../money.dart';
+import 'motion.dart';
 import 'tokens.dart';
 
 /// Single-series column chart (see dataviz rules): ink bars ≤ 24px with 4px
@@ -38,8 +39,39 @@ class BarChart extends StatefulWidget {
   State<BarChart> createState() => _BarChartState();
 }
 
-class _BarChartState extends State<BarChart> {
+class _BarChartState extends State<BarChart> with SingleTickerProviderStateMixin {
   int? _selected;
+
+  // Bars grow up from the baseline on first show and when the data changes.
+  late final _grow = AnimationController(vsync: this, duration: Motion.slow);
+  late final _growCurve = CurvedAnimation(parent: _grow, curve: Motion.emphasized);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (Motion.reduced(context)) {
+      _grow.value = 1;
+    } else if (!_grow.isAnimating && _grow.value == 0) {
+      _grow.forward();
+    }
+  }
+
+  @override
+  void didUpdateWidget(BarChart old) {
+    super.didUpdateWidget(old);
+    final changed = old.values.length != widget.values.length ||
+        Iterable.generate(widget.values.length).any((i) => old.values[i] != widget.values[i]);
+    if (changed) {
+      _selected = null;
+      if (!Motion.reduced(context)) _grow.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _grow.dispose();
+    super.dispose();
+  }
 
   int _indexAt(double dx, double width) =>
       (dx / width * widget.values.length).floor().clamp(0, widget.values.length - 1);
@@ -77,6 +109,7 @@ class _BarChartState extends State<BarChart> {
                 width: box.maxWidth,
                 child: CustomPaint(
                   painter: _BarsPainter(
+                    progress: _growCurve,
                     values: widget.values,
                     max: maxValue == 0 ? 1 : maxValue,
                     selected: selected,
@@ -127,6 +160,7 @@ class _BarChartState extends State<BarChart> {
 
 class _BarsPainter extends CustomPainter {
   _BarsPainter({
+    required this.progress,
     required this.values,
     required this.max,
     required this.selected,
@@ -138,8 +172,9 @@ class _BarsPainter extends CustomPainter {
     required this.muted,
     required this.averageLabel,
     required this.labelStyle,
-  });
+  }) : super(repaint: progress);
 
+  final Animation<double> progress;
   final List<int> values;
   final int max;
   final int? selected;
@@ -160,7 +195,8 @@ class _BarsPainter extends CustomPainter {
       final v = values[i];
       final left = slot * i + (slot - width) / 2;
       if (v == 0) continue;
-      final h = math.max(3.0, v / max * usable);
+      final h = math.max(3.0, v / max * usable) * progress.value;
+      if (h < 0.5) continue;
       final radius = Radius.circular(math.min(4, width / 2));
       final rect = RRect.fromRectAndCorners(
         Rect.fromLTWH(left, baseline - h, width, h),

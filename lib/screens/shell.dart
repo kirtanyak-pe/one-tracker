@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../ui/motion.dart';
 import '../ui/tokens.dart';
 import 'activity_screen.dart';
 import 'home_screen.dart';
@@ -35,9 +36,31 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) => Scaffold(
         extendBody: true,
-        body: IndexedStack(
-          index: _index,
-          children: const [HomeTab(), InsightsTab(), ActivityTab()],
+        // Tabs stay alive (like IndexedStack) but cross-fade with a slight
+        // zoom when switching.
+        body: Stack(
+          children: [
+            for (final (i, tab) in const [HomeTab(), InsightsTab(), ActivityTab()].indexed)
+              IgnorePointer(
+                ignoring: i != _index,
+                child: ExcludeSemantics(
+                  excluding: i != _index,
+                  child: AnimatedOpacity(
+                    opacity: i == _index ? 1 : 0,
+                    duration: Motion.of(context, Motion.medium),
+                    curve: Motion.enter,
+                    child: AnimatedScale(
+                      scale: i == _index ? 1 : 0.985,
+                      duration: Motion.of(context, Motion.medium),
+                      curve: Motion.enter,
+                      // Pause hidden tabs' own animations — but inside the
+                      // fade, or the fade-out itself would freeze half-way.
+                      child: TickerMode(enabled: i == _index, child: tab),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
         bottomNavigationBar: SafeArea(
           minimum: const EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, Space.md),
@@ -82,7 +105,7 @@ class _NavPill extends StatelessWidget {
                   behavior: HitTestBehavior.opaque,
                   onTap: () => onSelect(i),
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
+                    duration: Motion.of(context, Motion.medium),
                     curve: Curves.easeOut,
                     decoration: BoxDecoration(
                       color: i == index ? Colors.white : Colors.transparent,

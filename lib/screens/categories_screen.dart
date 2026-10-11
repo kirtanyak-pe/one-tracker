@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_controller.dart';
 import '../money.dart';
 import '../ui/components.dart';
+import '../ui/motion.dart';
 import '../ui/tokens.dart';
 import 'transactions_screen.dart';
 import 'widgets/month_switcher.dart';
@@ -31,8 +32,9 @@ class CategoriesScreen extends StatelessWidget {
                   children: [
                     const Center(child: MonthSwitcher()),
                     const SizedBox(height: Space.xl),
-                    Text(
-                      formatMoney(m.spentMinor, appCurrency, round: true),
+                    AnimatedMoney(
+                      m.spentMinor,
+                      round: true,
                       textAlign: TextAlign.center,
                       style: text.displaySmall,
                     ),
@@ -56,7 +58,9 @@ class CategoriesScreen extends StatelessWidget {
                         child: Column(
                           children: [
                             for (final (i, c) in m.byCategory.indexed)
-                              _CategoryRow(
+                              FadeSlideIn(
+                                index: i,
+                                child: _CategoryRow(
                                 highlight: i == 0,
                                 icon: c.category.icon,
                                 label: c.category.label,
@@ -69,6 +73,7 @@ class CategoriesScreen extends StatelessWidget {
                                   context,
                                   MaterialPageRoute(builder: (_) => TransactionsScreen.category(c.category)),
                                 ),
+                              ),
                               ),
                           ],
                         ),
@@ -142,15 +147,11 @@ class _CategoryRow extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: Space.sm),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(Radii.pill),
-                    child: LinearProgressIndicator(
-                      // Against its budget when there is one, else vs the top category.
-                      value: budget != null ? (amount / budget!).clamp(0, 1) : amount / top,
-                      minHeight: 4,
-                      backgroundColor: t.tray,
-                      color: over ? Theme.of(context).colorScheme.error : highlight ? t.accent : t.ink,
-                    ),
+                  AnimatedMeter(
+                    // Against its budget when there is one, else vs the top category.
+                    value: budget != null ? amount / budget! : amount / top,
+                    background: t.tray,
+                    color: over ? Theme.of(context).colorScheme.error : highlight ? t.accent : t.ink,
                   ),
                   const SizedBox(height: Space.xs),
                   Text(

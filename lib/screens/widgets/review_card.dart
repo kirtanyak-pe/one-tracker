@@ -7,6 +7,7 @@ import '../../model/transaction.dart';
 import '../../money.dart';
 import '../../ui/components.dart';
 import '../../ui/format.dart';
+import '../../ui/motion.dart';
 import '../../ui/tokens.dart';
 
 /// The one orange moment: big payments (above the threshold in Settings),
@@ -105,7 +106,17 @@ class _ReviewCardState extends State<ReviewCard> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(Space.xl, _badge / 2 + Space.lg, Space.xl, Space.xl),
                 child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
+                  duration: Motion.of(context, Motion.medium),
+                  // Next payment slides in from the right.
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween(begin: const Offset(0.15, 0), end: Offset.zero)
+                          .chain(CurveTween(curve: Motion.enter))
+                          .animate(animation),
+                      child: child,
+                    ),
+                  ),
                   child: Column(
                     key: ValueKey(e.txn.id),
                     mainAxisSize: MainAxisSize.min,

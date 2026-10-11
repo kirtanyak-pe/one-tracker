@@ -6,6 +6,7 @@ import '../engine/summary.dart';
 import '../money.dart';
 import '../ui/components.dart';
 import '../ui/format.dart';
+import '../ui/motion.dart';
 import '../ui/tokens.dart';
 import 'add_expense_screen.dart';
 import 'budgets_screen.dart';
@@ -56,7 +57,7 @@ class HomeTab extends StatelessWidget {
           onRefresh: () => app.scanSms(),
           child: ListView(
             padding: const EdgeInsets.fromLTRB(Space.gutter, Space.sm, Space.gutter, navClearance),
-            children: [
+            children: staggered([
               Row(
                 children: [
                   Expanded(child: Text('Auto Spend', style: text.titleMedium?.copyWith(color: t.muted))),
@@ -143,7 +144,7 @@ class HomeTab extends StatelessWidget {
                 const SizedBox(height: Space.xxxl),
                 _CategoriesLink(summary: m),
               ],
-            ],
+            ]),
           ),
         ),
       ),
@@ -168,8 +169,9 @@ class _Headline extends StatelessWidget {
       children: [
         FittedBox(
           fit: BoxFit.scaleDown,
-          child: Text(
-            formatMoney(m.spentMinor, appCurrency, round: true),
+          child: AnimatedMoney(
+            m.spentMinor,
+            round: true,
             style: text.displaySmall?.copyWith(fontSize: 48),
           ),
         ),
@@ -182,15 +184,12 @@ class _Headline extends StatelessWidget {
           const SizedBox(height: Space.lg),
           Semantics(
             label: '${(use * 100).round()} percent of monthly budget used',
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(Radii.pill),
-              child: LinearProgressIndicator(
-                value: use.clamp(0, 1),
-                minHeight: 6,
-                backgroundColor: t.trayDeep,
-                // Meter colour carries severity: ink → accent at 80% → error over.
-                color: use >= 1 ? Theme.of(context).colorScheme.error : use >= 0.8 ? t.accent : t.ink,
-              ),
+            child: AnimatedMeter(
+              value: use,
+              height: 6,
+              background: t.trayDeep,
+              // Meter colour carries severity: ink → accent at 80% → error over.
+              color: use >= 1 ? Theme.of(context).colorScheme.error : use >= 0.8 ? t.accent : t.ink,
             ),
           ),
           const SizedBox(height: Space.sm),

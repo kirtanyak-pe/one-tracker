@@ -6,6 +6,7 @@ import '../engine/summary.dart';
 import '../model/category.dart';
 import '../money.dart';
 import '../ui/components.dart';
+import '../ui/motion.dart';
 import '../ui/tokens.dart';
 
 /// Monthly limits. Crossing 80% and 100% sends a notification.
@@ -174,14 +175,10 @@ class _BudgetRowState extends State<_BudgetRow> {
           ),
           if (use != null) ...[
             const SizedBox(height: Space.md),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(Radii.pill),
-              child: LinearProgressIndicator(
-                value: use.clamp(0, 1),
-                minHeight: 4,
-                backgroundColor: t.tray,
-                color: use >= 1 ? Theme.of(context).colorScheme.error : use >= 0.8 ? t.accent : t.ink,
-              ),
+            AnimatedMeter(
+              value: use,
+              background: t.tray,
+              color: use >= 1 ? Theme.of(context).colorScheme.error : use >= 0.8 ? t.accent : t.ink,
             ),
           ],
         ],

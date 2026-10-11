@@ -4,6 +4,7 @@ import '../../engine/enrich.dart';
 import '../../model/transaction.dart';
 import '../../money.dart';
 import '../../ui/format.dart';
+import '../../ui/motion.dart';
 import '../../ui/tokens.dart';
 import '../transaction_screen.dart';
 
@@ -36,7 +37,10 @@ class TxnDayList extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(Space.xs, Space.lg, Space.xs, Space.sm),
               child: Text(day.key, style: text.bodySmall?.copyWith(color: t.muted)),
             ),
-          Container(
+          FadeSlideIn(
+            index: days.keys.toList().indexOf(day.key),
+            offset: 10,
+            child: Container(
             decoration: BoxDecoration(
               color: t.card,
               borderRadius: BorderRadius.circular(Radii.tile),
@@ -51,6 +55,7 @@ class TxnDayList extends StatelessWidget {
                 ],
               ],
             ),
+          ),
           ),
         ],
       ],
