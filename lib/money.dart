@@ -1,5 +1,8 @@
 import 'package:intl/intl.dart';
 
+/// Bank SMS here are in rupees.
+const appCurrency = 'INR';
+
 /// Money is kept in minor units (paise / cents) as ints to avoid float drift.
 
 /// "1,250.5" → 125050. Returns null for anything that isn't a positive amount.

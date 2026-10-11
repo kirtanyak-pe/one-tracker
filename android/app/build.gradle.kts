@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.autosplit.auto_split"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

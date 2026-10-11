@@ -1,6 +1,6 @@
 {
-    "name": "auto_split",
-    "short_name": "auto_split",
+    "name": "Auto Spend",
+    "short_name": "Auto Spend",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

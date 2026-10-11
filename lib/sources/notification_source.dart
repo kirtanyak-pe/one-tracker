@@ -4,18 +4,20 @@ import 'package:flutter/foundation.dart';
 import 'package:notification_listener_service/notification_event.dart';
 import 'package:notification_listener_service/notification_listener_service.dart';
 
-/// Listens to every notification on the phone (Android only) and forwards
-/// the text of anything that might be a payment. Parsing lives elsewhere.
-class PaymentWatcher {
-  PaymentWatcher(this.onNotificationText);
+import '../engine/ingest.dart';
+import '../model/transaction.dart';
 
-  final void Function(String packageName, String text) onNotificationText;
+/// Live payment notifications from UPI and bank apps (Android only). Also
+/// catches bank SMS the moment they arrive, via the SMS app's notification.
+class NotificationSource {
+  NotificationSource(this.onMessage);
+
+  final void Function(RawMessage message) onMessage;
   StreamSubscription<ServiceNotificationEvent>? _subscription;
 
   static const _ownPackage = 'com.autosplit.auto_split';
 
-  static bool get isSupported =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  static bool get isSupported => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   static Future<bool> hasPermission() async =>
       isSupported && await NotificationListenerService.isPermissionGranted();
@@ -28,7 +30,14 @@ class PaymentWatcher {
     if (!isSupported || _subscription != null) return;
     _subscription = NotificationListenerService.notificationsStream.listen((event) {
       if (event.hasRemoved || event.packageName == _ownPackage) return;
-      onNotificationText(event.packageName, '${event.title}\n${event.content}');
+      final now = DateTime.now();
+      onMessage(RawMessage(
+        source: Source.notification,
+        sourceId: '${event.packageName}:${event.id}:${now.millisecondsSinceEpoch ~/ 60000}',
+        sender: event.packageName,
+        body: '${event.title}\n${event.content}',
+        at: now,
+      ));
     });
   }
 

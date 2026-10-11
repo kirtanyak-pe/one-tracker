@@ -1,71 +1,63 @@
-# Auto Split
+# Auto Spend
 
-Spots payments you make on your phone and asks, in a floating bubble, whether
-to split them on Splitwise. Android-first.
+Tracks where your money goes by reading bank SMS and UPI/bank-app
+notifications on your phone. Android-first. Nothing leaves the phone — the app
+has no internet permission.
 
 ```
-Bank / UPI notification ─► PaymentWatcher ─► parsePayment ─► "To split" inbox
-                                                     │
-                                                     ▼
-                                     Floating bubble (QuickSplitCard)
-                                                     │  Split equally
-                                                     ▼
-                                    Splitwise API  POST /create_expense
+Bank SMS (inbox scan) ─┐
+                       ├─► parser ─► ingest (dedupe SMS + app twins) ─► stored facts
+UPI app notifications ─┘                                                   │
+                                                                           ▼
+            your overrides + payee rules + profile ─► enrich ─► category · kind · tags
+                                                                           │
+                                                                           ▼
+                                                              month summary + review queue
 ```
+
+## What it does
+
+- **Reads transactions** from bank SMS (last 90 days on first run, then catches up
+  every time the app opens) and live from payment-app notifications.
+- **Names the payee** — merchant or the person you paid/received from — and tags
+  the transaction with it.
+- **Categorises** by merchant (Swiggy → Food, Uber → Transport, …); payments to
+  people go to *People*.
+- **Spots self transfers** and leaves them out of spending:
+  - debit on one of your accounts + same-amount credit on another within 30 min
+  - "sent to A/c XX7712" where ••7712 is also yours
+  - paid to your own name (set in Settings)
+  - the bank calls it a self transfer
+- **Leaves out credit-card bill payments** — the card spends are already counted.
+- **You can override anything**: mark *Not expense* / *Self transfer*, change the
+  category, add tags, or set "Same for all <payee>" to make it a rule.
+- **Review card** asks about payments it's unsure of (paid to a person, or no
+  category). Picking a category there teaches it for that payee.
 
 ## Try it
 
-- **Web preview (UI only):** runs in demo mode with fake groups. Tap ⚡ to
-  simulate a payment. Auto-detection and the bubble need Android.
-- **Android:** `flutter run` on a phone (USB debugging on) or an emulator.
-
-## Connect your Splitwise account
-
-1. On the web, open <https://secure.splitwise.com/apps> → **Register your application**
-   (any name and URL).
-2. Copy the **API key**.
-3. In the app: **Settings → Splitwise API key → Connect**.
-
-The key is stored with `flutter_secure_storage`. Without a key the app stays
-in demo mode and nothing is sent to Splitwise.
-
-> Splitwise's self-serve API is for **non-commercial** use. A paid or public
-> release needs a commercial licence from developers@splitwise.com.
-
-## Android permissions
-
-| Permission | Why | Granted from |
-|---|---|---|
-| Notification access | Read bank SMS / GPay / PhonePe / bank-app notifications | Home → *Turn on detection* |
-| Display over other apps | Show the split bubble on top of whatever app you're in | Settings → *Floating bubble* |
-
-No `READ_SMS`: bank SMS are picked up from the SMS app's notification, which
-avoids Google Play's restricted SMS permission review.
+- **Web preview:** loads sample bank SMS through the real pipeline.
+- **Android:** `flutter run`, or `adb install -r build/app/outputs/flutter-apk/app-debug.apk`.
+  Allow SMS access from the home screen; notification access is optional.
 
 ## Code map
 
 | Path | What |
 |---|---|
-| `lib/detection/payment_parser.dart` | Regex parser: amount + merchant from notification text, ignores OTPs, credits, refunds, reminders. Dedupes the UPI-app + bank double notification. |
-| `lib/detection/payment_watcher.dart` | Android `NotificationListenerService` bridge |
-| `lib/overlay/split_bubble.dart` | Opens the bubble; `SplitBubbleApp` runs in the overlay's own isolate |
-| `lib/overlay/quick_split_card.dart` | The "₹450 at Swiggy — split it?" card (bubble + in-app sheet) |
-| `lib/splitwise/` | API client (real + demo), models, equal-split math |
-| `lib/ui/` | Design system: tokens, theme, shared components — see `docs/DESIGN_STYLE.md` |
-| `lib/history/` | Local record of splits for the weekly summary |
-| `lib/app_controller.dart` | App state; glues detection → inbox → bubble → Splitwise |
-| `test/` | Parser, dedupe, split math, money and API-error tests |
+| `lib/engine/parser.dart` | SMS/notification text → amount, direction, payee, UPI id, accounts, ref |
+| `lib/engine/classify.dart` | Merchant vs person, merchant → category, payee keys for rules |
+| `lib/engine/enrich.dart` | Derives category/kind/tags; self-transfer and card-bill detection |
+| `lib/engine/ingest.dart` | Adds messages, skips re-reads, merges SMS + notification twins |
+| `lib/engine/summary.dart` | Monthly totals and category breakdown |
+| `lib/sources/` | SMS inbox (native channel in `MainActivity.kt`), notifications, sample data |
+| `lib/ui/` | Design system — see `docs/DESIGN_STYLE.md` |
+| `test/` | Parser, detectors, dedupe and an end-to-end sample month |
 
-## Known limits / next steps
+## Known limits
 
-- **Detection only runs while the app process is alive.** Android may kill it
-  in the background. Next: move parsing into a native foreground service or a
-  headless Dart entry point so it survives.
-- **Parser is regex-based.** Tune it with real notification texts from your
-  bank and UPI apps (add them to `test/payment_parser_test.dart` first).
-- **Bubble splits equally with a group only.** "More options" (friends, custom
-  amount) is in-app; the bubble can't open the app yet.
-- **Personal API key, not OAuth.** Fine for your own account; other users would
-  need the OAuth 2.0 flow.
-- **iOS:** no notification reading or overlays. Manual split works; detection
-  would need email parsing.
+- The parser is regex-based; bank formats vary. Add real messages that it misreads
+  to `test/parser_test.dart` and adjust.
+- Notifications are only caught while the app process is alive; the SMS scan on
+  open fills the gaps.
+- Storage is JSON in app preferences — fine for thousands of transactions; move to
+  SQLite if it grows past that.

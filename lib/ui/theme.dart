@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'tokens.dart';
 
@@ -26,10 +25,8 @@ ThemeData buildTheme(Brightness brightness) {
     outlineVariant: t.trayDeep,
   );
 
-  // google_fonts 9 ships its own TextTheme type (material_ui), so only the
-  // family comes from it; the text theme itself is Flutter's.
-  final family = GoogleFonts.plusJakartaSans().fontFamily;
-  final base = ThemeData(brightness: brightness).textTheme.apply(fontFamily: family);
+  // Bundled (assets/fonts) — the app has no internet permission.
+  final base = ThemeData(brightness: brightness).textTheme.apply(fontFamily: 'PlusJakartaSans');
   final TextTheme text = base
       .copyWith(
         displaySmall: base.displaySmall?.copyWith(

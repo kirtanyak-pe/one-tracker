@@ -1,240 +1,263 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
-import 'detection/detected_payment.dart';
-import 'detection/payment_parser.dart';
-import 'detection/payment_watcher.dart';
-import 'history/split_record.dart';
-import 'overlay/split_bubble.dart';
-import 'splitwise/models.dart';
-import 'splitwise/split_math.dart';
-import 'splitwise/splitwise_api.dart';
+import 'engine/classify.dart';
+import 'engine/enrich.dart';
+import 'engine/ingest.dart';
+import 'engine/summary.dart';
+import 'model/category.dart';
+import 'model/transaction.dart';
+import 'sources/notification_source.dart';
+import 'sources/sample_data.dart';
+import 'sources/sms_source.dart';
 import 'storage/app_store.dart';
 
-/// App-wide state: Splitwise connection, detected payments, permissions.
+/// App-wide state. Stores facts + user choices; [ledger] and [month] are
+/// re-derived from them after every change.
 class AppController extends ChangeNotifier {
   AppController(this._store);
 
   final AppStore _store;
-  late final _watcher = PaymentWatcher(_onNotificationText);
+  late final _notifications = NotificationSource(_onNotification);
   late final _lifecycle = AppLifecycleListener(onResume: _onResume);
 
-  SplitwiseApi _api = DemoSplitwiseApi();
-  CurrentUser? currentUser;
-  List<SwGroup> groups = [];
-  List<SwUser> friends = [];
-  List<DetectedPayment> inbox = [];
-  List<SplitRecord> history = [];
-  String currency = 'INR';
+  List<Txn> _txns = [];
+  Map<String, PayeeRule> rules = {};
+  Profile profile = const Profile();
+  Ledger ledger = Ledger.empty;
+  DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
+  late MonthSummary month = summarize(ledger, _month);
+
   bool loading = true;
-  String? error;
-  bool detectionGranted = false;
-  bool bubbleGranted = false;
+  bool scanning = false;
+  bool smsGranted = false;
+  bool notificationsGranted = false;
+  DateTime? lastScan;
 
-  bool get isDemo => _api.isDemo;
+  static const _backfill = Duration(days: 90);
 
-  /// Shows the quick-split card in-app when the floating bubble can't be used.
-  void Function(DetectedPayment payment)? onBubbleFallback;
+  bool get isAndroid => SmsSource.isSupported;
+  bool get isCurrentMonth =>
+      _month.year == DateTime.now().year && _month.month == DateTime.now().month;
+  List<Enriched> get toReview => month.items.where((e) => e.needsReview).toList();
+  bool get hasSampleData => _txns.any((t) => t.source == Source.sample);
+
+  Enriched? find(String id) => ledger.items.where((e) => e.txn.id == id).firstOrNull;
+  PayeeRule? ruleFor(Txn t) => rules[payeeKey(t)];
 
   Future<void> init() async {
     _lifecycle; // start listening for resume
-    final key = await _store.readApiKey();
-    if (key != null) _api = HttpSplitwiseApi(key);
-    inbox = await _store.readInbox();
-    history = await _store.readHistory();
-    currency = await _store.readCurrency();
+    _txns = await _store.readTxns();
+    rules = await _store.readRules();
+    profile = await _store.readProfile();
+    lastScan = await _store.readLastScan();
+    _recompute();
     await refreshPermissions();
-    await refreshSplitwise();
-  }
-
-  Future<void> refreshSplitwise() async {
-    loading = true;
-    error = null;
-    notifyListeners();
-    try {
-      final results = await Future.wait([
-        _api.getCurrentUser(),
-        _api.getGroups(),
-        _api.getFriends(),
-      ]);
-      currentUser = results[0] as CurrentUser;
-      groups = results[1] as List<SwGroup>;
-      friends = results[2] as List<SwUser>;
-      currency = currentUser!.defaultCurrency;
-      await _store.cacheGroups(groups);
-      await _store.writeCurrency(currency);
-    } catch (e) {
-      error = '$e';
-    } finally {
-      loading = false;
-      notifyListeners();
+    if (smsGranted) {
+      await scanSms();
+    } else if (!isAndroid && _txns.isEmpty) {
+      await loadSamples(); // web preview: show something real-looking
     }
+    loading = false;
+    notifyListeners();
   }
 
-  /// Validates the key against Splitwise before saving it.
-  Future<void> connect(String apiKey) async {
-    final api = HttpSplitwiseApi(apiKey.trim());
-    await api.getCurrentUser();
-    await _store.writeApiKey(apiKey.trim());
-    _api = api;
-    await refreshSplitwise();
+  void _recompute() {
+    ledger = enrich(_txns, profile: profile, rules: rules);
+    month = summarize(ledger, _month);
   }
 
-  Future<void> disconnect() async {
-    await _store.clearApiKey();
-    _api = DemoSplitwiseApi();
-    await refreshSplitwise();
+  Future<void> _save() async {
+    _recompute();
+    notifyListeners();
+    await _store.writeTxns(_txns);
   }
+
+  // ── Sources ──────────────────────────────────────────────────────────
 
   Future<void> refreshPermissions() async {
-    detectionGranted = await PaymentWatcher.hasPermission();
-    bubbleGranted = await SplitBubble.hasPermission();
-    if (detectionGranted) _watcher.start();
+    smsGranted = await SmsSource.hasPermission();
+    notificationsGranted = await NotificationSource.hasPermission();
+    if (notificationsGranted) _notifications.start();
     notifyListeners();
   }
 
-  Future<void> requestDetection() async {
-    await PaymentWatcher.requestPermission();
+  Future<void> requestSms() async {
+    await SmsSource.requestPermission();
+    await refreshPermissions();
+    if (smsGranted) await scanSms(full: true);
+  }
+
+  Future<void> requestNotifications() async {
+    await NotificationSource.requestPermission();
     await refreshPermissions();
   }
 
-  Future<void> requestBubble() async {
-    await SplitBubble.requestPermission();
-    await refreshPermissions();
-  }
-
-  void _onNotificationText(String packageName, String text) {
-    final parsed = parsePayment(text);
-    if (parsed == null) return;
-    _addPayment(parsed, packageName);
-  }
-
-  static const _samples = [
-    ParsedPayment(45000, 'Swiggy'),
-    ParsedPayment(28640, 'Uber'),
-    ParsedPayment(112000, 'Blinkit'),
-    ParsedPayment(69000, 'Third Wave Coffee'),
-  ];
-  var _sampleIndex = 0;
-
-  /// Pretends a payment just happened — for trying the flow.
-  void simulatePayment() => _addPayment(
-        _samples[_sampleIndex++ % _samples.length],
-        'demo',
-        allowDuplicate: true,
-      );
-
-  Future<void> _addPayment(
-    ParsedPayment parsed,
-    String sourceApp, {
-    bool allowDuplicate = false,
-  }) async {
-    final now = DateTime.now();
-    if (!allowDuplicate && isDuplicate(parsed, now, inbox)) return;
-    final payment = DetectedPayment(
-      id: now.microsecondsSinceEpoch.toString(),
-      amountMinor: parsed.amountMinor,
-      merchant: parsed.merchant,
-      sourceApp: sourceApp,
-      detectedAt: now,
-    );
-    inbox = [payment, ...inbox];
-    await _store.writeInbox(inbox);
+  /// Reads new bank SMS. [full] re-reads the last 90 days.
+  Future<int> scanSms({bool full = false}) async {
+    if (!smsGranted || scanning) return 0;
+    scanning = true;
     notifyListeners();
-
-    if (bubbleGranted) {
-      await SplitBubble.show(payment, _store);
-    } else {
-      onBubbleFallback?.call(payment);
-    }
-  }
-
-  Future<void> dismiss(DetectedPayment payment) async {
-    inbox = inbox.where((p) => p.id != payment.id).toList();
-    await _store.writeInbox(inbox);
-    notifyListeners();
-  }
-
-  Future<void> splitWithGroup({
-    required SwGroup group,
-    required int amountMinor,
-    required String description,
-    DetectedPayment? from,
-  }) async {
-    await _api.createGroupExpense(
-      groupId: group.id,
-      costMinor: amountMinor,
-      description: description,
-      currency: currency,
-    );
-    await _recordSplit(amountMinor, description, group.name, from);
-  }
-
-  Future<void> splitWithFriends({
-    required List<SwUser> people,
-    required int amountMinor,
-    required String description,
-    DetectedPayment? from,
-  }) async {
-    final me = currentUser;
-    if (me == null) throw const SplitwiseException('Not connected to Splitwise yet.');
-    await _api.createSharedExpense(
-      shares: equalSplit(
-        payerId: me.user.id,
-        participantIds: people.map((p) => p.id).toList(),
-        totalMinor: amountMinor,
-      ),
-      costMinor: amountMinor,
-      description: description,
-      currency: currency,
-    );
-    await _recordSplit(amountMinor, description, people.map((p) => p.firstName).join(', '), from);
-  }
-
-  Future<void> _recordSplit(
-    int amountMinor,
-    String description,
-    String withWhom,
-    DetectedPayment? from,
-  ) async {
-    history = await _store.addHistory(SplitRecord(
-      amountMinor: amountMinor,
-      description: description,
-      withWhom: withWhom,
-      at: DateTime.now(),
-    ));
-    if (from != null) {
-      await dismiss(from);
-    } else {
+    try {
+      final now = DateTime.now();
+      final since = full || lastScan == null
+          ? now.subtract(_backfill)
+          // Small overlap; re-reads are skipped by SMS id.
+          : lastScan!.subtract(const Duration(hours: 1));
+      final result = ingest(_txns, await SmsSource.read(since: since));
+      _txns = result.txns;
+      lastScan = now;
+      await _store.writeLastScan(now);
+      await _save();
+      return result.added;
+    } finally {
+      scanning = false;
       notifyListeners();
     }
   }
 
-  /// Split this week, and what share of this week's payments got split.
-  ({int totalMinor, int count, double share}) get weekSummary {
-    final since = startOfWeek(DateTime.now());
-    final split = history.where((r) => !r.at.isBefore(since)).toList();
-    final waiting = inbox.where((p) => !p.detectedAt.isBefore(since)).length;
-    final all = split.length + waiting;
-    return (
-      totalMinor: split.fold(0, (sum, r) => sum + r.amountMinor),
-      count: split.length,
-      share: all == 0 ? 0 : split.length / all,
-    );
+  void _onNotification(RawMessage message) {
+    // Saved even when nothing was added: it may have enriched an SMS twin.
+    _txns = ingest(_txns, [message]).txns;
+    unawaited(_save());
   }
 
-  int get waitingMinor => inbox.fold(0, (sum, p) => sum + p.amountMinor);
+  Future<void> loadSamples() async {
+    _txns = ingest(_txns, sampleMessages(DateTime.now())).txns;
+    await _save();
+  }
 
-  /// The bubble may have split or skipped things while we were away, and the
-  /// user may have just granted a permission in system settings.
+  Future<void> removeSamples() async {
+    _txns = _txns.where((t) => t.source != Source.sample).toList();
+    await _save();
+  }
+
+  // ── Month ────────────────────────────────────────────────────────────
+
+  void shiftMonth(int delta) {
+    final next = DateTime(_month.year, _month.month + delta);
+    final now = DateTime.now();
+    if (next.isAfter(DateTime(now.year, now.month))) return;
+    _month = next;
+    month = summarize(ledger, _month);
+    notifyListeners();
+  }
+
+  // ── Edits ────────────────────────────────────────────────────────────
+
+  Future<void> _update(String id, Txn Function(Txn t) change) async {
+    final i = _txns.indexWhere((t) => t.id == id);
+    if (i == -1) return;
+    _txns[i] = change(_txns[i]);
+    await _save();
+  }
+
+  Future<void> setKind(Txn txn, TxnKind kind) =>
+      _update(txn.id, (t) => t.copyWith(kindOverride: kind, reviewed: true));
+
+  Future<void> setCategory(Txn txn, Category category) =>
+      _update(txn.id, (t) => t.copyWith(categoryOverride: category, reviewed: true));
+
+  Future<void> markReviewed(Txn txn) => _update(txn.id, (t) => t.copyWith(reviewed: true));
+
+  Future<void> addTag(Txn txn, String tag) {
+    final clean = tag.trim();
+    if (clean.isEmpty) return Future.value();
+    return _update(txn.id, (t) => t.copyWith(userTags: {...t.userTags, clean}.toList()));
+  }
+
+  Future<void> removeTag(Txn txn, String tag) =>
+      _update(txn.id, (t) => t.copyWith(userTags: t.userTags.where((x) => x != tag).toList()));
+
+  Future<void> delete(Txn txn) async {
+    _txns = _txns.where((t) => t.id != txn.id).toList();
+    await _save();
+  }
+
+  Future<void> addManual({
+    required int amountMinor,
+    required String payee,
+    required Category category,
+    required DateTime at,
+  }) async {
+    final id = 'manual-${DateTime.now().microsecondsSinceEpoch}';
+    _txns = [
+      ..._txns,
+      Txn(
+        id: id,
+        source: Source.manual,
+        direction: Direction.debit,
+        amountMinor: amountMinor,
+        at: at,
+        counterparty: payee.trim().isEmpty ? null : payee.trim(),
+        categoryOverride: category,
+        reviewed: true,
+      ),
+    ];
+    await _save();
+  }
+
+  // ── Rules & profile ──────────────────────────────────────────────────
+
+  /// Applies this transaction's current category and kind to every payment
+  /// to the same payee, now and in future.
+  Future<void> rememberFor(Enriched e) async {
+    final key = payeeKey(e.txn);
+    if (key.isEmpty) return;
+    rules = {
+      ...rules,
+      key: PayeeRule(
+        key: key,
+        label: e.payee,
+        category: e.category == Category.income ? null : e.category,
+        kind: e.kind == TxnKind.expense || e.kind == TxnKind.income ? null : e.kind,
+      ),
+    };
+    await _store.writeRules(rules);
+    await _save();
+  }
+
+  Future<void> forget(String key) async {
+    rules = {...rules}..remove(key);
+    await _store.writeRules(rules);
+    await _save();
+  }
+
+  Future<void> setName(String name) async {
+    profile = Profile(name: name, ignoredAccounts: profile.ignoredAccounts);
+    await _store.writeProfile(profile);
+    await _save();
+  }
+
+  Future<void> toggleAccount(String last4) async {
+    final ignored = {...profile.ignoredAccounts};
+    if (!ignored.remove(last4)) ignored.add(last4);
+    profile = Profile(name: profile.name, ignoredAccounts: ignored);
+    await _store.writeProfile(profile);
+    await _save();
+  }
+
+  /// Accounts seen in SMS, including ones the user switched off.
+  Set<String> get knownAccounts => {...ledger.ownAccounts, ...profile.ignoredAccounts};
+
+  Future<void> clearAll() async {
+    await _store.clear();
+    _txns = [];
+    rules = {};
+    profile = const Profile();
+    lastScan = null;
+    await _save();
+  }
+
   Future<void> _onResume() async {
-    inbox = await _store.readInbox();
-    history = await _store.readHistory();
     await refreshPermissions();
+    await scanSms();
   }
 
   @override
   void dispose() {
-    _watcher.stop();
+    _notifications.stop();
     _lifecycle.dispose();
     super.dispose();
   }

@@ -218,11 +218,14 @@ class QuickAction extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: Space.sm),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: t.muted),
+              // Scales down rather than truncating at large system font sizes.
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: t.muted),
+                ),
               ),
             ],
           ),

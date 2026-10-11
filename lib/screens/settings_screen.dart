@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../app_controller.dart';
-import '../detection/payment_watcher.dart';
 import '../ui/components.dart';
+import '../ui/format.dart';
 import '../ui/tokens.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -13,29 +13,31 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _key = TextEditingController();
-  bool _busy = false;
-  String? _error;
-
-  Future<void> _connect() async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      await AppScope.of(context).connect(_key.text);
-      _key.clear();
-    } catch (e) {
-      setState(() => _error = '$e');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
+  late final _name = TextEditingController(text: AppScope.of(context).profile.name);
 
   @override
   void dispose() {
-    _key.dispose();
+    _name.dispose();
     super.dispose();
+  }
+
+  Future<void> _clearAll() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Clear all data?'),
+        content: const Text('Removes every transaction, rule and setting from this phone. '
+            'Bank SMS can be scanned again afterwards.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('Clear')),
+        ],
+      ),
+    );
+    if (ok == true && mounted) {
+      await AppScope.of(context).clearAll();
+      _name.clear();
+    }
   }
 
   @override
@@ -43,6 +45,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final app = AppScope.of(context);
     final t = context.tokens;
     final text = Theme.of(context).textTheme;
+    final accounts = app.knownAccounts.toList()..sort();
+    final rules = app.rules.values.toList()..sort((a, b) => a.label.compareTo(b.label));
 
     return Scaffold(
       body: CanvasBackground(
@@ -54,65 +58,111 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, Space.xxxl),
                   children: [
-                    const SectionHeader('Splitwise', top: Space.lg),
-                    if (!app.isDemo)
-                      SurfaceCard(
-                        padding: const EdgeInsets.fromLTRB(Space.lg, Space.lg, Space.sm, Space.lg),
-                        child: Row(
-                          children: [
-                            Avatar(app.currentUser?.user.name ?? '?', size: 44),
-                            const SizedBox(width: Space.md),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Connected', style: text.bodySmall?.copyWith(color: t.muted)),
-                                  Text(app.currentUser?.user.name ?? '…', style: text.titleMedium),
-                                ],
-                              ),
+                    const SectionHeader('Self transfers', top: Space.lg),
+                    Tray(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Your name', style: text.titleMedium),
+                          const SizedBox(height: Space.xs),
+                          Text(
+                            'Money sent to this name counts as a self transfer, not spending.',
+                            style: text.bodySmall?.copyWith(color: t.muted),
+                          ),
+                          const SizedBox(height: Space.md),
+                          TextField(
+                            controller: _name,
+                            textCapitalization: TextCapitalization.words,
+                            decoration: const InputDecoration(hintText: 'As your bank prints it'),
+                            onChanged: app.setName,
+                          ),
+                          const SizedBox(height: Space.xl),
+                          Text('Your accounts', style: text.titleMedium),
+                          const SizedBox(height: Space.xs),
+                          Text(
+                            accounts.isEmpty
+                                ? 'Learned from your bank SMS after the first scan.'
+                                : 'Learned from your bank SMS. Money between these is a self transfer — tap one that isn\'t yours.',
+                            style: text.bodySmall?.copyWith(color: t.muted),
+                          ),
+                          if (accounts.isNotEmpty) ...[
+                            const SizedBox(height: Space.md),
+                            Wrap(
+                              spacing: Space.sm,
+                              runSpacing: Space.sm,
+                              children: [
+                                for (final a in accounts)
+                                  FilterChip(
+                                    label: Text('••$a'),
+                                    selected: !app.profile.ignoredAccounts.contains(a),
+                                    showCheckmark: true,
+                                    checkmarkColor: t.onInk,
+                                    selectedColor: t.ink,
+                                    backgroundColor: t.card,
+                                    labelStyle: text.labelLarge?.copyWith(
+                                      color: app.profile.ignoredAccounts.contains(a) ? t.muted : t.onInk,
+                                    ),
+                                    side: BorderSide.none,
+                                    shape: const StadiumBorder(),
+                                    onSelected: (_) => app.toggleAccount(a),
+                                  ),
+                              ],
                             ),
-                            TextButton(onPressed: app.disconnect, child: const Text('Disconnect')),
                           ],
+                        ],
+                      ),
+                    ),
+                    const SectionHeader('Remembered payees'),
+                    if (rules.isEmpty)
+                      Tray(
+                        child: Text(
+                          'When you set something "Same for all" on a transaction, it shows up here.',
+                          style: text.bodyMedium?.copyWith(color: t.muted),
                         ),
                       )
                     else
-                      Tray(
+                      SurfaceCard(
+                        padding: const EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.xs),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Connect your account', style: text.titleMedium),
-                            const SizedBox(height: Space.md),
-                            const _Step(1, 'On a computer, open secure.splitwise.com/apps'),
-                            const _Step(2, 'Register your application — any name and URL'),
-                            const _Step(3, 'Create an API key and paste it here'),
-                            const SizedBox(height: Space.md),
-                            TextField(
-                              controller: _key,
-                              obscureText: true,
-                              autocorrect: false,
-                              decoration: InputDecoration(
-                                hintText: 'Paste API key',
-                                errorText: _error,
+                            for (final (i, r) in rules.indexed) ...[
+                              if (i > 0) Divider(height: 1, color: t.tray),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: Space.md),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(r.label, style: text.titleMedium),
+                                          Text(
+                                            [
+                                              if (r.category != null) r.category!.label,
+                                              if (r.kind != null) r.kind!.label,
+                                            ].join(' · '),
+                                            style: text.bodySmall?.copyWith(color: t.muted),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Forget',
+                                    icon: const Icon(Icons.close),
+                                    onPressed: () => app.forget(r.key),
+                                  ),
+                                ],
                               ),
-                              onChanged: (_) => setState(() {}),
-                            ),
-                            const SizedBox(height: Space.md),
-                            SizedBox(
-                              width: double.infinity,
-                              child: FilledButton(
-                                onPressed: _busy || _key.text.trim().isEmpty ? null : _connect,
-                                child: Text(_busy ? 'Checking…' : 'Connect'),
-                              ),
-                            ),
+                            ],
                           ],
                         ),
                       ),
-                    const SectionHeader('Permissions'),
-                    if (!PaymentWatcher.isSupported)
+                    const SectionHeader('Sources'),
+                    if (!app.isAndroid)
                       Tray(
                         child: Text(
-                          'Payment detection and the floating bubble need Android. '
-                          'Use Test on the home screen to try the flow here.',
+                          'Reading SMS and notifications needs Android. This preview uses sample bank SMS.',
                           style: text.bodyMedium?.copyWith(color: t.muted),
                         ),
                       )
@@ -122,27 +172,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: Column(
                           children: [
                             _PermissionRow(
-                              icon: Icons.notifications_active_outlined,
-                              title: 'Payment detection',
-                              subtitle: 'Reads bank & UPI notifications',
-                              granted: app.detectionGranted,
-                              onGrant: app.requestDetection,
+                              icon: Icons.sms_outlined,
+                              title: 'Bank SMS',
+                              subtitle: app.lastScan == null
+                                  ? 'Reads transaction alerts from banks'
+                                  : 'Last read ${friendlyTime(app.lastScan!)}',
+                              granted: app.smsGranted,
+                              onGrant: app.requestSms,
                             ),
                             Divider(height: 1, color: t.tray),
                             _PermissionRow(
-                              icon: Icons.picture_in_picture_alt_outlined,
-                              title: 'Floating bubble',
-                              subtitle: 'Asks to split right after you pay',
-                              granted: app.bubbleGranted,
-                              onGrant: app.requestBubble,
+                              icon: Icons.notifications_active_outlined,
+                              title: 'Payment notifications',
+                              subtitle: 'Picks up UPI app payments instantly',
+                              granted: app.notificationsGranted,
+                              onGrant: app.requestNotifications,
                             ),
                           ],
                         ),
                       ),
+                    const SectionHeader('Data'),
+                    SurfaceCard(
+                      padding: const EdgeInsets.symmetric(vertical: Space.xs),
+                      child: Column(
+                        children: [
+                          if (app.isAndroid && app.smsGranted)
+                            _ActionRow(
+                              icon: Icons.refresh,
+                              label: 'Re-read last 90 days of SMS',
+                              onTap: () => app.scanSms(full: true),
+                            ),
+                          _ActionRow(
+                            icon: Icons.science_outlined,
+                            label: app.hasSampleData ? 'Remove sample data' : 'Add sample data',
+                            onTap: app.hasSampleData ? app.removeSamples : app.loadSamples,
+                          ),
+                          _ActionRow(
+                            icon: Icons.delete_outline,
+                            label: 'Clear all data',
+                            onTap: _clearAll,
+                            destructive: true,
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: Space.xxl),
                     Text(
-                      'Uses Splitwise\'s self-serve API — for personal use only. '
-                      'Your key stays on this phone.',
+                      'Everything stays on this phone — Auto Spend has no internet access.',
                       textAlign: TextAlign.center,
                       style: text.bodySmall?.copyWith(color: t.muted),
                     ),
@@ -152,35 +228,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _Step extends StatelessWidget {
-  const _Step(this.number, this.label);
-
-  final int number;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: Space.sm),
-      child: Row(
-        children: [
-          Container(
-            width: 24,
-            height: 24,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: t.card, shape: BoxShape.circle),
-            child: Text('$number', style: text.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
-          ),
-          const SizedBox(width: Space.md),
-          Expanded(child: Text(label, style: text.bodyMedium)),
-        ],
       ),
     );
   }
@@ -237,6 +284,41 @@ class _PermissionRow extends StatelessWidget {
               child: const Text('Allow'),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _ActionRow extends StatelessWidget {
+  const _ActionRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.destructive = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final color = destructive ? Theme.of(context).colorScheme.error : t.ink;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.lg),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(width: Space.md),
+            Expanded(
+              child: Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: color)),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,7 +1,7 @@
-# Auto Split — design style
+# Auto Spend — design style
 
 Extracted from the fitness-app reference shots (Dashboard / Progress / Assistant)
-and adapted to a payment-splitting app. Tokens live in `lib/ui/tokens.dart`,
+and adapted to an expense tracker (originally a payment-splitting app). Tokens live in `lib/ui/tokens.dart`,
 components in `lib/ui/components.dart`.
 
 ## 1. What the reference is doing
@@ -53,8 +53,8 @@ Type (Plus Jakarta Sans — closest free match):
 ## 3. Rules that make it systemic
 
 1. **Canvas → tray → card.** Grey holds white. Never white-on-white, never grey-on-grey cards.
-2. **One orange moment per screen.** Orange means "a payment needs you" — the split
-   prompt, the ⚡ orb, a ring arc. Everything else is ink + greys.
+2. **One orange moment per screen.** Orange means "a payment needs you" — the review
+   card, the setup orb, the top category bar. Everything else is ink + greys.
 3. **Ink is the button.** Orange + white text fails AA (3.45:1), so the primary
    button is an ink pill. Orange cards that carry text use `accentDeep` (4.8:1),
    lit by a reference-orange glow in the corner; their buttons flip to white
@@ -65,19 +65,19 @@ Type (Plus Jakarta Sans — closest free match):
 6. **Big, centred, human headline** on the home screen that reflects state
    ("You're all square!" / "2 payments to split").
 
-## 4. Where each pattern lands in Auto Split
+## 4. Where each pattern lands in Auto Spend
 
 | Reference pattern | Auto Split use |
 |---|---|
-| Hero headline "Let's start strong!" | Home headline driven by inbox: *all square* vs *n payments to split* |
-| Goal tray + ⚡ orb | Status tray: Splitwise connection + detection state; orb = test payment |
-| Workout / Meal / Water / Sync tiles | Quick actions: **Add · Test · Sync · Settings** |
-| Daily Summary stat tiles + ring | **Waiting** (₹ pending, count) and **Split this week** (₹, ring = share of payments split) |
-| Orange tip card with Dismiss / Set Routine + dark badge | **The split prompt** — floating bubble *and* in-app sheet: "₹450 at Swiggy", group pills, *Later* / *Split equally* |
-| Daily / Weekly / Monthly segmented tray | Group / Friends switch on the split screen |
-| Big numbers (2.340, 3.4km) | Centred amount entry on the split screen |
-| Chat bubbles / timestamps | "Recent splits" rows (white rows in a tray, time in muted) |
-| Suggestion chips | Group pills inside the split prompt |
+| Hero headline "Let's start strong!" | Home headline: this month's spend, with a month switcher pill |
+| Goal tray + ⚡ orb | Setup tray: SMS / notification access; orb grants it |
+| Workout / Meal / Water / Sync tiles | Quick actions: **Add · Scan · Excluded · Income** |
+| Daily Summary + ring/bars | **Where it went**: category rows with thin bars, biggest in orange |
+| Orange tip card with Dismiss / Set Routine + dark badge | **Review card**: "₹2,000 to Rahul Sharma", category pills, *Not expense* / *Looks right* |
+| Daily / Weekly / Monthly segmented tray | *Expense · Self transfer · Not expense* on a transaction |
+| Big numbers (2.340, 3.4km) | Centred amounts on detail and add screens |
+| Chat bubbles / timestamps | Day-grouped transaction cards, day label in muted |
+| Suggestion chips | Category pills on the review card and detail screen |
 | White pill input with mic | All text fields: white, borderless, rounded |
 | Floating dark nav pill | Not used — the app has no tabs. The floating ink pill style is reused for snackbars |
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'app_controller.dart';
-import 'overlay/split_bubble.dart';
 import 'screens/home_screen.dart';
 import 'storage/app_store.dart';
 import 'ui/theme.dart';
@@ -9,18 +8,11 @@ import 'ui/theme.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   final controller = AppController(AppStore())..init();
-  runApp(AutoSplitApp(controller: controller));
+  runApp(AutoSpendApp(controller: controller));
 }
 
-/// Entry point for the floating bubble, which Android runs in its own engine.
-@pragma('vm:entry-point')
-void overlayMain() {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(const SplitBubbleApp());
-}
-
-class AutoSplitApp extends StatelessWidget {
-  const AutoSplitApp({super.key, required this.controller});
+class AutoSpendApp extends StatelessWidget {
+  const AutoSpendApp({super.key, required this.controller});
 
   final AppController controller;
 
@@ -28,7 +20,7 @@ class AutoSplitApp extends StatelessWidget {
   Widget build(BuildContext context) => AppScope(
         controller: controller,
         child: MaterialApp(
-          title: 'Auto Split',
+          title: 'Auto Spend',
           debugShowCheckedModeBanner: false,
           theme: buildTheme(Brightness.light),
           darkTheme: buildTheme(Brightness.dark),
