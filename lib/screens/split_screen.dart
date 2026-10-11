@@ -4,6 +4,8 @@ import '../app_controller.dart';
 import '../detection/detected_payment.dart';
 import '../money.dart';
 import '../splitwise/models.dart';
+import '../ui/components.dart';
+import '../ui/tokens.dart';
 
 enum _SplitWith { group, friends }
 
@@ -82,117 +84,256 @@ class _SplitScreenState extends State<SplitScreen> {
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final theme = Theme.of(context);
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
     final amount = _amountMinor;
     final symbol = formatMoney(0, app.currency).replaceAll(RegExp(r'[\d.,\s]'), '');
+    const noBorder = OutlineInputBorder(borderSide: BorderSide.none);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Split expense')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          TextField(
-            controller: _amount,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: theme.textTheme.headlineMedium,
-            decoration: InputDecoration(
-              labelText: 'Amount',
-              prefixText: '$symbol ',
-              border: const OutlineInputBorder(),
-            ),
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _description,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              labelText: 'What was it for?',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: 24),
-          SegmentedButton<_SplitWith>(
-            segments: const [
-              ButtonSegment(value: _SplitWith.group, label: Text('Group'), icon: Icon(Icons.groups_outlined)),
-              ButtonSegment(value: _SplitWith.friends, label: Text('Friends'), icon: Icon(Icons.person_outline)),
-            ],
-            selected: {_splitWith},
-            onSelectionChanged: (s) => setState(() => _splitWith = s.first),
-          ),
-          const SizedBox(height: 8),
-          if (app.loading)
-            const Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_splitWith == _SplitWith.group)
-            RadioGroup<int>(
-              groupValue: _group?.id,
-              onChanged: (id) =>
-                  setState(() => _group = app.groups.firstWhere((g) => g.id == id)),
-              child: Column(
-                children: [
-                  for (final group in app.groups)
-                    RadioListTile<int>(
-                      value: group.id,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(group.name),
-                      subtitle: Text(group.members.map((m) => m.firstName).join(', ')),
-                    ),
-                ],
-              ),
-            )
-          else
-            for (final friend in app.friends)
-              CheckboxListTile(
-                value: _friendIds.contains(friend.id),
-                contentPadding: EdgeInsets.zero,
-                title: Text(friend.name),
-                onChanged: (on) => setState(
-                  () => on! ? _friendIds.add(friend.id) : _friendIds.remove(friend.id),
-                ),
-              ),
-          if (_error != null) ...[
-            const SizedBox(height: 8),
-            Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-          ],
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      body: CanvasBackground(
+        child: SafeArea(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             children: [
-              if (amount != null && _peopleCount > 1)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    '${formatMoney(amount ~/ _peopleCount, app.currency)} each'
-                    ' · $_peopleCount people · you paid',
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                  ),
+              const TopBar(title: 'Split expense'),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(Space.gutter, Space.lg, Space.gutter, Space.xl),
+                  children: [
+                    Text(
+                      'Amount',
+                      textAlign: TextAlign.center,
+                      style: text.bodySmall?.copyWith(color: t.muted),
+                    ),
+                    // Symbol + amount centred together, sized to the digits.
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          symbol,
+                          style: text.displaySmall?.copyWith(
+                            fontSize: 44,
+                            color: _amount.text.isEmpty ? t.trayDeep : t.ink,
+                          ),
+                        ),
+                        const SizedBox(width: Space.xs),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(minWidth: 32, maxWidth: 260),
+                          child: IntrinsicWidth(
+                            child: TextField(
+                              controller: _amount,
+                              autofocus: widget.payment == null,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(decimal: true),
+                              style: text.displaySmall?.copyWith(fontSize: 44),
+                              decoration: InputDecoration(
+                                filled: false,
+                                isCollapsed: true,
+                                contentPadding: const EdgeInsets.symmetric(vertical: Space.md),
+                                hintText: '0',
+                                hintStyle: text.displaySmall
+                                    ?.copyWith(fontSize: 44, color: t.trayDeep),
+                                border: noBorder,
+                                enabledBorder: noBorder,
+                                focusedBorder: noBorder,
+                              ),
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: Space.md),
+                    TextField(
+                      controller: _description,
+                      textCapitalization: TextCapitalization.sentences,
+                      textAlign: TextAlign.center,
+                      decoration: const InputDecoration(hintText: 'What was it for?'),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: Space.xxl),
+                    PillSegmented<_SplitWith>(
+                      options: const {_SplitWith.group: 'Group', _SplitWith.friends: 'Friends'},
+                      value: _splitWith,
+                      onChanged: (v) => setState(() => _splitWith = v),
+                    ),
+                    const SizedBox(height: Space.lg),
+                    if (app.loading)
+                      const Padding(
+                        padding: EdgeInsets.all(Space.xxl),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (_splitWith == _SplitWith.group)
+                      for (final group in app.groups) ...[
+                        _GroupOption(
+                          group: group,
+                          selected: _group?.id == group.id,
+                          onTap: () => setState(() => _group = group),
+                        ),
+                        const SizedBox(height: Space.md),
+                      ]
+                    else
+                      for (final friend in app.friends) ...[
+                        _FriendOption(
+                          friend: friend,
+                          selected: _friendIds.contains(friend.id),
+                          onTap: () => setState(() => _friendIds.contains(friend.id)
+                              ? _friendIds.remove(friend.id)
+                              : _friendIds.add(friend.id)),
+                        ),
+                        const SizedBox(height: Space.sm),
+                      ],
+                    if (_error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: Space.sm),
+                        child: Text(
+                          _error!,
+                          style: text.bodySmall?.copyWith(color: Theme.of(context).colorScheme.error),
+                        ),
+                      ),
+                  ],
                 ),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _canSave ? _save : null,
-                  child: _saving
-                      ? const SizedBox.square(
-                          dimension: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(amount == null
-                          ? 'Split'
-                          : 'Split ${formatMoney(amount, app.currency)}'),
-                ),
+              ),
+              _Footer(
+                summary: amount != null && _peopleCount > 1
+                    ? '${formatMoney(amount ~/ _peopleCount, app.currency)} each · $_peopleCount people'
+                    : null,
+                label: amount == null ? 'Split' : 'Split ${formatMoney(amount, app.currency)}',
+                saving: _saving,
+                onPressed: _canSave ? _save : null,
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _GroupOption extends StatelessWidget {
+  const _GroupOption({required this.group, required this.selected, required this.onTap});
+
+  final SwGroup group;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    return Semantics(
+      selected: selected,
+      child: SurfaceCard(
+        selected: selected,
+        onTap: onTap,
+        padding: const EdgeInsets.all(Space.lg),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(group.name, style: text.titleMedium),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${group.members.length} people',
+                    style: text.bodySmall?.copyWith(color: t.muted),
+                  ),
+                ],
+              ),
+            ),
+            AvatarStack(group.members.map((m) => m.name).toList()),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FriendOption extends StatelessWidget {
+  const _FriendOption({required this.friend, required this.selected, required this.onTap});
+
+  final SwUser friend;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Semantics(
+      selected: selected,
+      child: SurfaceCard(
+        selected: selected,
+        onTap: onTap,
+        padding: const EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.md),
+        child: Row(
+          children: [
+            Avatar(friend.name),
+            const SizedBox(width: Space.md),
+            Expanded(child: Text(friend.name, style: Theme.of(context).textTheme.titleMedium)),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected ? t.ink : Colors.transparent,
+                border: Border.all(color: selected ? t.ink : t.trayDeep, width: 2),
+              ),
+              child: selected ? Icon(Icons.check, size: 16, color: t.onInk) : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Footer extends StatelessWidget {
+  const _Footer({
+    required this.summary,
+    required this.label,
+    required this.saving,
+    required this.onPressed,
+  });
+
+  final String? summary;
+  final String label;
+  final bool saving;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Space.gutter, Space.sm, Space.gutter, Space.lg),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: summary == null
+                ? const SizedBox(height: 0)
+                : Padding(
+                    key: ValueKey(summary),
+                    padding: const EdgeInsets.only(bottom: Space.md),
+                    child: Text(summary!, style: text.bodyMedium?.copyWith(color: t.muted)),
+                  ),
+          ),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: onPressed,
+              child: saving
+                  ? SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: t.onInk),
+                    )
+                  : Text(label),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -51,6 +51,8 @@ avoids Google Play's restricted SMS permission review.
 | `lib/overlay/split_bubble.dart` | Opens the bubble; `SplitBubbleApp` runs in the overlay's own isolate |
 | `lib/overlay/quick_split_card.dart` | The "₹450 at Swiggy — split it?" card (bubble + in-app sheet) |
 | `lib/splitwise/` | API client (real + demo), models, equal-split math |
+| `lib/ui/` | Design system: tokens, theme, shared components — see `docs/DESIGN_STYLE.md` |
+| `lib/history/` | Local record of splits for the weekly summary |
 | `lib/app_controller.dart` | App state; glues detection → inbox → bubble → Splitwise |
 | `test/` | Parser, dedupe, split math, money and API-error tests |
 

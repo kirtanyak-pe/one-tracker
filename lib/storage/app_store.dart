@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../detection/detected_payment.dart';
+import '../history/split_record.dart';
 import '../splitwise/models.dart';
 
 /// Persistence shared by the main app and the floating bubble. The bubble
@@ -17,6 +18,7 @@ class AppStore {
   static const _groups = 'cached_groups';
   static const _currency = 'currency';
   static const _bubblePayment = 'bubble_payment';
+  static const _history = 'split_history';
 
   Future<String?> readApiKey() => _secure.read(key: _apiKey);
   Future<void> writeApiKey(String key) => _secure.write(key: _apiKey, value: key);
@@ -64,4 +66,19 @@ class AppStore {
 
   Future<void> writeBubblePayment(DetectedPayment payment) =>
       _prefs.setString(_bubblePayment, jsonEncode(payment.toJson()));
+
+  Future<List<SplitRecord>> readHistory() async {
+    final raw = await _prefs.getString(_history);
+    if (raw == null) return [];
+    return (jsonDecode(raw) as List)
+        .map((r) => SplitRecord.fromJson(r as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Newest first; capped so it never grows unbounded.
+  Future<List<SplitRecord>> addHistory(SplitRecord record) async {
+    final history = [record, ...await readHistory()].take(100).toList();
+    await _prefs.setString(_history, jsonEncode(history.map((r) => r.toJson()).toList()));
+    return history;
+  }
 }

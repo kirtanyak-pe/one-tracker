@@ -9,7 +9,9 @@ import '../detection/detected_payment.dart';
 import '../splitwise/models.dart';
 import '../splitwise/splitwise_api.dart';
 import '../storage/app_store.dart';
-import '../theme.dart';
+import '../history/split_record.dart';
+import '../ui/theme.dart';
+import '../ui/tokens.dart';
 import 'quick_split_card.dart';
 
 /// Main-app side: permission + opening the floating bubble.
@@ -35,7 +37,7 @@ class SplitBubble {
     final ratio =
         WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
     await FlutterOverlayWindow.showOverlay(
-      height: (300 * ratio).round(),
+      height: (380 * ratio).round(),
       width: WindowSize.matchParent,
       alignment: OverlayAlignment.bottomCenter,
       flag: OverlayFlag.defaultFlag,
@@ -109,7 +111,12 @@ class _BubbleState extends State<_Bubble> {
       currency: _currency,
     );
     await _store.removeFromInbox(payment.id);
-    Timer(const Duration(milliseconds: 1500), FlutterOverlayWindow.closeOverlay);
+    await _store.addHistory(SplitRecord(
+      amountMinor: payment.amountMinor,
+      description: payment.merchant ?? 'Payment',
+      withWhom: group.name,
+      at: DateTime.now(),
+    ));
   }
 
   @override
@@ -126,7 +133,7 @@ class _BubbleState extends State<_Bubble> {
       body: Align(
         alignment: Alignment.bottomCenter,
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(Space.md),
           child: payment == null
               ? const SizedBox.shrink()
               : QuickSplitCard(

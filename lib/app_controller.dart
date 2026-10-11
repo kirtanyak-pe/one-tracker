@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'detection/detected_payment.dart';
 import 'detection/payment_parser.dart';
 import 'detection/payment_watcher.dart';
+import 'history/split_record.dart';
 import 'overlay/split_bubble.dart';
 import 'splitwise/models.dart';
 import 'splitwise/split_math.dart';
@@ -22,6 +23,7 @@ class AppController extends ChangeNotifier {
   List<SwGroup> groups = [];
   List<SwUser> friends = [];
   List<DetectedPayment> inbox = [];
+  List<SplitRecord> history = [];
   String currency = 'INR';
   bool loading = true;
   String? error;
@@ -38,6 +40,7 @@ class AppController extends ChangeNotifier {
     final key = await _store.readApiKey();
     if (key != null) _api = HttpSplitwiseApi(key);
     inbox = await _store.readInbox();
+    history = await _store.readHistory();
     currency = await _store.readCurrency();
     await refreshPermissions();
     await refreshSplitwise();
@@ -105,9 +108,20 @@ class AppController extends ChangeNotifier {
     _addPayment(parsed, packageName);
   }
 
-  /// Pretends a ₹450 Swiggy payment just happened — for trying the flow.
-  void simulatePayment() =>
-      _addPayment(const ParsedPayment(45000, 'Swiggy'), 'demo', allowDuplicate: true);
+  static const _samples = [
+    ParsedPayment(45000, 'Swiggy'),
+    ParsedPayment(28640, 'Uber'),
+    ParsedPayment(112000, 'Blinkit'),
+    ParsedPayment(69000, 'Third Wave Coffee'),
+  ];
+  var _sampleIndex = 0;
+
+  /// Pretends a payment just happened — for trying the flow.
+  void simulatePayment() => _addPayment(
+        _samples[_sampleIndex++ % _samples.length],
+        'demo',
+        allowDuplicate: true,
+      );
 
   Future<void> _addPayment(
     ParsedPayment parsed,
@@ -152,7 +166,7 @@ class AppController extends ChangeNotifier {
       description: description,
       currency: currency,
     );
-    if (from != null) await dismiss(from);
+    await _recordSplit(amountMinor, description, group.name, from);
   }
 
   Future<void> splitWithFriends({
@@ -173,13 +187,48 @@ class AppController extends ChangeNotifier {
       description: description,
       currency: currency,
     );
-    if (from != null) await dismiss(from);
+    await _recordSplit(amountMinor, description, people.map((p) => p.firstName).join(', '), from);
   }
+
+  Future<void> _recordSplit(
+    int amountMinor,
+    String description,
+    String withWhom,
+    DetectedPayment? from,
+  ) async {
+    history = await _store.addHistory(SplitRecord(
+      amountMinor: amountMinor,
+      description: description,
+      withWhom: withWhom,
+      at: DateTime.now(),
+    ));
+    if (from != null) {
+      await dismiss(from);
+    } else {
+      notifyListeners();
+    }
+  }
+
+  /// Split this week, and what share of this week's payments got split.
+  ({int totalMinor, int count, double share}) get weekSummary {
+    final since = startOfWeek(DateTime.now());
+    final split = history.where((r) => !r.at.isBefore(since)).toList();
+    final waiting = inbox.where((p) => !p.detectedAt.isBefore(since)).length;
+    final all = split.length + waiting;
+    return (
+      totalMinor: split.fold(0, (sum, r) => sum + r.amountMinor),
+      count: split.length,
+      share: all == 0 ? 0 : split.length / all,
+    );
+  }
+
+  int get waitingMinor => inbox.fold(0, (sum, p) => sum + p.amountMinor);
 
   /// The bubble may have split or skipped things while we were away, and the
   /// user may have just granted a permission in system settings.
   Future<void> _onResume() async {
     inbox = await _store.readInbox();
+    history = await _store.readHistory();
     await refreshPermissions();
   }
 

@@ -17,11 +17,12 @@ int? parseMinor(String input) {
 String minorToDecimal(int minor) =>
     '${minor ~/ 100}.${(minor % 100).toString().padLeft(2, '0')}';
 
-/// 125050 → "₹1,250.50" for display.
+/// 125050 → "₹1,250.50", 45000 → "₹450" for display.
 String formatMoney(int minor, String currency) {
   final format = NumberFormat.simpleCurrency(
     locale: currency == 'INR' ? 'en_IN' : 'en_US',
     name: currency,
+    decimalDigits: minor % 100 == 0 ? 0 : 2,
   );
   return format.format(minor / 100);
 }

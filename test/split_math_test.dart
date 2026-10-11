@@ -35,6 +35,12 @@ void main() {
       expect(parseMinor('abc'), isNull);
     });
 
+    test('formatMoney drops .00 only for whole amounts', () {
+      expect(formatMoney(45000, 'INR'), '₹450');
+      expect(formatMoney(33333, 'INR'), '₹333.33');
+      expect(formatMoney(12500000, 'INR'), '₹1,25,000');
+    });
+
     test('minorToDecimal', () {
       expect(minorToDecimal(125050), '1250.50');
       expect(minorToDecimal(7), '0.07');

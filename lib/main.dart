@@ -4,7 +4,7 @@ import 'app_controller.dart';
 import 'overlay/split_bubble.dart';
 import 'screens/home_screen.dart';
 import 'storage/app_store.dart';
-import 'theme.dart';
+import 'ui/theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
