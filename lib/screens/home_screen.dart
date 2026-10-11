@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../app_controller.dart';
 import '../engine/recurring.dart';
 import '../engine/summary.dart';
-import '../model/category.dart';
 import '../money.dart';
 import '../ui/components.dart';
 import '../ui/format.dart';
@@ -13,7 +12,7 @@ import 'budgets_screen.dart';
 import 'rules_screen.dart';
 import 'settings_screen.dart';
 import 'shell.dart';
-import 'transactions_screen.dart';
+import 'categories_screen.dart';
 import 'widgets/month_switcher.dart';
 import 'widgets/review_card.dart';
 import 'widgets/txn_list.dart';
@@ -123,14 +122,6 @@ class HomeTab extends StatelessWidget {
                   ),
                 ],
               ),
-              if (upcoming.isNotEmpty) ...[
-                const SectionHeader('Coming up'),
-                _Upcoming(items: upcoming),
-              ],
-              if (m.byCategory.isNotEmpty) ...[
-                const SectionHeader('Where it went'),
-                _CategoryBreakdown(summary: m, budgets: app.budgets.byCategory),
-              ],
               SectionHeader(
                 'Recent',
                 trailing: m.items.isEmpty
@@ -144,6 +135,14 @@ class HomeTab extends StatelessWidget {
                 _Empty(app: app)
               else
                 TxnDayList(items: m.items.take(6).toList(), currency: appCurrency),
+              if (upcoming.isNotEmpty) ...[
+                const SectionHeader('Coming up'),
+                _Upcoming(items: upcoming),
+              ],
+              if (m.byCategory.isNotEmpty) ...[
+                const SizedBox(height: Space.xxxl),
+                _CategoriesLink(summary: m),
+              ],
             ],
           ),
         ),
@@ -318,75 +317,45 @@ class _Upcoming extends StatelessWidget {
   }
 }
 
-class _CategoryBreakdown extends StatelessWidget {
-  const _CategoryBreakdown({required this.summary, required this.budgets});
+/// One-line entry to the category breakdown (an L2 page).
+class _CategoriesLink extends StatelessWidget {
+  const _CategoriesLink({required this.summary});
 
   final MonthSummary summary;
-  final Map<Category, int> budgets;
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     final text = Theme.of(context).textTheme;
-    final top = summary.byCategory.first.amountMinor;
+    final top = summary.byCategory.first;
+    final n = summary.byCategory.length;
     return SurfaceCard(
-      padding: const EdgeInsets.symmetric(vertical: Space.sm),
-      child: Column(
+      onTap: () => push(context, const CategoriesScreen()),
+      padding: const EdgeInsets.fromLTRB(Space.lg, Space.lg, Space.md, Space.lg),
+      child: Row(
         children: [
-          for (final (i, c) in summary.byCategory.indexed)
-            InkWell(
-              onTap: () => push(context, TransactionsScreen.category(c.category)),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.md),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(color: t.tray, shape: BoxShape.circle),
-                      child: Icon(c.category.icon, size: 20, color: t.ink),
-                    ),
-                    const SizedBox(width: Space.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(child: Text(c.category.label, style: text.bodyMedium)),
-                              Text(
-                                [
-                                  formatMoney(c.amountMinor, appCurrency, round: true),
-                                  if (budgets[c.category] != null) formatCompact(budgets[c.category]!),
-                                ].join(' / '),
-                                style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: Space.sm),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(Radii.pill),
-                            child: LinearProgressIndicator(
-                              // Against its budget when there is one, else vs the top category.
-                              value: budgets[c.category] != null
-                                  ? (c.amountMinor / budgets[c.category]!).clamp(0, 1)
-                                  : c.amountMinor / top,
-                              minHeight: 4,
-                              backgroundColor: t.tray,
-                              color: budgets[c.category] != null && c.amountMinor >= budgets[c.category]!
-                                  ? Theme.of(context).colorScheme.error
-                                  : i == 0
-                                      ? t.accent
-                                      : t.ink,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(color: t.tray, shape: BoxShape.circle),
+            child: Icon(Icons.donut_small_outlined, size: 22, color: t.ink),
+          ),
+          const SizedBox(width: Space.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Where it went', style: text.titleMedium),
+                Text(
+                  '${top.category.label} leads · $n categor${n == 1 ? 'y' : 'ies'}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.bodySmall?.copyWith(color: t.muted),
                 ),
-              ),
+              ],
             ),
+          ),
+          Icon(Icons.chevron_right, color: t.muted),
         ],
       ),
     );

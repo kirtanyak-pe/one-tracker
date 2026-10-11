@@ -138,6 +138,9 @@ String? _counterparty(String t, Direction direction, String? vpa) {
   return vpa == null ? null : nameFromVpa(vpa);
 }
 
+/// Whether [name] passes today's payee-name rules (used when re-parsing).
+bool isUsableName(String name) => _usable(name);
+
 bool _usable(String raw) =>
     raw.trim().length >= 2 && !_notAName.hasMatch(raw.trim()) && RegExp(r'[A-Za-z]{2}').hasMatch(raw);
 

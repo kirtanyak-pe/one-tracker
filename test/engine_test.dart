@@ -182,6 +182,25 @@ void main() {
     });
   });
 
+  test('reparse fixes old payee names but keeps user edits', () {
+    final old = Txn(
+      id: 'x',
+      source: Source.sms,
+      direction: Direction.credit,
+      amountMinor: 1500000,
+      at: _t0,
+      counterparty: 'Rs', // saved by an older parser
+      raw: 'Your A/c XX7712 credited by Rs.15,000.00 on IMPS from A/c XX4821. Ref 6281',
+      userTags: const ['Moved'],
+      reviewed: true,
+    );
+    final fixed = reparse(old);
+    expect(fixed.counterparty, isNull);
+    expect(fixed.otherAccount, '4821');
+    expect(fixed.userTags, ['Moved']);
+    expect(fixed.reviewed, isTrue);
+  });
+
   group('ingest', () {
     test('UPI app notification + bank SMS become one transaction', () {
       final result = ingest(const [], [

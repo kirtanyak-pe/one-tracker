@@ -69,3 +69,36 @@ class RawMessage {
   }
   return (txns: txns, added: added);
 }
+
+/// Re-reads stored messages with the current parser, so parser fixes reach
+/// transactions saved before them. Your edits (category, kind, tags,
+/// reviewed) are kept; amount, direction and time never change.
+Txn reparse(Txn t) {
+  final raw = t.raw;
+  if (raw == null) return t;
+  final p = parseMessage(raw);
+  if (p == null || p.amountMinor != t.amountMinor || p.direction != t.direction) return t;
+  return Txn(
+    id: t.id,
+    source: t.source,
+    sourceId: t.sourceId,
+    direction: t.direction,
+    amountMinor: t.amountMinor,
+    at: t.at,
+    // Merged notification twins may have filled these; keep them if the
+    // new parse finds nothing.
+    counterparty: p.counterparty ??
+        (t.counterparty != null && isUsableName(t.counterparty!) ? t.counterparty : null),
+    vpa: p.vpa ?? t.vpa,
+    account: p.account ?? t.account,
+    otherAccount: p.otherAccount ?? t.otherAccount,
+    ref: p.ref ?? t.ref,
+    kindHint: p.kindHint ?? t.kindHint,
+    raw: raw,
+    sender: t.sender,
+    categoryOverride: t.categoryOverride,
+    kindOverride: t.kindOverride,
+    userTags: t.userTags,
+    reviewed: t.reviewed,
+  );
+}

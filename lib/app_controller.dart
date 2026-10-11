@@ -58,7 +58,8 @@ class AppController extends ChangeNotifier {
 
   Future<void> init() async {
     _lifecycle; // start listening for resume
-    _txns = await _store.readTxns();
+    // Apply any parser improvements to what's already stored.
+    _txns = (await _store.readTxns()).map(reparse).toList();
     rules = await _store.readRules();
     autoRules = await _store.readAutoRules();
     budgets = await _store.readBudgets();
