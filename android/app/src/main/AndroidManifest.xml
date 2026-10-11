@@ -36,6 +36,18 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
+        <!-- Home-screen spending widget -->
+        <receiver
+            android:name=".SpendWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/spend_widget_info" />
+        </receiver>
+
         <!-- Reads bank / UPI app notifications to detect payments -->
         <service
             android:label="Auto Spend payment detection"

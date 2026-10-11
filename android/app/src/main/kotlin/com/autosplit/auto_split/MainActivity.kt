@@ -26,6 +26,22 @@ class MainActivity : FlutterActivity() {
                             }
                         }.start()
                     }
+                    "pinWidget" -> {
+                        // Shows the launcher's own "Add widget?" confirmation.
+                        val manager = android.appwidget.AppWidgetManager.getInstance(this)
+                        val supported = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
+                            manager.isRequestPinAppWidgetSupported
+                        if (supported) {
+                            manager.requestPinAppWidget(
+                                android.content.ComponentName(this, SpendWidgetProvider::class.java), null, null,
+                            )
+                        }
+                        result.success(supported)
+                    }
+                    "widget" -> {
+                        SpendWidgetProvider.update(this, call.argument<String>("json") ?: "{}")
+                        result.success(null)
+                    }
                     else -> result.notImplemented()
                 }
             }

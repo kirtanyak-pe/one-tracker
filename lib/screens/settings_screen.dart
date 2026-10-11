@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_controller.dart';
+import '../sources/widget_bridge.dart';
 import '../ui/components.dart';
 import '../ui/format.dart';
 import '../ui/tokens.dart';
@@ -167,6 +168,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ],
                         ),
                       ),
+                    if (app.isAndroid) ...[
+                      const SectionHeader('Home screen'),
+                      SurfaceCard(
+                        padding: const EdgeInsets.fromLTRB(Space.lg, Space.md, Space.md, Space.md),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(color: t.tray, shape: BoxShape.circle),
+                              child: Icon(Icons.widgets_outlined, size: 20, color: t.ink),
+                            ),
+                            const SizedBox(width: Space.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Spending widget', style: text.titleMedium),
+                                  Text(
+                                    'Today, week or month at a glance',
+                                    style: text.bodySmall?.copyWith(color: t.muted),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            FilledButton(
+                              style: FilledButton.styleFrom(minimumSize: const Size(72, 44)),
+                              onPressed: () async {
+                                final messenger = ScaffoldMessenger.of(context);
+                                final ok = await WidgetBridge.requestPin();
+                                if (!ok) {
+                                  messenger.showSnackBar(const SnackBar(
+                                    content: Text('Long-press your home screen → Widgets → Auto Spend'),
+                                  ));
+                                }
+                              },
+                              child: const Text('Add'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SectionHeader('Data'),
                     SurfaceCard(
                       padding: const EdgeInsets.symmetric(vertical: Space.xs),

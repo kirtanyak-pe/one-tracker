@@ -8,6 +8,7 @@ import 'engine/ingest.dart';
 import 'engine/insights.dart';
 import 'engine/recurring.dart';
 import 'engine/summary.dart';
+import 'engine/widget_data.dart';
 import 'model/automation.dart';
 import 'model/category.dart';
 import 'model/transaction.dart';
@@ -16,6 +17,7 @@ import 'sources/notification_source.dart';
 import 'sources/notifier.dart';
 import 'sources/sample_data.dart';
 import 'sources/sms_source.dart';
+import 'sources/widget_bridge.dart';
 import 'storage/app_store.dart';
 
 /// App-wide state. Stores facts + user choices; [ledger] and [month] are
@@ -75,6 +77,7 @@ class AppController extends ChangeNotifier {
     }
     loading = false;
     notifyListeners();
+    await _pushWidget();
   }
 
   void _recompute() {
@@ -93,7 +96,10 @@ class AppController extends ChangeNotifier {
     notifyListeners();
     await _store.writeTxns(_txns);
     await _checkBudgets();
+    await _pushWidget();
   }
+
+  Future<void> _pushWidget() => WidgetBridge.push(widgetPeriods(ledger, budgets));
 
   /// Notifies once per month per threshold (80%, 100%).
   Future<void> _checkBudgets() async {

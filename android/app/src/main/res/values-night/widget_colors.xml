@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget colours mirror lib/ui/tokens.dart (dark). -->
+<resources>
+    <color name="widget_canvas">#121212</color>
+    <color name="widget_tray">#1C1C1C</color>
+    <color name="widget_card">#2A2A2A</color>
+    <color name="widget_ink">#F2F2F2</color>
+    <color name="widget_muted">#9A9A9A</color>
+    <color name="widget_accent">#DE6645</color>
+    <color name="widget_error">#F2B8B5</color>
+</resources>

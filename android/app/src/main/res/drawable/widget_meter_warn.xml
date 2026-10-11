@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Budget meter: tray track, warn fill (ink → accent at 80% → error over). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@android:id/background">
+        <shape><solid android:color="@color/widget_tray" /><corners android:radius="999dp" /></shape>
+    </item>
+    <item android:id="@android:id/progress">
+        <clip><shape><solid android:color="@color/widget_accent" /><corners android:radius="999dp" /></shape></clip>
+    </item>
+</layer-list>

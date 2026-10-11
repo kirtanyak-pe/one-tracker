@@ -49,6 +49,13 @@ UPI app notifications ─┘                                                   �
 - Biggest category changes vs last month, top payees, repeating payments,
   biggest payments.
 
+### Home-screen widget
+Spent today / this week / this month with a Today | Week | Month toggle on the
+widget itself (handled natively — instant, doesn't open the app). Month shows the
+budget bar when one is set. Figures refresh whenever the app runs; after a period
+ends without the app opening, it says "Open to refresh" instead of showing stale
+numbers. Add it from Settings → Home screen → Add, or the launcher's widget list.
+
 ### Navigation
 Home · Insights · Activity under a floating tab bar. Activity searches every
 month by payee, #tag, category or amount, with Spent / Big / Excluded / Income filters.
@@ -83,6 +90,8 @@ python3 tool/make_icon.py && dart run flutter_launcher_icons
 | `lib/engine/recurring.dart` | Repeating-payment detection |
 | `lib/ui/bar_chart.dart` | Single-series column chart (tap a bar for its value) |
 | `lib/sources/` | SMS inbox (native channel in `MainActivity.kt`), notifications, sample data |
+| `lib/engine/widget_data.dart` | Today/week/month figures for the widget |
+| `android/.../SpendWidgetProvider.kt` | The widget: renders figures, handles the period toggle |
 | `lib/ui/` | Design system — see `docs/DESIGN_STYLE.md` |
 | `test/` | Parser, detectors, dedupe and an end-to-end sample month |
 
