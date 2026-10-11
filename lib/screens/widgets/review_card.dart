@@ -159,7 +159,7 @@ class _ReviewCardState extends State<ReviewCard> {
                             child: FilledButton(
                               style: OnAccentButtonStyle.ghost(t),
                               onPressed: _busy ? null : () => _run((app) => app.setKind(e.txn, TxnKind.notExpense)),
-                              child: const Text('Not expense'),
+                              child: const OneLineLabel('Not expense'),
                             ),
                           ),
                           const SizedBox(width: Space.md),
@@ -167,7 +167,7 @@ class _ReviewCardState extends State<ReviewCard> {
                             child: FilledButton(
                               style: OnAccentButtonStyle.solid(t),
                               onPressed: _busy ? null : () => _run(_confirm),
-                              child: const Text('Expense'),
+                              child: const OneLineLabel('Expense'),
                             ),
                           ),
                         ],

@@ -52,7 +52,8 @@ final _ccBill = RegExp(
   r'received (?:a )?payment of .* (?:on|towards) your .*card',
   caseSensitive: false,
 );
-final _ccPayee = RegExp(r'^cred\b|cred club|credit ?card|cc ?bill', caseSensitive: false);
+// CRED is used to pay card bills ("ICICI Bank Cred", "cred.club@axisb").
+final _ccPayee = RegExp(r'\bcred\b|cred\.club|credit ?card|cc ?bill', caseSensitive: false);
 final _selfWords = RegExp(
   r'\b(self[ -]?transfer|to self|own account|between your accounts|to your own)\b',
   caseSensitive: false,
@@ -93,7 +94,7 @@ Ledger enrich(
       reason = 'You set this for all ${rule.label} payments';
     } else if ((reason = _selfReason(t, raw, own, profile.name, pairs)) != null) {
       kind = TxnKind.selfTransfer;
-    } else if (_ccBill.hasMatch(raw) || _ccPayee.hasMatch(t.counterparty ?? '')) {
+    } else if (_ccBill.hasMatch(raw) || _ccPayee.hasMatch('${t.counterparty ?? ''} ${t.vpa ?? ''}')) {
       kind = TxnKind.notExpense;
       reason = 'Credit card bill — the card spends are counted already';
     } else {

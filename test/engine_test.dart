@@ -114,6 +114,17 @@ void main() {
       expect(ledger.items.single.kind, TxnKind.notExpense);
     });
 
+    test('card bill paid through CRED is excluded', () {
+      final ledger = enrich(_ingest([
+        _sms('1', 'Rs.24516.85 debited from A/c XX4821 to ICICI Bank Cred. UPI Ref 6281'),
+        _sms('2', 'Rs.3000 debited from A/c XX4821 to VPA cred.club@axisb', minutes: 60),
+        _sms('3', 'Rs.300 debited from A/c XX4821 to VPA credible.store@ybl', minutes: 120),
+      ]));
+      expect(_one(ledger, 'sms-1').kind, TxnKind.notExpense);
+      expect(_one(ledger, 'sms-2').kind, TxnKind.notExpense);
+      expect(_one(ledger, 'sms-3').kind, TxnKind.expense);
+    });
+
     test('user override wins', () {
       final txns = _ingest([_sms('1', 'Rs.800.00 debited from A/c XX4821 to VPA meera.iyer@okaxis')]);
       final marked = [txns.single.copyWith(kindOverride: TxnKind.notExpense)];

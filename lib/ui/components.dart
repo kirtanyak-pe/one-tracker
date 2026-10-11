@@ -544,14 +544,19 @@ class AvatarStack extends StatelessWidget {
   }
 }
 
-/// Buttons that sit on an orange surface.
+/// Buttons that sit on an orange surface. Fixed white/ink in both themes —
+/// the orange doesn't change with dark mode, so neither do these.
 abstract final class OnAccentButtonStyle {
+  static const _ink = Color(0xFF111111);
+  static const _padding = EdgeInsets.symmetric(horizontal: Space.md);
+
   static ButtonStyle solid(AppTokens t) => FilledButton.styleFrom(
-        backgroundColor: t.card,
-        foregroundColor: const Color(0xFF111111),
+        backgroundColor: Colors.white,
+        foregroundColor: _ink,
         disabledBackgroundColor: Colors.white.withValues(alpha: 0.5),
-        disabledForegroundColor: const Color(0xFF111111).withValues(alpha: 0.5),
+        disabledForegroundColor: _ink.withValues(alpha: 0.5),
         minimumSize: const Size(64, 52),
+        padding: _padding,
         shape: const StadiumBorder(),
       );
 
@@ -559,8 +564,20 @@ abstract final class OnAccentButtonStyle {
         backgroundColor: Colors.white.withValues(alpha: 0.14),
         foregroundColor: t.onAccent,
         minimumSize: const Size(64, 52),
+        padding: _padding,
         shape: StadiumBorder(side: BorderSide(color: Colors.white.withValues(alpha: 0.45))),
       );
+}
+
+/// Button label that shrinks instead of wrapping at large system font sizes.
+class OneLineLabel extends StatelessWidget {
+  const OneLineLabel(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) =>
+      FittedBox(fit: BoxFit.scaleDown, child: Text(text, maxLines: 1, softWrap: false));
 }
 
 /// Concentric arcs in a corner, as on the reference tip card.
