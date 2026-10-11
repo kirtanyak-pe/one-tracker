@@ -20,12 +20,24 @@ int? parseMinor(String input) {
 String minorToDecimal(int minor) =>
     '${minor ~/ 100}.${(minor % 100).toString().padLeft(2, '0')}';
 
-/// 125050 → "₹1,250.50", 45000 → "₹450" for display.
-String formatMoney(int minor, String currency) {
+/// 125050 → "₹1,250.50", 45000 → "₹450" for display. [round] drops paise
+/// (hero numbers: "₹1,34,174").
+String formatMoney(int minor, String currency, {bool round = false}) {
+  final value = round ? (minor / 100).round() * 100 : minor;
   final format = NumberFormat.simpleCurrency(
     locale: currency == 'INR' ? 'en_IN' : 'en_US',
     name: currency,
-    decimalDigits: minor % 100 == 0 ? 0 : 2,
+    decimalDigits: value % 100 == 0 ? 0 : 2,
   );
-  return format.format(minor / 100);
+  return format.format(value / 100);
+}
+
+/// Short amounts for chart labels: ₹850, ₹1.2k, ₹45k, ₹1.3L, ₹2.1Cr.
+String formatCompact(int minor) {
+  final rupees = minor / 100;
+  String trim(double v) => v >= 10 ? v.round().toString() : v.toStringAsFixed(1).replaceAll('.0', '');
+  if (rupees >= 10000000) return '₹${trim(rupees / 10000000)}Cr';
+  if (rupees >= 100000) return '₹${trim(rupees / 100000)}L';
+  if (rupees >= 1000) return '₹${trim(rupees / 1000)}k';
+  return '₹${rupees.round()}';
 }

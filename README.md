@@ -35,6 +35,24 @@ UPI app notifications ─┘                                                   �
   ₹5,000, adjustable or off in Settings) get a "count it as an expense?" check.
   Picking a category there teaches it for that payee.
 
+### Automation
+- **Repeating payments** (rent, subscriptions, gym) are found automatically — same
+  payee, steady amount, monthly or weekly — with the next due date on Home.
+- **Budgets**: a monthly total and per-category limits; a phone notification at
+  80% and at 100%, once each per month.
+- **Keyword rules**: "anything mentioning *zerodha* → Not an expense",
+  "*canteen* → Food & drinks #Office". Applies to past and future payments.
+
+### Analysis (Insights tab)
+- Spend so far vs the same day last month, and the month-end projection.
+- Day-by-day chart with the daily average; 6-month trend.
+- Biggest category changes vs last month, top payees, repeating payments,
+  biggest payments.
+
+### Navigation
+Home · Insights · Activity under a floating tab bar. Activity searches every
+month by payee, #tag, category or amount, with Spent / Big / Excluded / Income filters.
+
 ## Try it
 
 - **Web preview:** loads sample bank SMS through the real pipeline.
@@ -50,6 +68,9 @@ UPI app notifications ─┘                                                   �
 | `lib/engine/enrich.dart` | Derives category/kind/tags; self-transfer and card-bill detection |
 | `lib/engine/ingest.dart` | Adds messages, skips re-reads, merges SMS + notification twins |
 | `lib/engine/summary.dart` | Monthly totals and category breakdown |
+| `lib/engine/insights.dart` | Pace, projection, daily/6-month series, movers, top payees, budget alerts |
+| `lib/engine/recurring.dart` | Repeating-payment detection |
+| `lib/ui/bar_chart.dart` | Single-series column chart (tap a bar for its value) |
 | `lib/sources/` | SMS inbox (native channel in `MainActivity.kt`), notifications, sample data |
 | `lib/ui/` | Design system — see `docs/DESIGN_STYLE.md` |
 | `test/` | Parser, detectors, dedupe and an end-to-end sample month |

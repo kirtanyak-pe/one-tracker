@@ -30,11 +30,22 @@ List<RawMessage> sampleMessages(DateTime now) {
     sms(7, 11, 20, 'VM-HDFCBK', 'Rs.12500.00 debited from A/c XX4821 towards your Credit Card bill payment XX9034. Ref 628193004200'),
     sms(8, 14, 5, 'VM-HDFCBK', 'Rs.320.00 debited from A/c XX4821 to VPA paytmqr28100505@paytm UPI Ref 528193004810'),
     sms(9, 19, 30, 'AD-ICICIB', 'INR 1,240.00 spent on ICICI Bank Card XX9034 at BOOKMYSHOW on date.'),
+    sms(9, 7, 0, 'AD-ICICIB', 'INR 1,500.00 spent on ICICI Bank Card XX9034 at CULTFIT on date.'),
     sms(10, 7, 50, 'VM-HDFCBK', 'Rs.599.00 debited from A/c XX4821 to VPA airtel@icici UPI Ref 528193004900 for Airtel recharge'),
     sms(11, 16, 0, 'VM-HDFCBK', 'Rs.450.00 credited to A/c XX4821 from VPA aarav.mehta@okaxis UPI Ref 528193005000'),
     sms(12, 13, 0, 'VM-HDFCBK', 'Rs.5000.00 debited from A/c XX4821 to VPA savings.me@okicici - Self Transfer. Ref 528193005100'),
     sms(13, 20, 0, 'VM-HDFCBK', '482913 is your OTP for payment of Rs 1,999 at AMAZON. Do not share.'),
     sms(14, 10, 30, 'AD-ICICIB', 'INR 2,350.00 spent on ICICI Bank Card XX9034 at APOLLO PHARMACY on date.'),
     sms(16, 12, 45, 'VM-HDFCBK', 'Rs.18000.00 debited from A/c XX4821 to VPA ramesh.kumar@oksbi UPI Ref 528193005300'),
+    // Earlier months — repeats (rent, Netflix, gym) and a spread for trends.
+    for (final m in [1, 2, 3, 4, 5]) ...[
+      sms(16 + 30 * m, 12, 45, 'VM-HDFCBK', 'Rs.18000.00 debited from A/c XX4821 to VPA ramesh.kumar@oksbi UPI Ref 52819300${m}301'),
+      sms(4 + 30 * m, 8, 10, 'VM-HDFCBK', 'Rs.649.00 debited from A/c XX4821 to VPA netflix.upi@icici. UPI Ref 52819300${m}601'),
+      sms(9 + 30 * m, 7, 0, 'AD-ICICIB', 'INR 1,500.00 spent on ICICI Bank Card XX9034 at CULTFIT on date.'),
+      sms(6 + 30 * m, 13, 20, 'VM-HDFCBK', 'Rs.${380 + m * 45}.00 debited from A/c XX4821 to VPA swiggy@icici UPI Ref 52819300${m}801'),
+      sms(12 + 30 * m, 19, 0, 'VM-HDFCBK', 'Rs.${900 + m * 310}.00 debited from A/c XX4821 to VPA bigbasket@hdfcbank UPI Ref 52819300${m}901'),
+      sms(21 + 30 * m, 18, 30, 'AD-ICICIB', 'INR ${(m.isEven ? 2400 : 5600)}.00 spent on ICICI Bank Card XX9034 at AMAZON on date.'),
+      sms(25 + 30 * m, 9, 15, 'AD-ICICIB', 'INR ${240 + m * 20}.00 spent on ICICI Bank Card XX9034 at UBER INDIA on date.'),
+    ],
   ];
 }

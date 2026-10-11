@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_controller.dart';
-import 'screens/home_screen.dart';
+import 'screens/shell.dart';
 import 'storage/app_store.dart';
 import 'ui/theme.dart';
 
@@ -24,7 +24,7 @@ class AutoSpendApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: buildTheme(Brightness.light),
           darkTheme: buildTheme(Brightness.dark),
-          home: const HomeScreen(),
+          home: const AppShell(),
         ),
       );
 }

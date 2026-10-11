@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
         <!-- Reads bank transaction SMS to track spending -->
     <uses-permission android:name="android.permission.READ_SMS" />
+    <!-- Budget alerts -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:label="Auto Spend"

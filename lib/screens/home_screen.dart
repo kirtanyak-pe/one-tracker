@@ -1,22 +1,28 @@
 import 'package:flutter/material.dart';
 
 import '../app_controller.dart';
+import '../engine/recurring.dart';
 import '../engine/summary.dart';
+import '../model/category.dart';
 import '../money.dart';
 import '../ui/components.dart';
 import '../ui/format.dart';
 import '../ui/tokens.dart';
 import 'add_expense_screen.dart';
+import 'budgets_screen.dart';
+import 'rules_screen.dart';
 import 'settings_screen.dart';
+import 'shell.dart';
 import 'transactions_screen.dart';
+import 'widgets/month_switcher.dart';
 import 'widgets/review_card.dart';
 import 'widgets/txn_list.dart';
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+void push(BuildContext context, Widget screen) =>
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
 
-  void _push(BuildContext context, Widget screen) =>
-      Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+class HomeTab extends StatelessWidget {
+  const HomeTab({super.key});
 
   Future<void> _scan(BuildContext context) async {
     final app = AppScope.of(context);
@@ -41,94 +47,104 @@ class HomeScreen extends StatelessWidget {
     final m = app.month;
     final review = app.toReview;
     final needsSetup = app.isAndroid && (!app.smsGranted || !app.notificationsGranted);
+    final upcoming = app.isCurrentMonth ? app.upcoming() : const <Recurring>[];
 
-    return Scaffold(
-      body: CanvasBackground(
-        child: SafeArea(
-          child: RefreshIndicator(
-            color: t.ink,
-            onRefresh: () => app.scanSms(),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(Space.gutter, Space.sm, Space.gutter, Space.xxxl),
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text('Auto Spend', style: text.titleMedium?.copyWith(color: t.muted)),
-                    ),
-                    if (app.scanning)
-                      Padding(
-                        padding: const EdgeInsets.only(right: Space.md),
-                        child: SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: t.muted),
-                        ),
+    return CanvasBackground(
+      child: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          color: t.ink,
+          onRefresh: () => app.scanSms(),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(Space.gutter, Space.sm, Space.gutter, navClearance),
+            children: [
+              Row(
+                children: [
+                  Expanded(child: Text('Auto Spend', style: text.titleMedium?.copyWith(color: t.muted))),
+                  if (app.scanning)
+                    Padding(
+                      padding: const EdgeInsets.only(right: Space.md),
+                      child: SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: t.muted),
                       ),
-                    CircleIconButton(
-                      icon: Icons.tune,
-                      tooltip: 'Settings',
-                      onPressed: () => _push(context, const SettingsScreen()),
                     ),
-                  ],
-                ),
-                const SizedBox(height: Space.xxl),
-                _MonthHeadline(app: app),
-                const SizedBox(height: Space.xxl),
-                if (review.isNotEmpty) ...[
-                  ReviewCard(queue: review, currency: appCurrency),
-                  const SizedBox(height: Space.xl),
+                  CircleIconButton(
+                    icon: Icons.tune,
+                    tooltip: 'Settings',
+                    onPressed: () => push(context, const SettingsScreen()),
+                  ),
                 ],
-                if (needsSetup) ...[
-                  _SetupTray(app: app),
-                  const SizedBox(height: Space.xl),
-                ],
-                Row(
-                  children: [
-                    Expanded(
-                      child: QuickAction(
-                        icon: Icons.add,
-                        label: 'Add',
-                        onTap: () => _push(context, const AddExpenseScreen()),
-                      ),
-                    ),
-                    const SizedBox(width: Space.sm),
-                    Expanded(
-                      child: QuickAction(
-                        icon: app.isAndroid ? Icons.sms_outlined : Icons.science_outlined,
-                        label: app.isAndroid ? 'Scan' : 'Samples',
-                        highlight: app.isAndroid && !app.smsGranted,
-                        onTap: () => _scan(context),
-                      ),
-                    ),
-                    const SizedBox(width: Space.sm),
-                    Expanded(
-                      child: QuickAction(
-                        icon: Icons.swap_horiz,
-                        label: 'Excluded',
-                        onTap: () => _push(context, const TransactionsScreen.excluded()),
-                      ),
-                    ),
-                    const SizedBox(width: Space.sm),
-                    Expanded(
-                      child: QuickAction(
-                        icon: Icons.south_west,
-                        label: 'Income',
-                        onTap: () => _push(context, const TransactionsScreen.income()),
-                      ),
-                    ),
-                  ],
-                ),
-                if (m.byCategory.isNotEmpty) ...[
-                  const SectionHeader('Where it went'),
-                  _CategoryBreakdown(summary: m),
-                ],
-                const SectionHeader('Transactions', top: Space.xxxl),
-                if (m.items.isEmpty)
-                  _Empty(app: app)
-                else
-                  TxnDayList(items: m.items, currency: appCurrency),
+              ),
+              const SizedBox(height: Space.xl),
+              _Headline(app: app),
+              const SizedBox(height: Space.xxl),
+              if (review.isNotEmpty) ...[
+                ReviewCard(queue: review, currency: appCurrency),
+                const SizedBox(height: Space.xl),
               ],
-            ),
+              if (needsSetup) ...[
+                _SetupTray(app: app),
+                const SizedBox(height: Space.xl),
+              ],
+              Row(
+                children: [
+                  Expanded(
+                    child: QuickAction(
+                      icon: Icons.add,
+                      label: 'Add',
+                      onTap: () => push(context, const AddExpenseScreen()),
+                    ),
+                  ),
+                  const SizedBox(width: Space.sm),
+                  Expanded(
+                    child: QuickAction(
+                      icon: app.isAndroid ? Icons.sms_outlined : Icons.science_outlined,
+                      label: app.isAndroid ? 'Scan' : 'Samples',
+                      highlight: app.isAndroid && !app.smsGranted,
+                      onTap: () => _scan(context),
+                    ),
+                  ),
+                  const SizedBox(width: Space.sm),
+                  Expanded(
+                    child: QuickAction(
+                      icon: Icons.donut_large_outlined,
+                      label: 'Budgets',
+                      onTap: () => push(context, const BudgetsScreen()),
+                    ),
+                  ),
+                  const SizedBox(width: Space.sm),
+                  Expanded(
+                    child: QuickAction(
+                      icon: Icons.auto_fix_high_outlined,
+                      label: 'Rules',
+                      onTap: () => push(context, const RulesScreen()),
+                    ),
+                  ),
+                ],
+              ),
+              if (upcoming.isNotEmpty) ...[
+                const SectionHeader('Coming up'),
+                _Upcoming(items: upcoming),
+              ],
+              if (m.byCategory.isNotEmpty) ...[
+                const SectionHeader('Where it went'),
+                _CategoryBreakdown(summary: m, budgets: app.budgets.byCategory),
+              ],
+              SectionHeader(
+                'Recent',
+                trailing: m.items.isEmpty
+                    ? null
+                    : TextButton(
+                        onPressed: () => AppShell.switchTo(context, 2),
+                        child: const Text('See all'),
+                      ),
+              ),
+              if (m.items.isEmpty)
+                _Empty(app: app)
+              else
+                TxnDayList(items: m.items.take(6).toList(), currency: appCurrency),
+            ],
           ),
         ),
       ),
@@ -136,8 +152,8 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _MonthHeadline extends StatelessWidget {
-  const _MonthHeadline({required this.app});
+class _Headline extends StatelessWidget {
+  const _Headline({required this.app});
 
   final AppController app;
 
@@ -146,47 +162,54 @@ class _MonthHeadline extends StatelessWidget {
     final t = context.tokens;
     final text = Theme.of(context).textTheme;
     final m = app.month;
+    final use = app.budgetUse;
+    final limit = app.budgets.monthlyMinor;
+
     return Column(
       children: [
-        Text(
-          formatMoney(m.spentMinor, appCurrency),
-          textAlign: TextAlign.center,
-          style: text.displaySmall?.copyWith(fontSize: 44),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            formatMoney(m.spentMinor, appCurrency, round: true),
+            style: text.displaySmall?.copyWith(fontSize: 48),
+          ),
         ),
         const SizedBox(height: Space.xs),
         Text(
           app.isCurrentMonth ? 'spent this month' : 'spent in ${monthName(m.month)}',
           style: text.bodyLarge?.copyWith(color: t.muted),
         ),
-        const SizedBox(height: Space.lg),
-        Container(
-          decoration: BoxDecoration(color: t.tray, borderRadius: BorderRadius.circular(Radii.pill)),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                tooltip: 'Previous month',
-                onPressed: () => app.shiftMonth(-1),
-                icon: const Icon(Icons.chevron_left),
+        if (use != null && limit != null) ...[
+          const SizedBox(height: Space.lg),
+          Semantics(
+            label: '${(use * 100).round()} percent of monthly budget used',
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(Radii.pill),
+              child: LinearProgressIndicator(
+                value: use.clamp(0, 1),
+                minHeight: 6,
+                backgroundColor: t.trayDeep,
+                // Meter colour carries severity: ink → accent at 80% → error over.
+                color: use >= 1 ? Theme.of(context).colorScheme.error : use >= 0.8 ? t.accent : t.ink,
               ),
-              SizedBox(
-                width: 132,
-                child: Text(monthLabel(m.month), textAlign: TextAlign.center, style: text.labelLarge),
-              ),
-              IconButton(
-                tooltip: 'Next month',
-                onPressed: app.isCurrentMonth ? null : () => app.shiftMonth(1),
-                icon: const Icon(Icons.chevron_right),
-              ),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(height: Space.sm),
+          Text(
+            use >= 1
+                ? '${formatMoney(m.spentMinor - limit, appCurrency, round: true)} over your ${formatCompact(limit)} budget'
+                : '${formatMoney(limit - m.spentMinor, appCurrency, round: true)} left of ${formatCompact(limit)}',
+            style: text.bodySmall?.copyWith(color: t.muted),
+          ),
+        ],
+        const SizedBox(height: Space.lg),
+        const MonthSwitcher(),
         if (m.excludedMinor > 0 || m.incomeMinor > 0) ...[
           const SizedBox(height: Space.md),
           Text(
             [
-              if (m.incomeMinor > 0) '${formatMoney(m.incomeMinor, appCurrency)} in',
-              if (m.excludedMinor > 0) '${formatMoney(m.excludedMinor, appCurrency)} excluded',
+              if (m.incomeMinor > 0) '${formatMoney(m.incomeMinor, appCurrency, round: true)} in',
+              if (m.excludedMinor > 0) '${formatMoney(m.excludedMinor, appCurrency, round: true)} excluded',
             ].join('  ·  '),
             style: text.bodySmall?.copyWith(color: t.muted),
           ),
@@ -213,10 +236,7 @@ class _SetupTray extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  smsFirst ? 'Read your bank SMS' : 'Catch payments instantly',
-                  style: text.titleMedium,
-                ),
+                Text(smsFirst ? 'Read your bank SMS' : 'Catch payments instantly', style: text.titleMedium),
                 const SizedBox(height: Space.xs),
                 Text(
                   smsFirst
@@ -239,10 +259,70 @@ class _SetupTray extends StatelessWidget {
   }
 }
 
+class _Upcoming extends StatelessWidget {
+  const _Upcoming({required this.items});
+
+  final List<Recurring> items;
+
+  static String due(DateTime d) {
+    final now = DateTime.now();
+    final days = DateTime(d.year, d.month, d.day).difference(DateTime(now.year, now.month, now.day)).inDays;
+    if (days < 0) return 'Due';
+    if (days == 0) return 'Today';
+    if (days == 1) return 'Tomorrow';
+    return 'In $days days';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    return SizedBox(
+      height: 124,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        itemCount: items.length,
+        separatorBuilder: (_, _) => const SizedBox(width: Space.md),
+        itemBuilder: (_, i) {
+          final r = items[i];
+          return SizedBox(
+            width: 160,
+            child: SurfaceCard(
+              padding: const EdgeInsets.all(Space.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(r.category.icon, size: 18, color: t.muted),
+                      const Spacer(),
+                      Text(due(r.nextDue), style: text.bodySmall?.copyWith(color: t.muted)),
+                    ],
+                  ),
+                  const Spacer(),
+                  Text(r.payee, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.titleMedium),
+                  Text(
+                    '${formatMoney(r.amountMinor, appCurrency)} · ${r.cadence.label.toLowerCase()}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.bodySmall?.copyWith(color: t.muted),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 class _CategoryBreakdown extends StatelessWidget {
-  const _CategoryBreakdown({required this.summary});
+  const _CategoryBreakdown({required this.summary, required this.budgets});
 
   final MonthSummary summary;
+  final Map<Category, int> budgets;
 
   @override
   Widget build(BuildContext context) {
@@ -255,10 +335,7 @@ class _CategoryBreakdown extends StatelessWidget {
         children: [
           for (final (i, c) in summary.byCategory.indexed)
             InkWell(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => TransactionsScreen.category(c.category)),
-              ),
+              onTap: () => push(context, TransactionsScreen.category(c.category)),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.md),
                 child: Row(
@@ -278,7 +355,10 @@ class _CategoryBreakdown extends StatelessWidget {
                             children: [
                               Expanded(child: Text(c.category.label, style: text.bodyMedium)),
                               Text(
-                                formatMoney(c.amountMinor, appCurrency),
+                                [
+                                  formatMoney(c.amountMinor, appCurrency, round: true),
+                                  if (budgets[c.category] != null) formatCompact(budgets[c.category]!),
+                                ].join(' / '),
                                 style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
                               ),
                             ],
@@ -287,11 +367,17 @@ class _CategoryBreakdown extends StatelessWidget {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(Radii.pill),
                             child: LinearProgressIndicator(
-                              value: c.amountMinor / top,
+                              // Against its budget when there is one, else vs the top category.
+                              value: budgets[c.category] != null
+                                  ? (c.amountMinor / budgets[c.category]!).clamp(0, 1)
+                                  : c.amountMinor / top,
                               minHeight: 4,
                               backgroundColor: t.tray,
-                              // Only the biggest category gets the accent.
-                              color: i == 0 ? t.accent : t.ink,
+                              color: budgets[c.category] != null && c.amountMinor >= budgets[c.category]!
+                                  ? Theme.of(context).colorScheme.error
+                                  : i == 0
+                                      ? t.accent
+                                      : t.ink,
                             ),
                           ),
                         ],

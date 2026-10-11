@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../model/automation.dart';
 import '../model/transaction.dart';
 
 /// Everything lives on the phone, in app storage.
@@ -12,6 +13,9 @@ class AppStore {
   static const _rules = 'rules_v1';
   static const _profile = 'profile_v1';
   static const _lastScan = 'last_sms_scan';
+  static const _autoRules = 'auto_rules_v1';
+  static const _budgets = 'budgets_v1';
+  static const _sentAlerts = 'sent_alerts_v1';
 
   Future<List<Txn>> readTxns() async {
     final raw = await _prefs.getString(_txns);
@@ -46,5 +50,27 @@ class AppStore {
 
   Future<void> writeLastScan(DateTime at) => _prefs.setInt(_lastScan, at.millisecondsSinceEpoch);
 
-  Future<void> clear() => _prefs.clear(allowList: {_txns, _rules, _profile, _lastScan});
+  Future<List<AutoRule>> readAutoRules() async {
+    final raw = await _prefs.getString(_autoRules);
+    if (raw == null) return [];
+    return (jsonDecode(raw) as List).map((j) => AutoRule.fromJson(j as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> writeAutoRules(List<AutoRule> rules) =>
+      _prefs.setString(_autoRules, jsonEncode(rules.map((r) => r.toJson()).toList()));
+
+  Future<Budgets> readBudgets() async {
+    final raw = await _prefs.getString(_budgets);
+    return raw == null ? const Budgets() : Budgets.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  }
+
+  Future<void> writeBudgets(Budgets budgets) => _prefs.setString(_budgets, jsonEncode(budgets.toJson()));
+
+  Future<Set<String>> readSentAlerts() async => ((await _prefs.getStringList(_sentAlerts)) ?? const []).toSet();
+
+  Future<void> writeSentAlerts(Set<String> keys) => _prefs.setStringList(_sentAlerts, keys.toList());
+
+  Future<void> clear() => _prefs.clear(
+        allowList: {_txns, _rules, _profile, _lastScan, _autoRules, _budgets, _sentAlerts},
+      );
 }

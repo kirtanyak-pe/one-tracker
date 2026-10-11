@@ -46,7 +46,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final t = context.tokens;
     final text = Theme.of(context).textTheme;
     final accounts = app.knownAccounts.toList()..sort();
-    final rules = app.rules.values.toList()..sort((a, b) => a.label.compareTo(b.label));
 
     return Scaffold(
       body: CanvasBackground(
@@ -135,52 +134,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ],
                       ),
                     ),
-                    const SectionHeader('Remembered payees'),
-                    if (rules.isEmpty)
-                      Tray(
-                        child: Text(
-                          'When you set something "Same for all" on a transaction, it shows up here.',
-                          style: text.bodyMedium?.copyWith(color: t.muted),
-                        ),
-                      )
-                    else
-                      SurfaceCard(
-                        padding: const EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.xs),
-                        child: Column(
-                          children: [
-                            for (final (i, r) in rules.indexed) ...[
-                              if (i > 0) Divider(height: 1, color: t.tray),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: Space.md),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(r.label, style: text.titleMedium),
-                                          Text(
-                                            [
-                                              if (r.category != null) r.category!.label,
-                                              if (r.kind != null) r.kind!.label,
-                                            ].join(' · '),
-                                            style: text.bodySmall?.copyWith(color: t.muted),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    tooltip: 'Forget',
-                                    icon: const Icon(Icons.close),
-                                    onPressed: () => app.forget(r.key),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
                     const SectionHeader('Sources'),
                     if (!app.isAndroid)
                       Tray(

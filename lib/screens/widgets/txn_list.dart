@@ -9,11 +9,14 @@ import '../transaction_screen.dart';
 
 /// Transactions grouped into one white card per day.
 class TxnDayList extends StatelessWidget {
-  const TxnDayList({super.key, required this.items, required this.currency});
+  const TxnDayList({super.key, required this.items, required this.currency, this.grouped = true});
 
   /// Newest first.
   final List<Enriched> items;
   final String currency;
+
+  /// False shows one card with no day headers (e.g. "Biggest payments").
+  final bool grouped;
 
   @override
   Widget build(BuildContext context) {
@@ -21,17 +24,18 @@ class TxnDayList extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final days = <String, List<Enriched>>{};
     for (final e in items) {
-      days.putIfAbsent(dayLabel(e.txn.at), () => []).add(e);
+      days.putIfAbsent(grouped ? dayLabel(e.txn.at) : '', () => []).add(e);
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (final day in days.entries) ...[
-          Padding(
+          if (grouped)
+            Padding(
             padding: const EdgeInsets.fromLTRB(Space.xs, Space.lg, Space.xs, Space.sm),
-            child: Text(day.key, style: text.bodySmall?.copyWith(color: t.muted)),
-          ),
+              child: Text(day.key, style: text.bodySmall?.copyWith(color: t.muted)),
+            ),
           Container(
             decoration: BoxDecoration(
               color: t.card,

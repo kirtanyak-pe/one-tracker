@@ -1,3 +1,4 @@
+import '../model/automation.dart';
 import '../model/category.dart';
 import '../model/transaction.dart';
 import 'classify.dart';
@@ -61,11 +62,14 @@ final _selfWords = RegExp(
 final _atm = RegExp(r'\batm\b|cash withdrawal', caseSensitive: false);
 
 /// Derives category, kind and tags for every transaction from the stored
-/// facts, the user's payee rules and profile. Pure — call it after any change.
+/// facts, the user's rules and profile. Pure — call it after any change.
+///
+/// Precedence: this payment's override > payee rule > keyword rule > detectors.
 Ledger enrich(
   List<Txn> txns, {
   Profile profile = const Profile(),
   Map<String, PayeeRule> rules = const {},
+  List<AutoRule> autoRules = const [],
 }) {
   final own = {
     for (final t in txns)
@@ -78,11 +82,16 @@ Ledger enrich(
   for (final t in txns) {
     final raw = t.raw ?? '';
     final rule = rules[payeeKey(t)];
+    final haystack = '${t.counterparty ?? ''} ${t.vpa ?? ''} $raw';
+    final auto = autoRules.where((r) => r.matches(haystack)).toList();
+    final autoCategoryRule = auto.where((r) => r.category != null).firstOrNull;
+    final autoKindRule = auto.where((r) => r.kind != null).firstOrNull;
     final kindOfPayee = counterpartyKind(t);
     final atm = _atm.hasMatch(raw);
 
     final category = t.categoryOverride ??
         rule?.category ??
+        autoCategoryRule?.category ??
         autoCategory(t, atm: atm);
 
     TxnKind kind;
@@ -92,6 +101,9 @@ Ledger enrich(
     } else if (rule?.kind != null) {
       kind = rule!.kind!;
       reason = 'You set this for all ${rule.label} payments';
+    } else if (autoKindRule != null) {
+      kind = autoKindRule.kind!;
+      reason = 'Your rule for "${autoKindRule.contains}"';
     } else if ((reason = _selfReason(t, raw, own, profile.name, pairs)) != null) {
       kind = TxnKind.selfTransfer;
     } else if (_ccBill.hasMatch(raw) || _ccPayee.hasMatch('${t.counterparty ?? ''} ${t.vpa ?? ''}')) {
@@ -103,6 +115,9 @@ Ledger enrich(
 
     final payee = t.counterparty ??
         (t.vpa != null ? nameFromVpa(t.vpa!) : null) ??
+        (t.otherAccount != null
+            ? '${t.direction == Direction.debit ? 'To' : 'From'} A/c ••${t.otherAccount}'
+            : null) ??
         (atm ? 'ATM' : t.direction == Direction.credit ? 'Money received' : 'Payment');
 
     items.add(Enriched(
@@ -112,7 +127,12 @@ Ledger enrich(
       kind: kind,
       reason: reason,
       counterpartyKind: kindOfPayee,
-      tags: {payee, ...t.userTags}.toList(),
+      tags: {
+        payee,
+        ...t.userTags,
+        for (final r in auto)
+          if (r.tag != null && r.tag!.isNotEmpty) r.tag!,
+      }.toList(),
       // Every payment counts as an expense by default; only big ones get
       // a check, and only until the user has touched them or the payee.
       needsReview: profile.reviewAboveMinor != null &&
@@ -122,7 +142,8 @@ Ledger enrich(
           !t.reviewed &&
           t.kindOverride == null &&
           t.categoryOverride == null &&
-          rule == null,
+          rule == null &&
+          auto.isEmpty,
     ));
   }
 

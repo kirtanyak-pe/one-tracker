@@ -223,7 +223,7 @@ void main() {
     expect(txns.any((t) => t.raw!.contains('OTP')), isFalse);
     expect(month.byCategory.first.category, isNotNull);
     expect(month.spentMinor, greaterThan(0));
-    // Only expenses above ₹5,000 are asked about.
-    expect(ledger.items.where((e) => e.needsReview).map((e) => e.payee), ['Ramesh Kumar']);
+    // Only expenses above ₹5,000 are asked about: the rent and two Amazon orders.
+    expect(ledger.items.where((e) => e.needsReview).map((e) => e.payee).toSet(), {'Ramesh Kumar', 'Amazon'});
   });
 }

@@ -86,6 +86,12 @@ void main() {
       expect(p.counterparty, 'Zomato');
     });
 
+    test('"credited by Rs…" is not a payee called Rs', () {
+      final p = parseMessage('Your A/c XX7712 credited by Rs.15,000.00 on IMPS from A/c XX4821. Ref 6281')!;
+      expect(p.counterparty, isNull);
+      expect(p.otherAccount, '4821');
+    });
+
     test('refund', () {
       final p = parseMessage('Refund of Rs 499 credited to your A/c XX4821 from AMAZON')!;
       expect(p.direction, Direction.credit);
@@ -105,6 +111,12 @@ void main() {
     ]) {
       test(text, () => expect(parseMessage(text), isNull));
     }
+  });
+
+  test('keeps acronyms in shouty names', () {
+    expect(tidyName('SBI ATM'), 'SBI ATM');
+    expect(tidyName('ICICI BANK CRED'), 'ICICI Bank Cred');
+    expect(tidyName('UBER INDIA'), 'Uber India');
   });
 
   test('nameFromVpa', () {

@@ -5,10 +5,15 @@ import 'package:flutter/widgets.dart';
 import 'engine/classify.dart';
 import 'engine/enrich.dart';
 import 'engine/ingest.dart';
+import 'engine/insights.dart';
+import 'engine/recurring.dart';
 import 'engine/summary.dart';
+import 'model/automation.dart';
 import 'model/category.dart';
 import 'model/transaction.dart';
+import 'money.dart';
 import 'sources/notification_source.dart';
+import 'sources/notifier.dart';
 import 'sources/sample_data.dart';
 import 'sources/sms_source.dart';
 import 'storage/app_store.dart';
@@ -24,10 +29,15 @@ class AppController extends ChangeNotifier {
 
   List<Txn> _txns = [];
   Map<String, PayeeRule> rules = {};
+  List<AutoRule> autoRules = [];
+  Budgets budgets = const Budgets();
+  Set<String> _sentAlerts = {};
   Profile profile = const Profile();
   Ledger ledger = Ledger.empty;
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
   late MonthSummary month = summarize(ledger, _month);
+  late Insights insights = buildInsights(ledger, _month);
+  List<Recurring> recurring = [];
 
   bool loading = true;
   bool scanning = false;
@@ -50,6 +60,9 @@ class AppController extends ChangeNotifier {
     _lifecycle; // start listening for resume
     _txns = await _store.readTxns();
     rules = await _store.readRules();
+    autoRules = await _store.readAutoRules();
+    budgets = await _store.readBudgets();
+    _sentAlerts = await _store.readSentAlerts();
     profile = await _store.readProfile();
     lastScan = await _store.readLastScan();
     _recompute();
@@ -64,14 +77,48 @@ class AppController extends ChangeNotifier {
   }
 
   void _recompute() {
-    ledger = enrich(_txns, profile: profile, rules: rules);
+    ledger = enrich(_txns, profile: profile, rules: rules, autoRules: autoRules);
+    _recomputeMonth();
+    recurring = findRecurring(ledger);
+  }
+
+  void _recomputeMonth() {
     month = summarize(ledger, _month);
+    insights = buildInsights(ledger, _month);
   }
 
   Future<void> _save() async {
     _recompute();
     notifyListeners();
     await _store.writeTxns(_txns);
+    await _checkBudgets();
+  }
+
+  /// Notifies once per month per threshold (80%, 100%).
+  Future<void> _checkBudgets() async {
+    if (budgets.isEmpty) return;
+    final now = DateTime.now();
+    final current = summarize(ledger, DateTime(now.year, now.month));
+    final alerts = budgetAlerts(current, budgets, _sentAlerts, money: (m) => formatMoney(m, appCurrency));
+    if (alerts.isEmpty) return;
+    for (final a in alerts) {
+      await Notifier.show(a.key.hashCode & 0x7fffffff, a.title, a.body);
+      _sentAlerts.add(a.key);
+    }
+    await _store.writeSentAlerts(_sentAlerts);
+  }
+
+  /// This month's spend vs the monthly budget, 0..1+ (null if no budget).
+  double? get budgetUse {
+    final limit = budgets.monthlyMinor;
+    if (limit == null || limit == 0) return null;
+    return month.spentMinor / limit;
+  }
+
+  /// Recurring payments due in the next [days] days.
+  List<Recurring> upcoming({int days = 14}) {
+    final until = DateTime.now().add(Duration(days: days));
+    return recurring.where((r) => r.nextDue.isBefore(until)).toList();
   }
 
   // ── Sources ──────────────────────────────────────────────────────────
@@ -140,7 +187,7 @@ class AppController extends ChangeNotifier {
     final now = DateTime.now();
     if (next.isAfter(DateTime(now.year, now.month))) return;
     _month = next;
-    month = summarize(ledger, _month);
+    _recomputeMonth();
     notifyListeners();
   }
 
@@ -238,6 +285,28 @@ class AppController extends ChangeNotifier {
     await _save();
   }
 
+  // ── Automation ───────────────────────────────────────────────────────
+
+  Future<void> saveAutoRule(AutoRule rule) async {
+    autoRules = [...autoRules.where((r) => r.id != rule.id), rule];
+    await _store.writeAutoRules(autoRules);
+    await _save();
+  }
+
+  Future<void> removeAutoRule(String id) async {
+    autoRules = autoRules.where((r) => r.id != id).toList();
+    await _store.writeAutoRules(autoRules);
+    await _save();
+  }
+
+  Future<void> setBudgets(Budgets next) async {
+    final adding = budgets.isEmpty && !next.isEmpty;
+    budgets = next;
+    await _store.writeBudgets(budgets);
+    if (adding) await Notifier.requestPermission();
+    await _save();
+  }
+
   /// Null turns the big-payment check off.
   Future<void> setReviewAbove(int? minor) async {
     profile = profile.copyWith(reviewAboveMinor: minor, neverReview: minor == null);
@@ -252,6 +321,9 @@ class AppController extends ChangeNotifier {
     await _store.clear();
     _txns = [];
     rules = {};
+    autoRules = [];
+    budgets = const Budgets();
+    _sentAlerts = {};
     profile = const Profile();
     lastScan = null;
     await _save();

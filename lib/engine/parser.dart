@@ -77,7 +77,7 @@ final _counterpartyCredit = [
   _re('\\b(?:from|by)\\s+([A-Za-z][^.,;!\\n(]*?)$_stop'),
 ];
 
-final _notAName = _re(r'^(?:your|you|a/?c|ac|acct|account|card|vpa|upi|the|self|bank|beneficiary|mobile|net ?banking|imps|neft|rtgs)\b');
+final _notAName = _re(r'^(?:your|you|a/?c|ac|acct|account|card|vpa|upi|the|self|bank|beneficiary|mobile|net ?banking|imps|neft|rtgs|rs|inr|amount|amt)\b');
 
 /// Parses a bank SMS / payment notification. Null when it isn't a completed
 /// debit or credit.
@@ -176,8 +176,14 @@ String tidyName(String raw) {
   if (name.length > 40) name = name.substring(0, 40).trim();
   final shouty = name == name.toUpperCase() || name == name.toLowerCase();
   if (!shouty) return name;
-  return name
-      .split(' ')
-      .map((w) => w.length <= 1 ? w.toUpperCase() : w[0].toUpperCase() + w.substring(1).toLowerCase())
-      .join(' ');
+  return name.split(' ').map((w) {
+    if (w.length <= 1 || _acronyms.contains(w.toUpperCase())) return w.toUpperCase();
+    return w[0].toUpperCase() + w.substring(1).toLowerCase();
+  }).join(' ');
 }
+
+const _acronyms = {
+  'ATM', 'SBI', 'HDFC', 'ICICI', 'PNB', 'BOB', 'IDFC', 'IDBI', 'UPI', 'NEFT', 'IMPS', 'RTGS',
+  'KFC', 'LIC', 'IRCTC', 'BSNL', 'DTH', 'HPCL', 'BPCL', 'IOCL', 'PVR', 'OYO', 'ACT', 'EMI',
+  'GST', 'NSE', 'BSE', 'SIP', 'BMTC', 'BEST', 'DMRC', 'IGL', 'MGL', 'BBMP',
+};
