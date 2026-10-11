@@ -29,7 +29,7 @@ class Enriched {
   final CounterpartyKind counterpartyKind;
   final List<String> tags;
 
-  /// Unsure about this one — worth a quick look from the user.
+  /// A big payment the user hasn't confirmed yet.
   final bool needsReview;
 
   bool get countsAsSpend => kind == TxnKind.expense && txn.direction == Direction.debit;
@@ -112,12 +112,16 @@ Ledger enrich(
       reason: reason,
       counterpartyKind: kindOfPayee,
       tags: {payee, ...t.userTags}.toList(),
-      needsReview: !t.reviewed &&
+      // Every payment counts as an expense by default; only big ones get
+      // a check, and only until the user has touched them or the payee.
+      needsReview: profile.reviewAboveMinor != null &&
+          t.amountMinor > profile.reviewAboveMinor! &&
+          t.direction == Direction.debit &&
+          kind == TxnKind.expense &&
+          !t.reviewed &&
           t.kindOverride == null &&
           t.categoryOverride == null &&
-          rule == null &&
-          kind == TxnKind.expense &&
-          (category == Category.other || category == Category.people),
+          rule == null,
     ));
   }
 

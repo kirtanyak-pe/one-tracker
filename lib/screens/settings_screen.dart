@@ -112,6 +112,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ],
                       ),
                     ),
+                    const SectionHeader('Big payments'),
+                    Tray(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Every payment counts as an expense. Ask me only about payments above:',
+                            style: text.bodyMedium,
+                          ),
+                          const SizedBox(height: Space.md),
+                          PillSegmented<int>(
+                            options: const {
+                              200000: '₹2k',
+                              500000: '₹5k',
+                              1000000: '₹10k',
+                              -1: 'Never',
+                            },
+                            value: app.profile.reviewAboveMinor ?? -1,
+                            onChanged: (v) => app.setReviewAbove(v == -1 ? null : v),
+                          ),
+                        ],
+                      ),
+                    ),
                     const SectionHeader('Remembered payees'),
                     if (rules.isEmpty)
                       Tray(

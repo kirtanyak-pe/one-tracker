@@ -225,7 +225,7 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> setName(String name) async {
-    profile = Profile(name: name, ignoredAccounts: profile.ignoredAccounts);
+    profile = profile.copyWith(name: name);
     await _store.writeProfile(profile);
     await _save();
   }
@@ -233,7 +233,14 @@ class AppController extends ChangeNotifier {
   Future<void> toggleAccount(String last4) async {
     final ignored = {...profile.ignoredAccounts};
     if (!ignored.remove(last4)) ignored.add(last4);
-    profile = Profile(name: profile.name, ignoredAccounts: ignored);
+    profile = profile.copyWith(ignoredAccounts: ignored);
+    await _store.writeProfile(profile);
+    await _save();
+  }
+
+  /// Null turns the big-payment check off.
+  Future<void> setReviewAbove(int? minor) async {
+    profile = profile.copyWith(reviewAboveMinor: minor, neverReview: minor == null);
     await _store.writeProfile(profile);
     await _save();
   }

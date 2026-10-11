@@ -9,8 +9,8 @@ import '../../ui/components.dart';
 import '../../ui/format.dart';
 import '../../ui/tokens.dart';
 
-/// The one orange moment: payments the app isn't sure about (paid to a
-/// person, or no category), one at a time.
+/// The one orange moment: big payments (above the threshold in Settings),
+/// one at a time. Everything else counts as an expense without asking.
 class ReviewCard extends StatefulWidget {
   const ReviewCard({super.key, required this.queue, required this.currency});
 
@@ -98,7 +98,7 @@ class _ReviewCardState extends State<ReviewCard> {
                 top: Space.lg,
                 left: Space.xl,
                 child: Text(
-                  '${widget.queue.length} to check',
+                  widget.queue.length == 1 ? '1 big payment' : '${widget.queue.length} big payments',
                   style: text.bodySmall?.copyWith(color: t.onAccent, fontWeight: FontWeight.w600),
                 ),
               ),
@@ -120,7 +120,7 @@ class _ReviewCardState extends State<ReviewCard> {
                       ),
                       const SizedBox(height: Space.xs),
                       Text(
-                        'to ${e.payee} · ${dayLabel(e.txn.at)}',
+                        'to ${e.payee} · ${dayLabel(e.txn.at)}\nCount it as an expense?',
                         textAlign: TextAlign.center,
                         maxLines: 2,
                         style: text.bodyLarge?.copyWith(color: t.onAccent, fontWeight: FontWeight.w600),
@@ -167,7 +167,7 @@ class _ReviewCardState extends State<ReviewCard> {
                             child: FilledButton(
                               style: OnAccentButtonStyle.solid(t),
                               onPressed: _busy ? null : () => _run(_confirm),
-                              child: const Text('Looks right'),
+                              child: const Text('Expense'),
                             ),
                           ),
                         ],

@@ -118,7 +118,6 @@ void main() {
       final txns = _ingest([_sms('1', 'Rs.800.00 debited from A/c XX4821 to VPA meera.iyer@okaxis')]);
       final marked = [txns.single.copyWith(kindOverride: TxnKind.notExpense)];
       expect(enrich(marked).items.single.kind, TxnKind.notExpense);
-      expect(enrich(marked).items.single.needsReview, isFalse);
     });
 
     test('payee rule applies to every payment to that payee', () {
@@ -140,6 +139,36 @@ void main() {
     ]);
     expect(txns[0].counterparty, txns[1].counterparty);
     expect(payeeKey(txns[0]), isNot(payeeKey(txns[1])));
+  });
+
+  group('big-payment check', () {
+    List<Txn> payments() => _ingest([
+          _sms('small', 'Rs.4999 debited from A/c XX4821 to VPA meera.iyer@okaxis'),
+          _sms('edge', 'Rs.5000 debited from A/c XX4821 to VPA swiggy@icici', minutes: 10),
+          _sms('big', 'Rs.5001 debited from A/c XX4821 to VPA swiggy@icici', minutes: 20),
+          _sms('in', 'Rs.9000 credited to A/c XX4821 from VPA aarav@okaxis', minutes: 30),
+        ]);
+
+    test('everything is an expense, only > ₹5,000 asks', () {
+      final ledger = enrich(payments());
+      expect(_one(ledger, 'sms-small').kind, TxnKind.expense);
+      expect(_one(ledger, 'sms-small').needsReview, isFalse);
+      expect(_one(ledger, 'sms-edge').needsReview, isFalse);
+      expect(_one(ledger, 'sms-big').needsReview, isTrue);
+      expect(_one(ledger, 'sms-in').needsReview, isFalse);
+    });
+
+    test('threshold is adjustable and can be off', () {
+      expect(_one(enrich(payments(), profile: const Profile(reviewAboveMinor: 200000)), 'sms-small').needsReview,
+          isTrue);
+      expect(enrich(payments(), profile: const Profile(reviewAboveMinor: null)).items.where((e) => e.needsReview),
+          isEmpty);
+    });
+
+    test('older profiles without the setting default to ₹5,000', () {
+      expect(Profile.fromJson({'name': 'A'}).reviewAboveMinor, 500000);
+      expect(Profile.fromJson(const Profile(reviewAboveMinor: null).toJson()).reviewAboveMinor, isNull);
+    });
   });
 
   group('ingest', () {
@@ -183,7 +212,7 @@ void main() {
     expect(txns.any((t) => t.raw!.contains('OTP')), isFalse);
     expect(month.byCategory.first.category, isNotNull);
     expect(month.spentMinor, greaterThan(0));
-    expect(ledger.items.where((e) => e.needsReview).map((e) => e.payee),
-        containsAll(['Rahul Sharma', 'Meera Iyer', 'Ramesh Kumar']));
+    // Only expenses above ₹5,000 are asked about.
+    expect(ledger.items.where((e) => e.needsReview).map((e) => e.payee), ['Ramesh Kumar']);
   });
 }

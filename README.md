@@ -31,8 +31,9 @@ UPI app notifications ─┘                                                   �
 - **Leaves out credit-card bill payments** — the card spends are already counted.
 - **You can override anything**: mark *Not expense* / *Self transfer*, change the
   category, add tags, or set "Same for all <payee>" to make it a rule.
-- **Review card** asks about payments it's unsure of (paid to a person, or no
-  category). Picking a category there teaches it for that payee.
+- **Every payment counts as an expense automatically.** Only big ones (above
+  ₹5,000, adjustable or off in Settings) get a "count it as an expense?" check.
+  Picking a category there teaches it for that payee.
 
 ## Try it
 

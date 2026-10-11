@@ -185,7 +185,14 @@ class PayeeRule {
 
 /// Things the detectors need to know about you.
 class Profile {
-  const Profile({this.name = '', this.ignoredAccounts = const {}});
+  const Profile({
+    this.name = '',
+    this.ignoredAccounts = const {},
+    this.reviewAboveMinor = defaultReviewAbove,
+  });
+
+  /// ₹5,000 — payments above this get a "was this an expense?" check.
+  static const defaultReviewAbove = 500000;
 
   /// Your name as banks print it — payments to it are self transfers.
   final String name;
@@ -193,10 +200,32 @@ class Profile {
   /// Learned accounts the user said aren't theirs.
   final Set<String> ignoredAccounts;
 
+  /// Expenses above this are shown on the review card; null = never ask.
+  final int? reviewAboveMinor;
+
+  Profile copyWith({
+    String? name,
+    Set<String>? ignoredAccounts,
+    int? reviewAboveMinor,
+    bool neverReview = false,
+  }) =>
+      Profile(
+        name: name ?? this.name,
+        ignoredAccounts: ignoredAccounts ?? this.ignoredAccounts,
+        reviewAboveMinor: neverReview ? null : reviewAboveMinor ?? this.reviewAboveMinor,
+      );
+
   factory Profile.fromJson(Map<String, dynamic> j) => Profile(
         name: (j['name'] as String?) ?? '',
         ignoredAccounts: ((j['ignoredAccounts'] as List?) ?? const []).cast<String>().toSet(),
+        reviewAboveMinor: j.containsKey('reviewAboveMinor')
+            ? j['reviewAboveMinor'] as int?
+            : defaultReviewAbove,
       );
 
-  Map<String, dynamic> toJson() => {'name': name, 'ignoredAccounts': ignoredAccounts.toList()};
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'ignoredAccounts': ignoredAccounts.toList(),
+        'reviewAboveMinor': reviewAboveMinor,
+      };
 }
