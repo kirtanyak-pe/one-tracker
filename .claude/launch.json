@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "auto_split",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd ~/auto_split && flutter build web && cd build/web && python3 -m http.server 8096"
+      ],
+      "port": 8096
+    }
+  ]
+}
