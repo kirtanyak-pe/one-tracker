@@ -59,6 +59,17 @@ month by payee, #tag, category or amount, with Spent / Big / Excluded / Income f
 - **Android:** `flutter run`, or `adb install -r build/app/outputs/flutter-apk/app-debug.apk`.
   Allow SMS access from the home screen; notification access is optional.
 
+## App icon
+
+Rendered from the design tokens by `tool/make_icon.py` (needs Pillow): an orange
+background lit top-right with the review card's arcs, and a white ₹ coin in a
+soft halo — the app's accent orb. Adaptive (foreground/background) and
+monochrome (themed) layers included. Regenerate:
+
+```
+python3 tool/make_icon.py && dart run flutter_launcher_icons
+```
+
 ## Code map
 
 | Path | What |
