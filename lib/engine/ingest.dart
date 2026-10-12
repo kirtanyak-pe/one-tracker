@@ -21,10 +21,10 @@ class RawMessage {
 /// Parses [messages] into transactions and merges them into [existing].
 /// The same payment often arrives twice (UPI app notification + bank SMS);
 /// those are merged into one, keeping the richer facts.
-({List<Txn> txns, int added}) ingest(List<Txn> existing, Iterable<RawMessage> messages) {
+({List<Txn> txns, int added, List<String> addedIds}) ingest(List<Txn> existing, Iterable<RawMessage> messages) {
   final txns = [...existing];
   final seen = {for (final t in txns) if (t.sourceId != null) '${t.source.name}:${t.sourceId}'};
-  var added = 0;
+  final addedIds = <String>[];
 
   for (final m in messages) {
     if (!seen.add('${m.source.name}:${m.sourceId}')) continue;
@@ -65,9 +65,9 @@ class RawMessage {
       raw: m.body,
       sender: m.sender,
     ));
-    added++;
+    addedIds.add(txns.last.id);
   }
-  return (txns: txns, added: added);
+  return (txns: txns, added: addedIds.length, addedIds: addedIds);
 }
 
 /// Re-reads stored messages with the current parser, so parser fixes reach

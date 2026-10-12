@@ -18,6 +18,12 @@ import 'sources/notifier.dart';
 import 'sources/sample_data.dart';
 import 'sources/sms_source.dart';
 import 'sources/widget_bridge.dart';
+import 'split/split_models.dart';
+import 'split/split_overlay.dart';
+import 'split/split_service.dart';
+import 'split/suggest.dart';
+import 'splitwise/models.dart';
+import 'splitwise/splitwise_api.dart';
 import 'storage/app_store.dart';
 
 /// App-wide state. Stores facts + user choices; [ledger] and [month] are
@@ -40,6 +46,34 @@ class AppController extends ChangeNotifier {
   late MonthSummary month = summarize(ledger, _month);
   late Insights insights = buildInsights(ledger, _month);
   List<Recurring> recurring = [];
+
+  // Splitwise
+  SplitwiseApi _sw = DemoSplitwiseApi();
+  CurrentUser? swUser;
+  List<SwGroup> swGroups = [];
+  List<SwUser> swFriends = [];
+  String? swError;
+  bool swLoading = false;
+  SplitTarget? splitTarget;
+  Map<String, SplitRecord> splitRecords = {};
+  Set<String> splitSkipped = {};
+  SplitSettings splitSettings = const SplitSettings();
+  bool overlayGranted = false;
+  StreamSubscription<dynamic>? _overlayMessages;
+
+  /// Shows the split card inside the app (when it's open at payment time).
+  void Function(Enriched payment)? onSplitSuggestion;
+
+  bool get swConnected => !_sw.isDemo;
+  Set<String> get _splitHandled => {...splitRecords.keys, ...splitSkipped};
+
+  /// Last 30 days of payments not yet split or skipped.
+  List<Enriched> get splitTodo => splitCandidates(
+        ledger.items,
+        handled: _splitHandled,
+        settings: splitSettings,
+        since: DateTime.now().subtract(const Duration(days: 30)),
+      );
 
   bool loading = true;
   bool scanning = false;
@@ -67,6 +101,21 @@ class AppController extends ChangeNotifier {
     budgets = await _store.readBudgets();
     _sentAlerts = await _store.readSentAlerts();
     profile = await _store.readProfile();
+    await _loadSplitState();
+    final swKey = await _store.readSplitwiseKey();
+    if (swKey != null) _sw = HttpSplitwiseApi(swKey);
+    final cache = await _store.readSplitwiseCache();
+    swUser = cache.user;
+    swGroups = cache.groups;
+    swFriends = cache.friends;
+    if (SplitOverlay.isSupported) {
+      // The floating card split something: pick it up straight away.
+      _overlayMessages = SplitOverlay.messages.listen((_) async {
+        await _loadSplitState();
+        notifyListeners();
+      });
+    }
+    unawaited(refreshSplitwise());
     lastScan = await _store.readLastScan();
     _recompute();
     await refreshPermissions();
@@ -133,6 +182,7 @@ class AppController extends ChangeNotifier {
   Future<void> refreshPermissions() async {
     smsGranted = await SmsSource.hasPermission();
     notificationsGranted = await NotificationSource.hasPermission();
+    overlayGranted = await SplitOverlay.hasPermission();
     if (notificationsGranted) _notifications.start();
     notifyListeners();
   }
@@ -164,6 +214,7 @@ class AppController extends ChangeNotifier {
       lastScan = now;
       await _store.writeLastScan(now);
       await _save();
+      if (!full) await _suggestSplit(result.addedIds);
       return result.added;
     } finally {
       scanning = false;
@@ -173,8 +224,9 @@ class AppController extends ChangeNotifier {
 
   void _onNotification(RawMessage message) {
     // Saved even when nothing was added: it may have enriched an SMS twin.
-    _txns = ingest(_txns, [message]).txns;
-    unawaited(_save());
+    final result = ingest(_txns, [message]);
+    _txns = result.txns;
+    unawaited(_save().then((_) => _suggestSplit(result.addedIds)));
   }
 
   Future<void> loadSamples() async {
@@ -331,18 +383,138 @@ class AppController extends ChangeNotifier {
     autoRules = [];
     budgets = const Budgets();
     _sentAlerts = {};
+    _sw = DemoSplitwiseApi();
+    splitTarget = null;
+    splitRecords = {};
+    splitSkipped = {};
+    splitSettings = const SplitSettings();
     profile = const Profile();
     lastScan = null;
     await _save();
   }
 
   Future<void> _onResume() async {
+    await _loadSplitState();
     await refreshPermissions();
     await scanSms();
   }
 
+  // ── Splitwise ──────────────────────────────────────────────────────
+
+  Future<void> _loadSplitState() async {
+    splitTarget = await _store.readSplitTarget();
+    splitRecords = await _store.readSplitRecords();
+    splitSkipped = await _store.readSplitSkipped();
+    splitSettings = await _store.readSplitSettings();
+  }
+
+  Future<void> refreshSplitwise() async {
+    swLoading = true;
+    swError = null;
+    notifyListeners();
+    try {
+      final results = await Future.wait([_sw.getCurrentUser(), _sw.getGroups(), _sw.getFriends()]);
+      swUser = results[0] as CurrentUser;
+      swGroups = results[1] as List<SwGroup>;
+      swFriends = results[2] as List<SwUser>;
+      await _store.writeSplitwiseCache(swUser!, swGroups, swFriends);
+    } catch (e) {
+      swError = '$e';
+    } finally {
+      swLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Checks the key with Splitwise before saving it.
+  Future<void> connectSplitwise(String key) async {
+    final api = HttpSplitwiseApi(key.trim());
+    await api.getCurrentUser();
+    await _store.writeSplitwiseKey(key.trim());
+    _sw = api;
+    splitTarget = null; // demo groups don't exist in the real account
+    await _store.writeSplitTarget(null);
+    await refreshSplitwise();
+  }
+
+  Future<void> disconnectSplitwise() async {
+    await _store.clearSplitwiseKey();
+    await _store.clearSplitwiseCache();
+    _sw = DemoSplitwiseApi();
+    splitTarget = null;
+    await _store.writeSplitTarget(null);
+    await refreshSplitwise();
+  }
+
+  Future<void> setSplitTarget(SplitTarget? target) async {
+    splitTarget = target;
+    await _store.writeSplitTarget(target);
+    notifyListeners();
+  }
+
+  Future<void> setSplitSettings(SplitSettings next) async {
+    splitSettings = next;
+    await _store.writeSplitSettings(next);
+    notifyListeners();
+  }
+
+  Future<void> requestOverlay() async {
+    await SplitOverlay.requestPermission();
+    await refreshPermissions();
+  }
+
+  static SplitPrompt promptFor(Enriched e) =>
+      SplitPrompt(txnId: e.txn.id, amountMinor: e.txn.amountMinor, payee: e.payee, at: e.txn.at);
+
+  Future<void> split(Enriched e, SplitTarget target, {bool makeDefault = false}) async {
+    final record = await splitOnSplitwise(
+      api: _sw,
+      target: target,
+      myUserId: swUser?.user.id ?? 1,
+      prompt: promptFor(e),
+      currency: swUser?.defaultCurrency ?? appCurrency,
+    );
+    splitRecords = await _store.addSplitRecord(record);
+    if (makeDefault || splitTarget == null) await setSplitTarget(target);
+    notifyListeners();
+  }
+
+  Future<void> skipSplit(Enriched e) async {
+    splitSkipped = {...splitSkipped, e.txn.id};
+    await _store.writeSplitSkipped(splitSkipped);
+    notifyListeners();
+  }
+
+  /// Right after new payments: offer to split the freshest one.
+  Future<void> _suggestSplit(List<String> addedIds) async {
+    if (addedIds.isEmpty) return;
+    final ids = addedIds.toSet();
+    final pick = popupFor(
+      ledger.items.where((e) => ids.contains(e.txn.id)),
+      handled: _splitHandled,
+      settings: splitSettings,
+      now: DateTime.now(),
+    );
+    if (pick == null) return;
+    final foreground = WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    if (foreground && onSplitSuggestion != null) {
+      onSplitSuggestion!(pick);
+    } else if (overlayGranted) {
+      await SplitOverlay.show(promptFor(pick), _store, expanded: splitTarget == null);
+    }
+  }
+
+  /// Shows the floating card for the latest payment, to try it out.
+  Future<bool> previewFloatingCard() async {
+    final e = splitTodo.firstOrNull ?? ledger.items.where((e) => e.countsAsSpend).firstOrNull;
+    if (e == null || !overlayGranted) return false;
+    await SplitOverlay.show(promptFor(e), _store, expanded: splitTarget == null);
+    return true;
+  }
+
   @override
   void dispose() {
+    _overlayMessages?.cancel();
     _notifications.stop();
     _lifecycle.dispose();
     super.dispose();

@@ -237,7 +237,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(height: Space.xxl),
                     Text(
-                      'Everything stays on this phone — Auto Spend has no internet access.',
+                      'Your transactions never leave this phone. The internet is used only to talk to Splitwise, and only when you split.',
                       textAlign: TextAlign.center,
                       style: text.bodySmall?.copyWith(color: t.muted),
                     ),

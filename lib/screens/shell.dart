@@ -5,6 +5,8 @@ import '../ui/tokens.dart';
 import 'activity_screen.dart';
 import 'home_screen.dart';
 import 'insights_screen.dart';
+import 'split_tab.dart';
+import '../app_controller.dart';
 
 /// Space a scrolling tab leaves at the bottom so the floating bar never
 /// covers its last item.
@@ -13,6 +15,8 @@ const navClearance = 112.0;
 /// Three tabs under the floating dark pill from the design reference.
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
+
+  static const activity = 3;
 
   /// Lets a tab jump to another ("See all" → Activity).
   static void switchTo(BuildContext context, int index) =>
@@ -25,48 +29,58 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _index = 0;
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // A payment came in while the app is open: offer the split here.
+    AppScope.of(context).onSplitSuggestion = (payment) {
+      if (mounted) showSplitSheet(context, payment);
+    };
+  }
+
   void _select(int i) => setState(() => _index = i);
 
   static const _tabs = [
     (icon: Icons.home_outlined, label: 'Home'),
     (icon: Icons.insights_outlined, label: 'Insights'),
+    (icon: Icons.call_split, label: 'Split'),
     (icon: Icons.receipt_long_outlined, label: 'Activity'),
   ];
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        extendBody: true,
-        // Tabs stay alive (like IndexedStack) but cross-fade with a slight
-        // zoom when switching.
-        body: Stack(
-          children: [
-            for (final (i, tab) in const [HomeTab(), InsightsTab(), ActivityTab()].indexed)
-              IgnorePointer(
-                ignoring: i != _index,
-                child: ExcludeSemantics(
-                  excluding: i != _index,
-                  child: AnimatedOpacity(
-                    opacity: i == _index ? 1 : 0,
-                    duration: Motion.of(context, Motion.medium),
-                    curve: Motion.enter,
-                    child: AnimatedScale(
-                      scale: i == _index ? 1 : 0.985,
-                      duration: Motion.of(context, Motion.medium),
-                      curve: Motion.enter,
-                      // Pause hidden tabs' own animations — but inside the
-                      // fade, or the fade-out itself would freeze half-way.
-                      child: TickerMode(enabled: i == _index, child: tab),
-                    ),
-                  ),
+    extendBody: true,
+    // Tabs stay alive (like IndexedStack) but cross-fade with a slight
+    // zoom when switching.
+    body: Stack(
+      children: [
+        for (final (i, tab) in const [HomeTab(), InsightsTab(), SplitTab(), ActivityTab()].indexed)
+          IgnorePointer(
+            ignoring: i != _index,
+            child: ExcludeSemantics(
+              excluding: i != _index,
+              child: AnimatedOpacity(
+                opacity: i == _index ? 1 : 0,
+                duration: Motion.of(context, Motion.medium),
+                curve: Motion.enter,
+                child: AnimatedScale(
+                  scale: i == _index ? 1 : 0.985,
+                  duration: Motion.of(context, Motion.medium),
+                  curve: Motion.enter,
+                  // Pause hidden tabs' own animations — but inside the
+                  // fade, or the fade-out itself would freeze half-way.
+                  child: TickerMode(enabled: i == _index, child: tab),
                 ),
               ),
-          ],
-        ),
-        bottomNavigationBar: SafeArea(
-          minimum: const EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, Space.md),
-          child: _NavPill(index: _index, onSelect: _select),
-        ),
-      );
+            ),
+          ),
+      ],
+    ),
+    bottomNavigationBar: SafeArea(
+      minimum: const EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, Space.md),
+      child: _NavPill(index: _index, onSelect: _select),
+    ),
+  );
 }
 
 class _NavPill extends StatelessWidget {
@@ -85,9 +99,7 @@ class _NavPill extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(Radii.pill),
         gradient: LinearGradient(
-          colors: dark
-              ? const [Color(0xFF2A2A2A), Color(0xFF3A3A3A)]
-              : const [Color(0xFF5E5E5E), Color(0xFF8A8A8A)],
+          colors: dark ? const [Color(0xFF2A2A2A), Color(0xFF3A3A3A)] : const [Color(0xFF5E5E5E), Color(0xFF8A8A8A)],
         ),
         boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 24, offset: Offset(0, 8))],
       ),

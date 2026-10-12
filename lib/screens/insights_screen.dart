@@ -88,7 +88,7 @@ class InsightsTab extends StatelessWidget {
               if (i.biggest.isNotEmpty) ...[
                 SectionHeader(
                   'Biggest payments',
-                  trailing: TextButton(onPressed: () => AppShell.switchTo(context, 2), child: const Text('All')),
+                  trailing: TextButton(onPressed: () => AppShell.switchTo(context, AppShell.activity), child: const Text('All')),
                 ),
                 TxnDayList(items: i.biggest, currency: appCurrency, grouped: false),
               ],

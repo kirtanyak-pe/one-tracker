@@ -1,8 +1,9 @@
 # Auto Spend
 
 Tracks where your money goes by reading bank SMS and UPI/bank-app
-notifications on your phone. Android-first. Nothing leaves the phone — the app
-has no internet permission.
+notifications on your phone, and splits payments on Splitwise. Android-first.
+Transactions never leave the phone; the internet is used only to talk to
+Splitwise, and only when you split.
 
 ```
 Bank SMS (inbox scan) ─┐
@@ -49,6 +50,16 @@ UPI app notifications ─┘                                                   �
 - Biggest category changes vs last month, top payees, repeating payments,
   biggest payments.
 
+### Split (Splitwise)
+- **Default split**: pick a group (e.g. roommates) or a set of friends once.
+- **After every payment** (above ₹100, adjustable) a floating card pops up over
+  whatever app you paid in: "₹450 at Swiggy → Flatmates, ₹150 each" → **Split**
+  creates the Splitwise expense. **Change** opens groups/friends right in the card,
+  with "make this my default". If Auto Spend is open, the card shows in-app instead.
+- **Split tab**: connect Splitwise (personal API key, stored in the Android
+  keystore), default split, pop-up settings and preview, payments still to split,
+  split history. Demo groups until connected — nothing is sent.
+
 ### Home-screen widget
 Spent today / this week / this month with a Today | Week | Month toggle on the
 widget itself (handled natively — instant, doesn't open the app). Month shows the
@@ -92,6 +103,8 @@ python3 tool/make_icon.py && dart run flutter_launcher_icons
 | `lib/sources/` | SMS inbox (native channel in `MainActivity.kt`), notifications, sample data |
 | `lib/engine/widget_data.dart` | Today/week/month figures for the widget |
 | `android/.../SpendWidgetProvider.kt` | The widget: renders figures, handles the period toggle |
+| `lib/split/` | Split target/records, suggestion rules, split action, floating card + overlay |
+| `lib/splitwise/` | Splitwise API client (real + demo), models, equal-split maths |
 | `lib/ui/` | Design system — see `docs/DESIGN_STYLE.md` |
 | `test/` | Parser, detectors, dedupe and an end-to-end sample month |
 

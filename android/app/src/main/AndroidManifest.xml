@@ -1,6 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
         <!-- Reads bank transaction SMS to track spending -->
     <uses-permission android:name="android.permission.READ_SMS" />
+    <!-- Splitwise: only used when you press Split -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Floating "split this?" card over other apps -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- Budget alerts -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
@@ -47,6 +53,16 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/spend_widget_info" />
         </receiver>
+
+        <!-- Hosts the floating split card -->
+        <service
+            android:name="flutter.overlay.window.flutter_overlay_window.OverlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Shows a floating card to split a just-detected payment on Splitwise" />
+        </service>
 
         <!-- Reads bank / UPI app notifications to detect payments -->
         <service

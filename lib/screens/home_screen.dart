@@ -128,7 +128,7 @@ class HomeTab extends StatelessWidget {
                 trailing: m.items.isEmpty
                     ? null
                     : TextButton(
-                        onPressed: () => AppShell.switchTo(context, 2),
+                        onPressed: () => AppShell.switchTo(context, AppShell.activity),
                         child: const Text('See all'),
                       ),
               ),
