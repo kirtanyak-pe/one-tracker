@@ -60,6 +60,10 @@ class AutoSpendApp extends StatelessWidget {
             themeMode: controller.appearance.mode,
             theme: buildTheme(Brightness.light, seed: controller.themeSeed),
             darkTheme: buildTheme(Brightness.dark, seed: controller.themeSeed),
+            // Lite mode: every Motion animation becomes instant.
+            builder: (context, child) => controller.lite
+                ? MediaQuery(data: MediaQuery.of(context).copyWith(disableAnimations: true), child: child!)
+                : child!,
             home: const AppShell(),
           ),
         ),

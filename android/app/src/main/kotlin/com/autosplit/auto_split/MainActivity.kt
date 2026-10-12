@@ -40,6 +40,18 @@ class MainActivity : FlutterActivity() {
                             }
                         }.start()
                     }
+                    "deviceClass" -> {
+                        // For lite mode on low-end phones.
+                        val am = getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager
+                        val mem = android.app.ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+                        result.success(
+                            mapOf(
+                                "lowRam" to am.isLowRamDevice,
+                                "totalMemMb" to (mem.totalMem / (1024 * 1024)).toInt(),
+                                "cores" to Runtime.getRuntime().availableProcessors(),
+                            ),
+                        )
+                    }
                     "smsPermissions" -> {
                         fun has(p: String) = checkSelfPermission(p) == android.content.pm.PackageManager.PERMISSION_GRANTED
                         result.success(

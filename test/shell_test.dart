@@ -31,15 +31,17 @@ void main() {
     await tester.pump(); // starts the fade
     await tester.pump(const Duration(seconds: 1));
 
-    // AnimatedOpacity renders through a FadeTransition; read its live value.
-    double shown(int tab) => tester
-        .widget<FadeTransition>(find
-            .descendant(of: find.byType(AnimatedOpacity).at(tab), matching: find.byType(FadeTransition))
-            .first)
-        .opacity
-        .value;
-    expect(shown(0), 0, reason: 'Home should have faded out completely');
-    expect(shown(1), 1);
+    // Insights is showing; Home has faded out and is now fully offstage (no
+    // layout or paint at all) rather than stuck half-visible.
+    Offstage tab(int i) => tester.widget<Offstage>(find.byKey(ValueKey('tab-$i'), skipOffstage: false));
+    expect(tab(1).offstage, isFalse);
+    expect(tab(0).offstage, isTrue, reason: 'Home should be fully hidden after the fade');
+    final insightsFade = tester.widget<FadeTransition>(
+      find.descendant(of: find.byKey(const ValueKey('tab-1')), matching: find.byType(FadeTransition)).first,
+    );
+    expect(insightsFade.opacity.value, 1);
+    // Tabs never opened aren't built (Activity shows only its nav label).
+    expect(find.text('Search payee, #tag or amount', skipOffstage: false), findsNothing);
     debugDefaultTargetPlatformOverride = null;
   });
 }

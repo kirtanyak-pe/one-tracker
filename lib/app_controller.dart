@@ -1,10 +1,13 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/widgets.dart';
 
 import 'engine/classify.dart';
+import 'engine/derive.dart';
 import 'engine/enrich.dart';
 import 'engine/ingest.dart';
+import 'engine/parser.dart' show parserVersion;
 import 'engine/insights.dart';
 import 'engine/recurring.dart';
 import 'engine/summary.dart';
@@ -26,6 +29,7 @@ import 'split/suggest.dart';
 import 'splitwise/models.dart';
 import 'splitwise/splitwise_api.dart';
 import 'storage/app_store.dart';
+import 'ui/perf.dart';
 import 'ui/wallpaper_colors.dart';
 
 /// App-wide state. Stores facts + user choices; [ledger] and [month] are
@@ -93,6 +97,16 @@ class AppController extends ChangeNotifier {
   /// Wallpaper colour from the system, when available.
   Color? wallpaper;
 
+  /// This phone looks low-end (low RAM).
+  bool lowEndDevice = false;
+
+  /// Animations and blurred shadows off.
+  bool get lite => switch (appearance.effects) {
+        Effects.auto => lowEndDevice,
+        Effects.reduced => true,
+        Effects.full => false,
+      };
+
   /// The seed the theme uses right now (null = brand palette).
   Color? get themeSeed => appearance.wallpaperColors ? wallpaper : null;
 
@@ -115,15 +129,22 @@ class AppController extends ChangeNotifier {
 
   Future<void> init() async {
     _lifecycle; // start listening for resume
-    // Apply any parser improvements to what's already stored, and drop
-    // payments made by the adb test hook (TestSmsReceiver uses this id).
-    _txns = (await _store.readTxns()).where((t) => t.vpa != testHookVpa).map(reparse).toList();
+    // Drop payments made by the adb test hook (TestSmsReceiver uses this id),
+    // and re-parse stored payments once whenever the parser has improved.
+    _txns = (await _store.readTxns()).where((t) => t.vpa != testHookVpa).toList();
+    if (await _store.readParserVersion() != parserVersion) {
+      _txns = _txns.length > _offThreadAbove ? await compute(reparseAll, _txns) : reparseAll(_txns);
+      await _store.writeTxns(_txns);
+      await _store.writeParserVersion(parserVersion);
+    }
     rules = await _store.readRules();
     autoRules = await _store.readAutoRules();
     budgets = await _store.readBudgets();
     _sentAlerts = await _store.readSentAlerts();
     profile = await _store.readProfile();
     appearance = await _store.readAppearance();
+    lowEndDevice = await Perf.isLowEndDevice();
+    Perf.lite = lite;
     wallpaper = await wallpaperSeed();
     notifyListeners();
     await _loadSplitState();
@@ -144,7 +165,7 @@ class AppController extends ChangeNotifier {
     }
     unawaited(refreshSplitwise());
     lastScan = await _store.readLastScan();
-    _recompute();
+    await _recompute();
     await refreshPermissions();
     if (smsGranted) {
       await scanSms();
@@ -156,10 +177,27 @@ class AppController extends ChangeNotifier {
     await _pushWidget();
   }
 
-  void _recompute() {
-    ledger = enrich(_txns, profile: profile, rules: rules, autoRules: autoRules);
-    _recomputeMonth();
-    recurring = findRecurring(ledger);
+  /// Above this many payments, deriving runs on a background isolate so the
+  /// UI never stalls on slower phones.
+  static const _offThreadAbove = 400;
+  int _generation = 0;
+
+  Future<void> _recompute() async {
+    final generation = ++_generation;
+    final input = DeriveInput(
+      txns: List.of(_txns),
+      profile: profile,
+      rules: rules,
+      autoRules: autoRules,
+      month: _month,
+      now: DateTime.now(),
+    );
+    final d = _txns.length > _offThreadAbove ? await compute(derive, input) : derive(input);
+    if (generation != _generation) return; // a newer change already won
+    ledger = d.ledger;
+    month = d.month;
+    insights = d.insights;
+    recurring = d.recurring;
   }
 
   void _recomputeMonth() {
@@ -168,7 +206,7 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> _save() async {
-    _recompute();
+    await _recompute();
     notifyListeners();
     await _store.writeTxns(_txns);
     await _checkBudgets();
@@ -489,6 +527,7 @@ class AppController extends ChangeNotifier {
 
   Future<void> setAppearance(Appearance next) async {
     appearance = next;
+    Perf.lite = lite;
     await _store.writeAppearance(next);
     notifyListeners();
   }

@@ -177,16 +177,19 @@ Map<String, String> _selfTransferPairs(List<Txn> txns, Set<String> own, String p
   final used = <String>{};
   final result = <String, String>{};
 
+  // Credits grouped by amount: each debit only looks at same-amount ones.
+  final credits = <int, List<Txn>>{};
+  for (final t in sorted) {
+    if (t.direction == Direction.credit && t.kindOverride == null) {
+      credits.putIfAbsent(t.amountMinor, () => []).add(t);
+    }
+  }
+
   for (final debit in sorted.where((t) => t.direction == Direction.debit)) {
     if (debit.kindOverride != null) continue;
     Txn? best;
-    for (final credit in sorted) {
-      if (credit.direction != Direction.credit ||
-          credit.kindOverride != null ||
-          used.contains(credit.id) ||
-          credit.amountMinor != debit.amountMinor) {
-        continue;
-      }
+    for (final credit in credits[debit.amountMinor] ?? const <Txn>[]) {
+      if (used.contains(credit.id)) continue;
       final gap = credit.at.difference(debit.at).abs();
       if (gap > const Duration(minutes: 30)) continue;
       final ownToOwn = debit.account != null &&

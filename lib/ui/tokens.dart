@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'perf.dart';
+
 /// Colour tokens from docs/DESIGN_STYLE.md. Read with `context.tokens`.
 @immutable
 class AppTokens extends ThemeExtension<AppTokens> {
@@ -110,11 +112,14 @@ abstract final class Space {
 }
 
 abstract final class Shadows {
-  static List<BoxShadow> card(Brightness b) => b == Brightness.light
+  // Blurred shadows are costly on weak GPUs; lite mode drops them.
+  static List<BoxShadow> card(Brightness b) => b == Brightness.light && !Perf.lite
       ? const [BoxShadow(color: Color(0x0F000000), blurRadius: 24, offset: Offset(0, 8))]
       : const [];
 
-  static List<BoxShadow> glow(Color accent) => [
+  static List<BoxShadow> glow(Color accent) => Perf.lite
+      ? const []
+      : [
         BoxShadow(color: accent.withValues(alpha: 0.35), blurRadius: 24, spreadRadius: 2),
       ];
 }

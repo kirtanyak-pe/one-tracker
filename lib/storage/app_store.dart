@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -32,15 +33,27 @@ class AppStore {
   static const _splitSettings = 'split_settings_v1';
   static const _splitPrompt = 'split_prompt_v1';
   static const _appearance = 'appearance_v1';
+  static const _parserVersion = 'parser_version';
 
+  // A year of SMS is a few MB of JSON: decode/encode off the UI thread.
   Future<List<Txn>> readTxns() async {
     final raw = await _prefs.getString(_txns);
     if (raw == null) return [];
-    return (jsonDecode(raw) as List).map((j) => Txn.fromJson(j as Map<String, dynamic>)).toList();
+    return raw.length > _offThreadBytes ? compute(_decodeTxns, raw) : _decodeTxns(raw);
   }
 
-  Future<void> writeTxns(List<Txn> txns) =>
-      _prefs.setString(_txns, jsonEncode(txns.map((t) => t.toJson()).toList()));
+  Future<void> writeTxns(List<Txn> txns) async =>
+      _prefs.setString(_txns, txns.length > 300 ? await compute(_encodeTxns, txns) : _encodeTxns(txns));
+
+  static const _offThreadBytes = 200000;
+
+  static List<Txn> _decodeTxns(String raw) =>
+      (jsonDecode(raw) as List).map((j) => Txn.fromJson(j as Map<String, dynamic>)).toList();
+
+  static String _encodeTxns(List<Txn> txns) => jsonEncode(txns.map((t) => t.toJson()).toList());
+
+  Future<int> readParserVersion() async => (await _prefs.getInt(_parserVersion)) ?? 0;
+  Future<void> writeParserVersion(int v) => _prefs.setInt(_parserVersion, v);
 
   Future<Map<String, PayeeRule>> readRules() async {
     final raw = await _prefs.getString(_rules);

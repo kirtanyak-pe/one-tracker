@@ -59,7 +59,8 @@ class _BarChartState extends State<BarChart> with SingleTickerProviderStateMixin
   @override
   void didUpdateWidget(BarChart old) {
     super.didUpdateWidget(old);
-    final changed = old.values.length != widget.values.length ||
+    final changed =
+        old.values.length != widget.values.length ||
         Iterable.generate(widget.values.length).any((i) => old.values[i] != widget.values[i]);
     if (changed) {
       _selected = null;
@@ -92,35 +93,34 @@ class _BarChartState extends State<BarChart> with SingleTickerProviderStateMixin
             height: 20,
             child: selected == null
                 ? null
-                : Text(
-                    widget.labelFor(selected),
-                    style: text.bodySmall?.copyWith(fontWeight: FontWeight.w700),
-                  ),
+                : Text(widget.labelFor(selected), style: text.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
           ),
           const SizedBox(height: Space.sm),
           LayoutBuilder(
             builder: (context, box) => GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTapDown: (d) => setState(() => _selected = _indexAt(d.localPosition.dx, box.maxWidth)),
-              onHorizontalDragUpdate: (d) =>
-                  setState(() => _selected = _indexAt(d.localPosition.dx, box.maxWidth)),
+              onHorizontalDragUpdate: (d) => setState(() => _selected = _indexAt(d.localPosition.dx, box.maxWidth)),
               child: SizedBox(
                 height: widget.height,
                 width: box.maxWidth,
-                child: CustomPaint(
-                  painter: _BarsPainter(
-                    progress: _growCurve,
-                    values: widget.values,
-                    max: maxValue == 0 ? 1 : maxValue,
-                    selected: selected,
-                    average: widget.average,
-                    bar: t.ink,
-                    accent: t.accent,
-                    faint: t.trayDeep,
-                    axis: t.tray,
-                    muted: t.muted,
-                    averageLabel: widget.average == null ? null : 'avg ${formatCompact(widget.average!)}',
-                    labelStyle: text.bodySmall!.copyWith(fontSize: 11, color: t.muted),
+                // Own layer: the growing bars don't repaint the whole page.
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    painter: _BarsPainter(
+                      progress: _growCurve,
+                      values: widget.values,
+                      max: maxValue == 0 ? 1 : maxValue,
+                      selected: selected,
+                      average: widget.average,
+                      bar: t.ink,
+                      accent: t.accent,
+                      faint: t.trayDeep,
+                      axis: t.tray,
+                      muted: t.muted,
+                      averageLabel: widget.average == null ? null : 'avg ${formatCompact(widget.average!)}',
+                      labelStyle: text.bodySmall!.copyWith(fontSize: 11, color: t.muted),
+                    ),
                   ),
                 ),
               ),
@@ -211,15 +211,23 @@ class _BarsPainter extends CustomPainter {
     }
 
     // Hairline baseline.
-    canvas.drawLine(Offset(0, baseline + 0.5), Offset(size.width, baseline + 0.5), Paint()
-      ..color = faint
-      ..strokeWidth = 1);
+    canvas.drawLine(
+      Offset(0, baseline + 0.5),
+      Offset(size.width, baseline + 0.5),
+      Paint()
+        ..color = faint
+        ..strokeWidth = 1,
+    );
 
     if (average != null && average! > 0) {
       final y = baseline - average! / max * usable;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), Paint()
-        ..color = muted.withValues(alpha: 0.6)
-        ..strokeWidth = 1);
+      canvas.drawLine(
+        Offset(0, y),
+        Offset(size.width, y),
+        Paint()
+          ..color = muted.withValues(alpha: 0.6)
+          ..strokeWidth = 1,
+      );
       final tp = TextPainter(
         text: TextSpan(text: averageLabel, style: labelStyle),
         textDirection: TextDirection.ltr,

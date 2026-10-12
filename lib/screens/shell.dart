@@ -38,7 +38,21 @@ class _AppShellState extends State<AppShell> {
     };
   }
 
-  void _select(int i) => setState(() => _index = i);
+  /// Tabs are built the first time they're opened, not all at start-up.
+  final _visited = <int>{0};
+
+  /// The tab fading out; other hidden tabs are fully offstage (no layout or
+  /// paint), which matters on slower phones.
+  int? _leaving;
+
+  void _select(int i) {
+    if (i == _index) return;
+    setState(() {
+      _leaving = _index;
+      _index = i;
+      _visited.add(i);
+    });
+  }
 
   static const _tabs = [
     (icon: Icons.home_outlined, label: 'Home'),
@@ -50,26 +64,36 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) => Scaffold(
     extendBody: true,
-    // Tabs stay alive (like IndexedStack) but cross-fade with a slight
-    // zoom when switching.
+    // Tabs keep their state but cross-fade with a slight zoom. Only the
+    // visible tab (and the one fading out) is laid out and painted.
     body: Stack(
       children: [
         for (final (i, tab) in const [HomeTab(), InsightsTab(), SplitTab(), ActivityTab()].indexed)
-          IgnorePointer(
-            ignoring: i != _index,
-            child: ExcludeSemantics(
-              excluding: i != _index,
-              child: AnimatedOpacity(
-                opacity: i == _index ? 1 : 0,
-                duration: Motion.of(context, Motion.medium),
-                curve: Motion.enter,
-                child: AnimatedScale(
-                  scale: i == _index ? 1 : 0.985,
+          Offstage(
+            key: ValueKey('tab-$i'),
+            offstage: i != _index && i != _leaving,
+            child: IgnorePointer(
+              ignoring: i != _index,
+              child: ExcludeSemantics(
+                excluding: i != _index,
+                child: AnimatedOpacity(
+                  opacity: i == _index ? 1 : 0,
                   duration: Motion.of(context, Motion.medium),
                   curve: Motion.enter,
-                  // Pause hidden tabs' own animations — but inside the
-                  // fade, or the fade-out itself would freeze half-way.
-                  child: TickerMode(enabled: i == _index, child: tab),
+                  onEnd: () {
+                    if (i == _leaving && mounted) setState(() => _leaving = null);
+                  },
+                  child: AnimatedScale(
+                    scale: i == _index ? 1 : 0.985,
+                    duration: Motion.of(context, Motion.medium),
+                    curve: Motion.enter,
+                    // Pause hidden tabs' own animations — but inside the
+                    // fade, or the fade-out itself would freeze half-way.
+                    child: TickerMode(
+                      enabled: i == _index,
+                      child: _visited.contains(i) ? tab : const SizedBox.shrink(),
+                    ),
+                  ),
                 ),
               ),
             ),

@@ -1,6 +1,9 @@
 import '../model/transaction.dart';
 import '../money.dart';
 
+/// Bump when parsing changes, so stored payments get re-parsed once.
+const parserVersion = 4;
+
 /// Facts pulled out of one bank SMS or payment-app notification.
 class Parsed {
   const Parsed({

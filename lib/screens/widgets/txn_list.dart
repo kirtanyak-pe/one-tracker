@@ -9,6 +9,17 @@ import '../../ui/tokens.dart';
 import '../transaction_screen.dart';
 
 /// Transactions grouped into one white card per day.
+/// Newest-first payments grouped by day label ("Today", "Mon, 6 Oct").
+List<({String label, List<Enriched> items})> groupByDay(List<Enriched> items, {bool grouped = true}) {
+  final days = <String, List<Enriched>>{};
+  for (final e in items) {
+    days.putIfAbsent(grouped ? dayLabel(e.txn.at) : '', () => []).add(e);
+  }
+  return [for (final d in days.entries) (label: d.key, items: d.value)];
+}
+
+/// Transactions grouped into one white card per day. For short lists; long
+/// ones use [groupByDay] + [TxnDayCard] in a lazy SliverList.
 class TxnDayList extends StatelessWidget {
   const TxnDayList({super.key, required this.items, required this.currency, this.grouped = true});
 
@@ -21,26 +32,44 @@ class TxnDayList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
-    final days = <String, List<Enriched>>{};
-    for (final e in items) {
-      days.putIfAbsent(grouped ? dayLabel(e.txn.at) : '', () => []).add(e);
-    }
-
+    final days = groupByDay(items, grouped: grouped);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final day in days.entries) ...[
-          if (grouped)
-            Padding(
+        for (final (i, d) in days.indexed)
+          TxnDayCard(label: grouped ? d.label : null, items: d.items, currency: currency, index: i),
+      ],
+    );
+  }
+}
+
+/// One day's card: optional day label above, rows inside.
+class TxnDayCard extends StatelessWidget {
+  const TxnDayCard({super.key, required this.label, required this.items, required this.currency, this.index = 0});
+
+  final String? label;
+  final List<Enriched> items;
+  final String currency;
+
+  /// Position, for the staggered entrance.
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (label != null)
+          Padding(
             padding: const EdgeInsets.fromLTRB(Space.xs, Space.lg, Space.xs, Space.sm),
-              child: Text(day.key, style: text.bodySmall?.copyWith(color: t.muted)),
-            ),
-          FadeSlideIn(
-            index: days.keys.toList().indexOf(day.key),
-            offset: 10,
-            child: Container(
+            child: Text(label!, style: text.bodySmall?.copyWith(color: t.muted)),
+          ),
+        FadeSlideIn(
+          index: index,
+          offset: 10,
+          child: Container(
             decoration: BoxDecoration(
               color: t.card,
               borderRadius: BorderRadius.circular(Radii.tile),
@@ -49,15 +78,14 @@ class TxnDayList extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             child: Column(
               children: [
-                for (var i = 0; i < day.value.length; i++) ...[
+                for (var i = 0; i < items.length; i++) ...[
                   if (i > 0) Divider(height: 1, indent: 72, color: t.tray),
-                  TxnRow(e: day.value[i], currency: currency),
+                  TxnRow(e: items[i], currency: currency),
                 ],
               ],
             ),
           ),
-          ),
-        ],
+        ),
       ],
     );
   }
@@ -80,10 +108,7 @@ class TxnRow extends StatelessWidget {
     return Material(
       type: MaterialType.transparency,
       child: InkWell(
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => TransactionScreen(id: e.txn.id)),
-        ),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TransactionScreen(id: e.txn.id))),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.md),
           child: Row(
@@ -107,10 +132,7 @@ class TxnRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      [
-                        excluded ? e.kind.label : e.category.label,
-                        ...e.txn.userTags.map((tag) => '#$tag'),
-                      ].join(' · '),
+                      [excluded ? e.kind.label : e.category.label, ...e.txn.userTags.map((tag) => '#$tag')].join(' · '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: text.bodySmall?.copyWith(color: t.muted),
@@ -125,7 +147,11 @@ class TxnRow extends StatelessWidget {
                   Text(
                     amount,
                     style: text.titleMedium?.copyWith(
-                      color: excluded ? t.muted : credit ? t.success : t.ink,
+                      color: excluded
+                          ? t.muted
+                          : credit
+                          ? t.success
+                          : t.ink,
                       decoration: excluded ? TextDecoration.lineThrough : null,
                       decorationColor: t.muted,
                     ),

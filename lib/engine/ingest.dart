@@ -24,6 +24,20 @@ class RawMessage {
 ({List<Txn> txns, int added, List<String> addedIds}) ingest(List<Txn> existing, Iterable<RawMessage> messages) {
   final txns = [...existing];
   final seen = {for (final t in txns) if (t.sourceId != null) '${t.source.name}:${t.sourceId}'};
+  // Indexes instead of scanning every stored payment per message — keeps a
+  // big backfill linear on slow phones.
+  final byAmount = <String, List<int>>{}; // "debit:45000" → positions in txns
+  final byText = <String, List<int>>{}; // raw body → positions
+  void index(int i) {
+    final t = txns[i];
+    byAmount.putIfAbsent('${t.direction.name}:${t.amountMinor}', () => []).add(i);
+    final raw = t.raw?.trim();
+    if (raw != null) byText.putIfAbsent(raw, () => []).add(i);
+  }
+
+  for (var i = 0; i < txns.length; i++) {
+    index(i);
+  }
   final addedIds = <String>[];
 
   for (final m in messages) {
@@ -33,15 +47,18 @@ class RawMessage {
     // Same text minutes apart is the same SMS seen twice (e.g. stored under
     // an older id scheme).
     final body = m.body.trim();
-    if (txns.any((t) => t.raw?.trim() == body && t.at.difference(m.at).abs() <= const Duration(minutes: 10))) {
+    if ((byText[body] ?? const []).any((i) => txns[i].at.difference(m.at).abs() <= const Duration(minutes: 10))) {
       continue;
     }
 
-    final twinIndex = txns.indexWhere((t) =>
-        t.direction == p.direction &&
-        t.amountMinor == p.amountMinor &&
-        t.at.difference(m.at).abs() <= const Duration(minutes: 5) &&
-        ((p.ref != null && p.ref == t.ref) || t.source != m.source));
+    final twinIndex = (byAmount['${p.direction.name}:${p.amountMinor}'] ?? const <int>[])
+            .where((i) {
+              final t = txns[i];
+              return t.at.difference(m.at).abs() <= const Duration(minutes: 5) &&
+                  ((p.ref != null && p.ref == t.ref) || t.source != m.source);
+            })
+            .firstOrNull ??
+        -1;
     if (twinIndex != -1) {
       final twin = txns[twinIndex];
       txns[twinIndex] = twin.copyWith(
@@ -71,6 +88,7 @@ class RawMessage {
       raw: m.body,
       sender: m.sender,
     ));
+    index(txns.length - 1);
     addedIds.add(txns.last.id);
   }
   return (txns: txns, added: addedIds.length, addedIds: addedIds);

@@ -91,17 +91,23 @@ const _keywords = <Category, List<String>>{
   ],
 };
 
+/// Built once: short words must match whole ("ola" ≠ "motorola", "lic" ≠
+/// "police"), longer ones as substrings.
+final _matchers = [
+  for (final entry in _keywords.entries)
+    for (final word in entry.value)
+      (
+        category: entry.key,
+        word: word,
+        whole: word.length <= 4 ? RegExp('[^a-z]${RegExp.escape(word)}[^a-z]') : null,
+      ),
+];
+
 /// Category from merchant words, or null if nothing matched.
 Category? categoryFromKeywords(String text) {
   final hay = ' ${text.toLowerCase()} ';
-  for (final entry in _keywords.entries) {
-    for (final word in entry.value) {
-      // Short words must match whole ("ola" ≠ "motorola", "lic" ≠ "police").
-      final hit = word.length <= 4
-          ? RegExp('[^a-z]${RegExp.escape(word)}[^a-z]').hasMatch(hay)
-          : hay.contains(word);
-      if (hit) return entry.key;
-    }
+  for (final m in _matchers) {
+    if (m.whole != null ? m.whole!.hasMatch(hay) : hay.contains(m.word)) return m.category;
   }
   return null;
 }

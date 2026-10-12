@@ -41,7 +41,7 @@ class SettingsScreen extends StatelessWidget {
                 ThemeMode.system => 'System',
                 ThemeMode.light => 'Light',
                 ThemeMode.dark => 'Dark',
-              }}, ${a.wallpaperColors ? 'wallpaper colours' : 'Auto Spend colours'}',
+              }}, ${a.wallpaperColors ? 'wallpaper colours' : 'Auto Spend colours'}${app.lite ? ', lite' : ''}',
               onTap: () => push(context, const AppearancePage()),
             ),
             if (app.isAndroid)

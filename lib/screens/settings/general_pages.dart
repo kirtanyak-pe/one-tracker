@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app_controller.dart';
+import '../../model/appearance.dart';
 import '../../sources/widget_bridge.dart';
 import '../../ui/components.dart';
 import '../../ui/format.dart';
@@ -40,6 +41,23 @@ class AppearancePage extends StatelessWidget {
                   ? "Your phone doesn't share wallpaper colours, so Auto Spend's orange is used."
                   : 'Colours come from your wallpaper (Material You).')
               : "Auto Spend's own warm grey and orange.",
+          style: text.bodySmall?.copyWith(color: t.muted),
+        ),
+        const SectionHeader('Animations & effects'),
+        PillSegmented<Effects>(
+          options: const {Effects.auto: 'Auto', Effects.reduced: 'Reduced', Effects.full: 'Full'},
+          value: a.effects,
+          onChanged: (e) => app.setAppearance(a.copyWith(effects: e)),
+        ),
+        const SizedBox(height: Space.sm),
+        Text(
+          switch (a.effects) {
+            Effects.auto => app.lowEndDevice
+                ? 'This phone looks low on memory, so animations and soft shadows are off to keep it smooth.'
+                : 'Full effects on this phone; turned down automatically on low-memory phones.',
+            Effects.reduced => 'No animations or soft shadows. Smoothest on slower phones.',
+            Effects.full => 'All animations and shadows, on any phone.',
+          },
           style: text.bodySmall?.copyWith(color: t.muted),
         ),
         const SizedBox(height: Space.xl),

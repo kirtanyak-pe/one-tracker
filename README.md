@@ -71,6 +71,21 @@ numbers. Add it from Settings → Home screen → Add, or the launcher's widget 
 Home · Insights · Activity under a floating tab bar. Activity searches every
 month by payee, #tag, category or amount, with Spent / Big / Excluded / Income filters.
 
+### Performance on low-end phones
+- Deriving everything (categories, transfers, insights, repeats) runs on a
+  background isolate once there are 400+ payments; the UI thread only paints.
+- Store read/write (JSON) is off the UI thread; stored messages are re-parsed
+  only when `parserVersion` changes.
+- Ingest and self-transfer pairing use indexes (linear, not quadratic).
+- Tabs are built on first visit and kept fully offstage when hidden; the
+  Activity list builds day cards lazily as you scroll.
+- **Lite mode** (Settings → Appearance → Animations & effects, default Auto):
+  on low-RAM phones (< 4.5 GB or Android "low RAM") animations collapse to
+  instant and blurred shadows are dropped.
+- Per-CPU APKs: `flutter build apk --release --split-per-abi` (17–20 MB vs 55 MB
+  universal).
+- Benchmarks: `flutter test test/perf` (3,000-payment year).
+
 ## Try it
 
 - **Web preview:** loads sample bank SMS through the real pipeline.
