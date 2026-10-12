@@ -126,9 +126,10 @@ class _Pace extends StatelessWidget {
                 child: StatTile(
                   label: current ? 'So far' : 'Spent',
                   value: formatCompact(spent),
-                  caption: pct == null
+                  // ₹, not %: "↑282%" says little when last month was quiet.
+                  caption: before == 0
                       ? 'nothing last month'
-                      : '${up ? '↑' : '↓'} ${pct.abs()}% vs ${current ? 'same day ' : ''}last month',
+                      : 'vs ${formatCompact(before)} ${current ? 'by now ' : ''}last month',
                 ),
               ),
               const SizedBox(width: Space.md),

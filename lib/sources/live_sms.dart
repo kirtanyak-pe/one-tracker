@@ -33,7 +33,7 @@ Future<void> handleBackgroundSms({
     autoRules: await store.readAutoRules(),
   );
   final budgets = await store.readBudgets();
-  await WidgetBridge.push(widgetPeriods(ledger, budgets));
+  await WidgetBridge.push(widgetPeriods(ledger, budgets), last: lastPayment(ledger));
 
   // Budget alerts, once per threshold per month.
   if (!budgets.isEmpty) {

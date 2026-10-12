@@ -58,9 +58,20 @@ Map<String, WidgetPeriod> widgetPeriods(Ledger ledger, Budgets budgets, {DateTim
     return (spent: spent, count: count, top: top?.key);
   }
 
-  String caption(int count, Category? top, {String empty = 'Nothing spent yet'}) {
-    if (count == 0) return empty;
+  // Same stretch of the previous period, up to the same point in time.
+  String? versus(DateTime start, DateTime prevStart, int spent, String label) {
+    final prev = range(prevStart, prevStart.add(now!.difference(start))).spent;
+    if (prev < 10000 || spent == 0) return null; // too little to compare
+    final pct = ((spent - prev) / prev * 100).round();
+    if (pct.abs() < 5) return 'same as $label';
+    return '${pct > 0 ? '↑' : '↓'}${pct.abs() > 300 ? '300+' : pct.abs()}% vs $label';
+  }
+
+  String caption(int count, Category? top, String? vs) {
+    if (count == 0) return 'Nothing spent yet';
     final payments = '$count payment${count == 1 ? '' : 's'}';
+    // The comparison is more useful than the top category when there is one.
+    if (vs != null) return '$payments · $vs';
     return top == null ? payments : '$payments · mostly ${top.label.toLowerCase()}';
   }
 
@@ -68,6 +79,9 @@ Map<String, WidgetPeriod> widgetPeriods(Ledger ledger, Budgets budgets, {DateTim
   final w = range(week, week.add(const Duration(days: 7)));
   final monthEnd = DateTime(now.year, now.month + 1);
   final m = range(month, monthEnd);
+  final tVs = versus(today, today.subtract(const Duration(days: 1)), t.spent, 'yesterday');
+  final wVs = versus(week, week.subtract(const Duration(days: 7)), w.spent, 'last week');
+  final mVs = versus(month, DateTime(now.year, now.month - 1), m.spent, 'last month');
 
   final limit = budgets.monthlyMinor;
   final String monthCaption;
@@ -78,20 +92,20 @@ Map<String, WidgetPeriod> widgetPeriods(Ledger ledger, Budgets budgets, {DateTim
         ? '${formatMoney(m.spent - limit, appCurrency, round: true)} over your ${formatCompact(limit)} budget'
         : '${formatMoney(limit - m.spent, appCurrency, round: true)} left of ${formatCompact(limit)}';
   } else {
-    monthCaption = caption(m.count, m.top);
+    monthCaption = caption(m.count, m.top, mVs);
   }
 
   return {
     'today': WidgetPeriod(
       title: 'Spent today',
       amountMinor: t.spent,
-      caption: caption(t.count, t.top),
+      caption: caption(t.count, t.top, tVs),
       validUntil: today.add(const Duration(days: 1)),
     ),
     'week': WidgetPeriod(
       title: 'Spent this week',
       amountMinor: w.spent,
-      caption: caption(w.count, w.top),
+      caption: caption(w.count, w.top, wVs),
       validUntil: week.add(const Duration(days: 7)),
     ),
     'month': WidgetPeriod(
@@ -102,4 +116,11 @@ Map<String, WidgetPeriod> widgetPeriods(Ledger ledger, Budgets budgets, {DateTim
       meter: meter,
     ),
   };
+}
+
+/// The newest real payment, for the widget's "Last:" line.
+({String text, DateTime at})? lastPayment(Ledger ledger) {
+  final e = ledger.items.where((e) => e.countsAsSpend).firstOrNull;
+  if (e == null) return null;
+  return (text: '${formatMoney(e.txn.amountMinor, appCurrency, round: true)} at ${e.payee}', at: e.txn.at);
 }

@@ -11,11 +11,12 @@ abstract final class WidgetBridge {
 
   static bool get isSupported => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
-  static Future<void> push(Map<String, WidgetPeriod> periods) async {
+  static Future<void> push(Map<String, WidgetPeriod> periods, {({String text, DateTime at})? last}) async {
     if (!isSupported) return;
     final json = jsonEncode({
       'updatedAt': DateTime.now().millisecondsSinceEpoch,
       'periods': {for (final e in periods.entries) e.key: e.value.toJson()},
+      if (last != null) 'last': {'text': last.text, 'at': last.at.millisecondsSinceEpoch},
     });
     try {
       await _channel.invokeMethod('widget', {'json': json});

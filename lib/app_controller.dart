@@ -213,7 +213,7 @@ class AppController extends ChangeNotifier {
     await _pushWidget();
   }
 
-  Future<void> _pushWidget() => WidgetBridge.push(widgetPeriods(ledger, budgets));
+  Future<void> _pushWidget() => WidgetBridge.push(widgetPeriods(ledger, budgets), last: lastPayment(ledger));
 
   /// Notifies once per month per threshold (80%, 100%).
   Future<void> _checkBudgets() async {

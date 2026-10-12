@@ -134,6 +134,14 @@ ThemeData buildTheme(Brightness brightness, {Color? seed}) {
         borderSide: BorderSide(color: scheme.error, width: 1.5),
       ),
     ),
+    // Clear on/off: ink track when on, a visible tray track + outline off.
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? t.onInk : t.muted),
+      trackColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? t.ink : t.tray),
+      trackOutlineColor: WidgetStateProperty.resolveWith(
+        (s) => s.contains(WidgetState.selected) ? Colors.transparent : t.trayDeep,
+      ),
+    ),
     checkboxTheme: CheckboxThemeData(
       shape: const CircleBorder(),
       side: BorderSide(color: t.trayDeep, width: 2),

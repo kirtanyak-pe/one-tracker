@@ -24,6 +24,7 @@ void main() {
   test('today, week (from Monday) and month', () {
     final p = widgetPeriods(ledger, const Budgets(), now: now);
     expect(p['today']!.amountMinor, 57000);
+    // Yesterday (Tue) had nothing by this time, so no comparison: top category.
     expect(p['today']!.caption, '2 payments · mostly food & drinks');
     expect(p['week']!.amountMinor, 157000);
     expect(p['month']!.amountMinor, 657000);
@@ -48,5 +49,20 @@ void main() {
     final p = widgetPeriods(ledger, const Budgets(), now: DateTime(2026, 10, 15, 8));
     expect(p['today']!.amountMinor, 0);
     expect(p['today']!.caption, 'Nothing spent yet');
+  });
+
+  test('compares with the same stretch of the previous period', () {
+    final l = enrich(ingest(const [], [
+      _sms(DateTime(2026, 10, 13, 9), 'Rs.1000 debited from A/c XX4821 to VPA swiggy@icici'),
+      _sms(DateTime(2026, 10, 13, 22), 'Rs.5000 debited from A/c XX4821 to VPA amazon@apl'), // after "now" o'clock
+      _sms(DateTime(2026, 10, 14, 9), 'Rs.1500 debited from A/c XX4821 to VPA swiggy@icici'),
+    ]).txns);
+    final p = widgetPeriods(l, const Budgets(), now: DateTime(2026, 10, 14, 20));
+    // Today ₹1,500 vs yesterday up to 8 pm ₹1,000 (the 10 pm ₹5,000 doesn't count yet).
+    expect(p['today']!.caption, '1 payment · ↑50% vs yesterday');
+  });
+
+  test('last payment for the widget', () {
+    expect(lastPayment(ledger)!.text, '₹120 at Uber');
   });
 }

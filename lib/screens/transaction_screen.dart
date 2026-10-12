@@ -7,6 +7,7 @@ import '../money.dart';
 import '../ui/components.dart';
 import '../ui/format.dart';
 import '../ui/tokens.dart';
+import 'split_tab.dart' show showSplitSheet;
 import 'widgets/category_pills.dart';
 
 /// One transaction: what it counts as, its category and tags. Changes save
@@ -141,6 +142,10 @@ class TransactionScreen extends StatelessWidget {
                         style: text.bodySmall?.copyWith(color: t.muted),
                       ),
                     ),
+                    if (e.countsAsSpend) ...[
+                      const SizedBox(height: Space.xl),
+                      _SplitRow(e: e),
+                    ],
                     if (!credit) ...[
                       const SectionHeader('Category', top: Space.xxl),
                       CategoryPills(
@@ -256,3 +261,68 @@ class _Tag extends StatelessWidget {
   }
 }
 
+/// Split this payment on Splitwise, or show that it already was.
+class _SplitRow extends StatelessWidget {
+  const _SplitRow({required this.e});
+
+  final Enriched e;
+
+  @override
+  Widget build(BuildContext context) {
+    final app = AppScope.of(context);
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    final record = app.splitRecords[e.txn.id];
+    if (record != null) {
+      return Tray(
+        padding: const EdgeInsets.all(Space.lg),
+        radius: Radii.tile,
+        child: Row(
+          children: [
+            Icon(Icons.check_circle, color: t.success),
+            const SizedBox(width: Space.md),
+            Expanded(
+              child: Text(
+                'Split with ${record.label}${record.demo ? ' (demo)' : ''}, ${friendlyTime(record.at)}',
+                style: text.bodyMedium,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    final target = app.splitTarget;
+    return SurfaceCard(
+      onTap: () => showSplitSheet(context, e),
+      padding: const EdgeInsets.fromLTRB(Space.lg, Space.md, Space.md, Space.md),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(color: t.accent.withValues(alpha: 0.12), shape: BoxShape.circle),
+            child: Icon(Icons.call_split, size: 20, color: t.accentDeep),
+          ),
+          const SizedBox(width: Space.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Split on Splitwise', style: text.titleMedium),
+                Text(
+                  target == null
+                      ? 'Choose a group or friends'
+                      : '${target.label}, ${formatMoney(target.shareOf(e.txn.amountMinor), appCurrency)} each',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.bodySmall?.copyWith(color: t.muted),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right, color: t.muted),
+        ],
+      ),
+    );
+  }
+}

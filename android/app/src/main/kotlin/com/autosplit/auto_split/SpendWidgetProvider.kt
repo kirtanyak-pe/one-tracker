@@ -42,7 +42,7 @@ class SpendWidgetProvider : AppWidgetProvider() {
         private val LAYOUTS = listOf(
             SizeF(180f, 100f) to R.layout.spend_widget_tiny,
             SizeF(180f, 135f) to R.layout.spend_widget_compact,
-            SizeF(180f, 175f) to R.layout.spend_widget,
+            SizeF(180f, 195f) to R.layout.spend_widget,
         )
 
         private fun render(context: Context, manager: AppWidgetManager, id: Int) {
@@ -87,6 +87,19 @@ class SpendWidgetProvider : AppWidgetProvider() {
                     DateUtils.FORMAT_ABBREV_RELATIVE,
                 ),
             )
+
+            // "Last: ₹450 at Swiggy · 2h ago" (full-size layout only).
+            val last = data?.optJSONObject("last")
+            if (last != null) {
+                val ago = DateUtils.getRelativeTimeSpanString(
+                    last.optLong("at"), System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS,
+                    DateUtils.FORMAT_ABBREV_RELATIVE,
+                )
+                views.setTextViewText(R.id.widget_last, "Last: ${last.optString("text")} · $ago")
+                views.setViewVisibility(R.id.widget_last, View.VISIBLE)
+            } else {
+                views.setViewVisibility(R.id.widget_last, View.GONE)
+            }
 
             // Budget meter (month only): ink → accent at 80% → error over.
             val meters = listOf(R.id.widget_meter_ok, R.id.widget_meter_warn, R.id.widget_meter_over)

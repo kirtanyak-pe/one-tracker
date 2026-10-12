@@ -154,7 +154,7 @@ class SplitTab extends StatelessWidget {
                   ),
                 )
               else
-                _ToSplit(items: todo.take(10).toList()),
+                _ToSplit(items: todo),
               if (owesYou.isNotEmpty) ...[
                 const SectionHeader('Owes you'),
                 _People(people: owesYou.take(5).toList(), positive: true),
@@ -286,63 +286,116 @@ class _People extends StatelessWidget {
   }
 }
 
-class _ToSplit extends StatelessWidget {
+/// Payments still to split: light rows (tap to split, swipe to skip), the
+/// newest five until you ask for all.
+class _ToSplit extends StatefulWidget {
   const _ToSplit({required this.items});
 
   final List<Enriched> items;
+
+  @override
+  State<_ToSplit> createState() => _ToSplitState();
+}
+
+class _ToSplitState extends State<_ToSplit> {
+  static const _preview = 5;
+  bool _all = false;
 
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final t = context.tokens;
     final text = Theme.of(context).textTheme;
-    return SurfaceCard(
-      padding: const EdgeInsets.symmetric(vertical: Space.xs),
-      child: Column(
-        children: [
-          for (final (i, e) in items.indexed) ...[
-            if (i > 0) Divider(height: 1, indent: 72, color: t.tray),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(Space.lg, Space.md, Space.xs, Space.md),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(color: t.tray, shape: BoxShape.circle),
-                    child: Icon(e.category.icon, size: 20, color: t.ink),
+    final shown = _all ? widget.items : widget.items.take(_preview).toList();
+    final hidden = widget.items.length - shown.length;
+    return Column(
+      children: [
+        SurfaceCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (final (i, e) in shown.indexed) ...[
+                if (i > 0) Divider(height: 1, indent: 72, color: t.tray),
+                Dismissible(
+                  key: ValueKey('split-${e.txn.id}'),
+                  direction: DismissDirection.endToStart,
+                  onDismissed: (_) {
+                    app.skipSplit(e);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Skipped ${e.payee}')),
+                    );
+                  },
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: Space.xl),
+                    color: t.tray,
+                    child: Text('Skip', style: text.labelLarge?.copyWith(color: t.muted)),
                   ),
-                  const SizedBox(width: Space.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(e.payee, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.titleMedium),
-                        Text(
-                          '${formatMoney(e.txn.amountMinor, appCurrency)} · ${friendlyTime(e.txn.at)}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: text.bodySmall?.copyWith(color: t.muted),
-                        ),
-                      ],
+                  child: InkWell(
+                    onTap: () => showSplitSheet(context, e),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(Space.lg, Space.md, Space.md, Space.md),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(color: t.tray, shape: BoxShape.circle),
+                            child: Icon(e.category.icon, size: 20, color: t.ink),
+                          ),
+                          const SizedBox(width: Space.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(e.payee, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.titleMedium),
+                                Text(
+                                  friendlyTime(e.txn.at),
+                                  maxLines: 1,
+                                  style: text.bodySmall?.copyWith(color: t.muted),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: Space.sm),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(formatMoney(e.txn.amountMinor, appCurrency), style: text.titleMedium),
+                              const SizedBox(height: 2),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: Space.sm, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: t.accent.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(Radii.pill),
+                                ),
+                                child: Text(
+                                  'Split',
+                                  style: text.bodySmall?.copyWith(color: t.accentDeep, fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  FilledButton(
-                    onPressed: () => showSplitSheet(context, e),
-                    style: FilledButton.styleFrom(minimumSize: const Size(64, 40)),
-                    child: const Text('Split'),
-                  ),
-                  IconButton(
-                    tooltip: 'Not this one',
-                    onPressed: () => app.skipSplit(e),
-                    icon: Icon(Icons.close, color: t.muted),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (hidden > 0 || _all)
+          TextButton(
+            onPressed: () => setState(() => _all = !_all),
+            child: Text(_all ? 'Show fewer' : 'Show all $hidden more'),
+          ),
+        if (!_all)
+          Padding(
+            padding: const EdgeInsets.only(top: Space.xs),
+            child: Text('Swipe left to skip one', style: text.bodySmall?.copyWith(color: t.muted)),
+          ),
+      ],
     );
   }
 }

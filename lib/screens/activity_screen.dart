@@ -25,13 +25,31 @@ enum _Filter {
 class ActivityTab extends StatefulWidget {
   const ActivityTab({super.key});
 
+  static final _searchRequests = ValueNotifier<int>(0);
+
+  /// Puts the cursor in the search box (Home's Search shortcut).
+  static void focusSearch() => _searchRequests.value++;
+
   @override
   State<ActivityTab> createState() => _ActivityTabState();
 }
 
 class _ActivityTabState extends State<ActivityTab> {
   final _search = TextEditingController();
+  final _searchFocus = FocusNode();
   var _filter = _Filter.all;
+
+  @override
+  void initState() {
+    super.initState();
+    ActivityTab._searchRequests.addListener(_focus);
+    // Opened via Search before this tab was ever built.
+    if (ActivityTab._searchRequests.value > 0) WidgetsBinding.instance.addPostFrameCallback((_) => _focus());
+  }
+
+  void _focus() {
+    if (mounted) _searchFocus.requestFocus();
+  }
 
   /// Built lazily, so this is only a sanity cap.
   static const _cap = 2000;
@@ -56,6 +74,8 @@ class _ActivityTabState extends State<ActivityTab> {
 
   @override
   void dispose() {
+    ActivityTab._searchRequests.removeListener(_focus);
+    _searchFocus.dispose();
     _search.dispose();
     super.dispose();
   }
