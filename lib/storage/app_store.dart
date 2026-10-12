@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../model/appearance.dart';
 import '../model/automation.dart';
 import '../model/transaction.dart';
 import '../split/split_models.dart';
@@ -30,6 +31,7 @@ class AppStore {
   static const _splitSkipped = 'split_skipped_v1';
   static const _splitSettings = 'split_settings_v1';
   static const _splitPrompt = 'split_prompt_v1';
+  static const _appearance = 'appearance_v1';
 
   Future<List<Txn>> readTxns() async {
     final raw = await _prefs.getString(_txns);
@@ -83,6 +85,13 @@ class AppStore {
   Future<Set<String>> readSentAlerts() async => ((await _prefs.getStringList(_sentAlerts)) ?? const []).toSet();
 
   Future<void> writeSentAlerts(Set<String> keys) => _prefs.setStringList(_sentAlerts, keys.toList());
+
+  Future<Appearance> readAppearance() async {
+    final raw = await _prefs.getString(_appearance);
+    return raw == null ? const Appearance() : Appearance.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  }
+
+  Future<void> writeAppearance(Appearance a) => _prefs.setString(_appearance, jsonEncode(a.toJson()));
 
   // ── Splitwise ──────────────────────────────────────────────────────
 
@@ -168,7 +177,7 @@ class AppStore {
     await _prefs.clear(
       allowList: {
         _txns, _rules, _profile, _lastScan, _autoRules, _budgets, _sentAlerts, //
-        _swUser, _swGroups, _swFriends, _splitTarget, _splitRecords, _splitSkipped, _splitSettings, _splitPrompt,
+        _swUser, _swGroups, _swFriends, _splitTarget, _splitRecords, _splitSkipped, _splitSettings, _splitPrompt, _appearance,
       },
     );
     await clearSplitwiseKey();

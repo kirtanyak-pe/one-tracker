@@ -159,9 +159,9 @@ String? errorMessage(Object? errors) {
 
 class DemoSplitwiseApi implements SplitwiseApi {
   static const _you = SwUser(id: 1, firstName: 'You');
-  static const _aarav = SwUser(id: 2, firstName: 'Aarav', lastName: 'Mehta');
-  static const _meera = SwUser(id: 3, firstName: 'Meera', lastName: 'Iyer');
-  static const _kabir = SwUser(id: 4, firstName: 'Kabir', lastName: 'Singh');
+  static const _aarav = SwUser(id: 2, firstName: 'Aarav', lastName: 'Mehta', balanceMinor: 45000);
+  static const _meera = SwUser(id: 3, firstName: 'Meera', lastName: 'Iyer', balanceMinor: -120000);
+  static const _kabir = SwUser(id: 4, firstName: 'Kabir', lastName: 'Singh', balanceMinor: 80000);
   static const _zoya = SwUser(id: 5, firstName: 'Zoya', lastName: 'Khan');
 
   @override

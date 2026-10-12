@@ -1,9 +1,13 @@
 class SwUser {
-  const SwUser({required this.id, required this.firstName, this.lastName});
+  const SwUser({required this.id, required this.firstName, this.lastName, this.balanceMinor = 0});
 
   final int id;
   final String firstName;
   final String? lastName;
+
+  /// Your balance with this friend (friends list only): positive = they owe
+  /// you, negative = you owe them. Paise, all currencies summed.
+  final int balanceMinor;
 
   String get name =>
       [firstName, lastName].whereType<String>().where((s) => s.isNotEmpty).join(' ');
@@ -12,10 +16,22 @@ class SwUser {
         id: json['id'] as int,
         firstName: (json['first_name'] as String?) ?? '',
         lastName: json['last_name'] as String?,
+        balanceMinor: json['balance_minor'] as int? ?? _balance(json['balance']),
       );
 
+  /// Splitwise sends `balance: [{currency_code, amount: "250.0"}]`.
+  static int _balance(Object? raw) {
+    if (raw is! List) return 0;
+    var total = 0;
+    for (final b in raw) {
+      final amount = double.tryParse('${(b as Map)['amount']}') ?? 0;
+      total += (amount * 100).round();
+    }
+    return total;
+  }
+
   Map<String, dynamic> toJson() =>
-      {'id': id, 'first_name': firstName, 'last_name': lastName};
+      {'id': id, 'first_name': firstName, 'last_name': lastName, 'balance_minor': balanceMinor};
 }
 
 class SwGroup {

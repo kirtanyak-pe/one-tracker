@@ -2,8 +2,38 @@ import 'package:flutter/material.dart';
 
 import 'tokens.dart';
 
-ThemeData buildTheme(Brightness brightness) {
-  final t = brightness == Brightness.light ? AppTokens.light : AppTokens.dark;
+/// Design tokens from a Material You seed: same structure as the brand
+/// tokens (canvas → tray → card, ink, one accent), coloured by the wallpaper.
+AppTokens tokensFromSeed(Color seed, Brightness brightness) {
+  final s = ColorScheme.fromSeed(seedColor: seed, brightness: brightness);
+  // Accent comes from the light scheme in both modes: orange-card surfaces
+  // carry white text, which needs the darker tone either way.
+  final light = ColorScheme.fromSeed(seedColor: seed);
+  final base = brightness == Brightness.light ? AppTokens.light : AppTokens.dark;
+  final isLight = brightness == Brightness.light;
+  return AppTokens(
+    canvas: isLight ? s.surfaceContainer : s.surface,
+    canvasTop: isLight ? s.surfaceContainerHigh : s.surfaceContainerLow,
+    tray: isLight ? s.surfaceContainerHighest : s.surfaceContainer,
+    trayDeep: isLight ? Color.lerp(s.surfaceContainerHighest, s.outlineVariant, 0.5)! : s.surfaceContainerHighest,
+    card: isLight ? s.surfaceContainerLowest : s.surfaceContainerHigh,
+    ink: s.onSurface,
+    onInk: s.surface,
+    muted: s.onSurfaceVariant,
+    accent: light.primary,
+    accentDeep: Color.lerp(light.primary, Colors.black, 0.2)!,
+    onAccent: light.onPrimary,
+    success: base.success,
+  );
+}
+
+/// [seed] = wallpaper colour (Material You); null = Auto Spend's own palette.
+ThemeData buildTheme(Brightness brightness, {Color? seed}) {
+  final t = seed != null
+      ? tokensFromSeed(seed, brightness)
+      : brightness == Brightness.light
+          ? AppTokens.light
+          : AppTokens.dark;
 
   final scheme = ColorScheme.fromSeed(
     seedColor: t.accent,

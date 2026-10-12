@@ -11,7 +11,9 @@ import '../splitwise/models.dart';
 import '../splitwise/splitwise_api.dart';
 import '../storage/app_store.dart';
 import '../ui/motion.dart';
+import '../model/appearance.dart';
 import '../ui/theme.dart';
+import '../ui/wallpaper_colors.dart';
 import '../ui/tokens.dart';
 import 'split_card.dart';
 import 'split_models.dart';
@@ -63,14 +65,39 @@ abstract final class SplitOverlay {
 }
 
 /// Overlay side: its own Flutter engine, launched from `overlayMain`.
-class SplitOverlayApp extends StatelessWidget {
+/// Follows the same theme choice as the app.
+class SplitOverlayApp extends StatefulWidget {
   const SplitOverlayApp({super.key});
+
+  @override
+  State<SplitOverlayApp> createState() => _SplitOverlayAppState();
+}
+
+class _SplitOverlayAppState extends State<SplitOverlayApp> {
+  Appearance _appearance = const Appearance();
+  Color? _seed;
+
+  @override
+  void initState() {
+    super.initState();
+    () async {
+      final a = await AppStore().readAppearance();
+      final seed = a.wallpaperColors ? await wallpaperSeed() : null;
+      if (mounted) {
+        setState(() {
+          _appearance = a;
+          _seed = seed;
+        });
+      }
+    }();
+  }
 
   @override
   Widget build(BuildContext context) => MaterialApp(
         debugShowCheckedModeBanner: false,
-        theme: buildTheme(Brightness.light),
-        darkTheme: buildTheme(Brightness.dark),
+        themeMode: _appearance.mode,
+        theme: buildTheme(Brightness.light, seed: _seed),
+        darkTheme: buildTheme(Brightness.dark, seed: _seed),
         home: const _Floating(),
       );
 }
@@ -88,9 +115,8 @@ class _FloatingState extends State<_Floating> {
   StreamSubscription<dynamic>? _messages;
   double _windowDp = SplitOverlay.initialDp.toDouble();
 
-  /// Only when the card hits the height cap; otherwise the scroll view
-  /// would swallow the swipe-up-to-dismiss gesture.
-  bool _scrolls = false;
+  /// 80% of the screen height, dp (the overlay engine can't always tell).
+  double _capDp = 640;
   SplitPrompt? _prompt;
   SplitTarget? _target;
   ({List<SwGroup> groups, List<SwUser> friends})? _sw;
@@ -145,11 +171,10 @@ class _FloatingState extends State<_Floating> {
     final reported = display.devicePixelRatio > 0 ? display.size.height / display.devicePixelRatio : 0.0;
     final screenDp = reported > 300 ? reported : 800.0;
     final cap = screenDp * 0.8;
+    if (cap != _capDp) setState(() => _capDp = cap);
     final wanted = math.min(card.height + Space.md * 2, cap);
     debugPrint('SplitOverlay fit: card=${card.height.toStringAsFixed(0)} screen=$reported -> $wanted');
     if (card.height < 100) return; // not laid out properly yet
-    final scrolls = card.height + Space.md * 2 > cap;
-    if (scrolls != _scrolls) setState(() => _scrolls = scrolls);
     if ((wanted - _windowDp).abs() < 2) return;
     _windowDp = wanted;
     FlutterOverlayWindow.resizeOverlay(WindowSize.matchParent, wanted.ceil(), false);
@@ -177,9 +202,10 @@ class _FloatingState extends State<_Floating> {
                   FlutterOverlayWindow.closeOverlay();
                 },
                 onPullDown: () => _card.currentState?.openPicker(),
-                // Scrolls when capped (long picker on a small screen).
-                child: SingleChildScrollView(
-                  physics: _scrolls ? null : const NeverScrollableScrollPhysics(),
+                // Capped height; the card scrolls its middle and keeps
+                // its buttons visible.
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: _capDp - Space.md * 2),
                   child: _MeasureSize(
                     onChange: _fit,
                     child: SplitCard(
@@ -258,27 +284,30 @@ class _SwipeAwayState extends State<_SwipeAway> with SingleTickerProviderStateMi
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-        onVerticalDragUpdate: _leaving
-            ? null
-            : (d) => setState(() {
-                  // Up moves freely; down resists (it's a pull, not a move).
-                  final dy = d.delta.dy;
-                  _drag = Offset(0, _drag.dy + (dy > 0 || _drag.dy > 0 ? dy * 0.5 : dy));
-                }),
-        onVerticalDragEnd: _leaving ? null : (d) => _end(d, horizontal: false),
-        onHorizontalDragUpdate: _leaving ? null : (d) => setState(() => _drag = Offset(_drag.dx + d.delta.dx, 0)),
-        onHorizontalDragEnd: _leaving ? null : (d) => _end(d, horizontal: true),
-        child: AnimatedBuilder(
-          animation: _anim,
-          child: widget.child,
-          builder: (context, child) {
-            final o = _offset;
-            final width = MediaQuery.sizeOf(context).width;
-            final fade = (1 - (o.dx.abs() / width) - (o.dy < 0 ? -o.dy / 300 : 0)).clamp(0.0, 1.0);
-            return Opacity(opacity: fade, child: Transform.translate(offset: o, child: child));
-          },
-        ),
-      );
+    onVerticalDragUpdate: _leaving
+        ? null
+        : (d) => setState(() {
+            // Up moves freely; down resists (it's a pull, not a move).
+            final dy = d.delta.dy;
+            _drag = Offset(0, _drag.dy + (dy > 0 || _drag.dy > 0 ? dy * 0.5 : dy));
+          }),
+    onVerticalDragEnd: _leaving ? null : (d) => _end(d, horizontal: false),
+    onHorizontalDragUpdate: _leaving ? null : (d) => setState(() => _drag = Offset(_drag.dx + d.delta.dx, 0)),
+    onHorizontalDragEnd: _leaving ? null : (d) => _end(d, horizontal: true),
+    child: AnimatedBuilder(
+      animation: _anim,
+      child: widget.child,
+      builder: (context, child) {
+        final o = _offset;
+        final width = MediaQuery.sizeOf(context).width;
+        final fade = (1 - (o.dx.abs() / width) - (o.dy < 0 ? -o.dy / 300 : 0)).clamp(0.0, 1.0);
+        return Opacity(
+          opacity: fade,
+          child: Transform.translate(offset: o, child: child),
+        );
+      },
+    ),
+  );
 }
 
 /// Reports its child's size during layout (no post-frame guesswork).

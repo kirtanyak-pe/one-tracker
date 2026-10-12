@@ -74,15 +74,15 @@ class SplitCardState extends State<SplitCard> {
   }
 
   void _pickGroup(SwGroup g) => setState(() {
-        _friendIds.clear();
-        _target = SplitTarget.group(g);
-      });
+    _friendIds.clear();
+    _target = SplitTarget.group(g);
+  });
 
   void _toggleFriend(SwUser f) => setState(() {
-        _friendIds.contains(f.id) ? _friendIds.remove(f.id) : _friendIds.add(f.id);
-        final picked = widget.friends.where((x) => _friendIds.contains(x.id)).toList();
-        _target = picked.isEmpty ? null : SplitTarget.friends(picked);
-      });
+    _friendIds.contains(f.id) ? _friendIds.remove(f.id) : _friendIds.add(f.id);
+    final picked = widget.friends.where((x) => _friendIds.contains(x.id)).toList();
+    _target = picked.isEmpty ? null : SplitTarget.friends(picked);
+  });
 
   Future<void> _split() async {
     final target = _target;
@@ -117,11 +117,7 @@ class SplitCardState extends State<SplitCard> {
           margin: const EdgeInsets.only(top: _badge / 2),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(Radii.card),
-            gradient: RadialGradient(
-              center: const Alignment(1, -1),
-              radius: 1.3,
-              colors: [t.accent, t.accentDeep],
-            ),
+            gradient: RadialGradient(center: const Alignment(1, -1), radius: 1.3, colors: [t.accent, t.accentDeep]),
             boxShadow: [
               BoxShadow(color: t.accentDeep.withValues(alpha: 0.30), blurRadius: 28, offset: const Offset(0, 12)),
             ],
@@ -189,7 +185,10 @@ class SplitCardState extends State<SplitCard> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('Split!', style: text.headlineMedium?.copyWith(color: _white, fontWeight: FontWeight.w700)),
+          Text(
+            'Split!',
+            style: text.headlineMedium?.copyWith(color: _white, fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: Space.xs),
           Text(
             widget.demo
@@ -225,51 +224,62 @@ class SplitCardState extends State<SplitCard> {
           style: text.bodyLarge?.copyWith(color: _white, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: Space.lg),
-        if (!_picking && target != null)
-          _TargetPill(
-            target: target,
-            share: formatMoney(target.shareOf(p.amountMinor), appCurrency),
-            onChange: () => _setPicking(true),
-          )
-        else
-          _Picker(
-            pinned: widget.defaultTarget,
-            groups: widget.groups,
-            friends: widget.friends,
-            target: target,
-            friendIds: _friendIds,
-            onGroup: _pickGroup,
-            onFriend: _toggleFriend,
-          ),
-        if (_picking) ...[
-          // Fixed slots: choosing must never move the chips under your finger.
-          const SizedBox(height: Space.sm),
-          SizedBox(
-            height: 20,
-            child: Text(
-              target == null
-                  ? 'Pick a group or friends'
-                  : '${formatMoney(target.shareOf(p.amountMinor), appCurrency)} each, ${target.people} people',
-              textAlign: TextAlign.center,
-              style: text.bodySmall?.copyWith(color: _white),
+        // Only this middle part scrolls; the buttons below stay put.
+        Flexible(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!_picking && target != null)
+                  _TargetPill(
+                    target: target,
+                    share: formatMoney(target.shareOf(p.amountMinor), appCurrency),
+                    onChange: () => _setPicking(true),
+                  )
+                else
+                  _Picker(
+                    pinned: widget.defaultTarget,
+                    groups: widget.groups,
+                    friends: widget.friends,
+                    target: target,
+                    friendIds: _friendIds,
+                    onGroup: _pickGroup,
+                    onFriend: _toggleFriend,
+                  ),
+                if (_picking) ...[
+                  // Fixed slots: choosing must never move the chips under your finger.
+                  const SizedBox(height: Space.sm),
+                  SizedBox(
+                    height: 20,
+                    child: Text(
+                      target == null
+                          ? 'Pick a group or friends'
+                          : '${formatMoney(target.shareOf(p.amountMinor), appCurrency)} each, ${target.people} people',
+                      textAlign: TextAlign.center,
+                      style: text.bodySmall?.copyWith(color: _white),
+                    ),
+                  ),
+                  if (widget.defaultTarget != null)
+                    SizedBox(
+                      height: 44,
+                      child: target != null && !target.sameAs(widget.defaultTarget)
+                          ? _DefaultToggle(value: _makeDefault, onChanged: (v) => setState(() => _makeDefault = v))
+                          : null,
+                    ),
+                ],
+                if (_error != null) ...[
+                  const SizedBox(height: Space.sm),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.sm),
+                    decoration: BoxDecoration(color: _white, borderRadius: BorderRadius.circular(Radii.input)),
+                    child: Text(_error!, style: text.bodySmall?.copyWith(color: const Color(0xFFB3261E))),
+                  ),
+                ],
+              ],
             ),
           ),
-          if (widget.defaultTarget != null)
-            SizedBox(
-              height: 44,
-              child: target != null && !target.sameAs(widget.defaultTarget)
-                  ? _DefaultToggle(value: _makeDefault, onChanged: (v) => setState(() => _makeDefault = v))
-                  : null,
-            ),
-        ],
-        if (_error != null) ...[
-          const SizedBox(height: Space.sm),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.sm),
-            decoration: BoxDecoration(color: _white, borderRadius: BorderRadius.circular(Radii.input)),
-            child: Text(_error!, style: text.bodySmall?.copyWith(color: const Color(0xFFB3261E))),
-          ),
-        ],
+        ),
         const SizedBox(height: Space.lg),
         Row(
           children: [
@@ -286,7 +296,10 @@ class SplitCardState extends State<SplitCard> {
                 style: OnAccentButtonStyle.solid(t),
                 onPressed: target == null || _busy ? null : _split,
                 child: _busy
-                    ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _ink))
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: _ink),
+                      )
                     : const OneLineLabel('Split'),
               ),
             ),
@@ -430,15 +443,15 @@ class _ChipRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        height: 44,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          clipBehavior: Clip.none,
-          itemCount: children.length,
-          separatorBuilder: (_, _) => const SizedBox(width: Space.sm),
-          itemBuilder: (_, i) => Center(child: children[i]),
-        ),
-      );
+    height: 44,
+    child: ListView.separated(
+      scrollDirection: Axis.horizontal,
+      clipBehavior: Clip.none,
+      itemCount: children.length,
+      separatorBuilder: (_, _) => const SizedBox(width: Space.sm),
+      itemBuilder: (_, i) => Center(child: children[i]),
+    ),
+  );
 }
 
 class _DefaultToggle extends StatelessWidget {
@@ -449,13 +462,13 @@ class _DefaultToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: TextButton.icon(
-          onPressed: () => onChanged(!value),
-          style: TextButton.styleFrom(foregroundColor: Colors.white),
-          icon: Icon(value ? Icons.check_circle : Icons.radio_button_unchecked, size: 18),
-          label: const Text('Make this my default'),
-        ),
-      );
+    child: TextButton.icon(
+      onPressed: () => onChanged(!value),
+      style: TextButton.styleFrom(foregroundColor: Colors.white),
+      icon: Icon(value ? Icons.check_circle : Icons.radio_button_unchecked, size: 18),
+      label: const Text('Make this my default'),
+    ),
+  );
 }
 
 /// White-on-orange selectable pill (shared with the review card's style).
@@ -475,7 +488,9 @@ class OnAccentPill extends StatelessWidget {
       button: true,
       child: Material(
         color: selected ? Colors.white : Colors.white.withValues(alpha: 0.16),
-        shape: StadiumBorder(side: BorderSide(color: Colors.white.withValues(alpha: selected ? 1 : 0.4))),
+        shape: StadiumBorder(
+          side: BorderSide(color: Colors.white.withValues(alpha: selected ? 1 : 0.4)),
+        ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,

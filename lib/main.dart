@@ -51,12 +51,17 @@ class AutoSpendApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AppScope(
         controller: controller,
-        child: MaterialApp(
-          title: 'Auto Spend',
-          debugShowCheckedModeBanner: false,
-          theme: buildTheme(Brightness.light),
-          darkTheme: buildTheme(Brightness.dark),
-          home: const AppShell(),
+        // Rebuilds when the theme choice or wallpaper colour changes.
+        child: ListenableBuilder(
+          listenable: controller,
+          builder: (context, _) => MaterialApp(
+            title: 'Auto Spend',
+            debugShowCheckedModeBanner: false,
+            themeMode: controller.appearance.mode,
+            theme: buildTheme(Brightness.light, seed: controller.themeSeed),
+            darkTheme: buildTheme(Brightness.dark, seed: controller.themeSeed),
+            home: const AppShell(),
+          ),
         ),
       );
 }

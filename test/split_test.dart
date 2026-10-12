@@ -53,6 +53,19 @@ RawMessage _sms(DateTime at, String body) =>
 void main() {
   final prompt = SplitPrompt(txnId: 't1', amountMinor: 45000, payee: 'Swiggy', at: DateTime(2026, 10, 13));
 
+  test('friend balances from Splitwise', () {
+    final f = SwUser.fromJson({
+      'id': 9,
+      'first_name': 'Rahul',
+      'balance': [
+        {'currency_code': 'INR', 'amount': '250.5'},
+        {'currency_code': 'INR', 'amount': '-50.0'},
+      ],
+    });
+    expect(f.balanceMinor, 20050);
+    expect(SwUser.fromJson(f.toJson()).balanceMinor, 20050, reason: 'survives the cache');
+  });
+
   group('targets', () {
     test('group target splits among its members', () {
       final t = SplitTarget.group(_flat);

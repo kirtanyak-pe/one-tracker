@@ -88,4 +88,37 @@ void main() {
     expect(makeDefault, isTrue, reason: 'first choice becomes the default');
     await tester.pumpAndSettle(const Duration(seconds: 2));
   });
+
+  testWidgets('many groups: buttons stay visible, picker scrolls', (tester) async {
+    tester.view.physicalSize = const Size(375 * 3, 640 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final groups = [
+      for (var i = 0; i < 30; i++) SwGroup(id: 200 + i, name: 'Group number $i', members: const [_you, _aarav]),
+    ];
+    final friends = [for (var i = 0; i < 30; i++) SwUser(id: 500 + i, firstName: 'Friend$i')];
+    await tester.pumpWidget(MaterialApp(
+      theme: buildTheme(Brightness.light),
+      home: Scaffold(
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 360),
+            child: SplitCard(
+              prompt: prompt,
+              groups: groups,
+              friends: friends,
+              defaultTarget: null,
+              onSplit: (_, _) async {},
+              onDismiss: () {},
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    final split = tester.getRect(find.widgetWithText(FilledButton, 'Split'));
+    expect(split.bottom, lessThanOrEqualTo(640));
+    expect(split.top, greaterThan(0));
+  });
 }

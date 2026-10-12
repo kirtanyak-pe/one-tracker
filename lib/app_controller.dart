@@ -9,6 +9,7 @@ import 'engine/insights.dart';
 import 'engine/recurring.dart';
 import 'engine/summary.dart';
 import 'engine/widget_data.dart';
+import 'model/appearance.dart';
 import 'model/automation.dart';
 import 'model/category.dart';
 import 'model/transaction.dart';
@@ -25,6 +26,7 @@ import 'split/suggest.dart';
 import 'splitwise/models.dart';
 import 'splitwise/splitwise_api.dart';
 import 'storage/app_store.dart';
+import 'ui/wallpaper_colors.dart';
 
 /// App-wide state. Stores facts + user choices; [ledger] and [month] are
 /// re-derived from them after every change.
@@ -65,6 +67,17 @@ class AppController extends ChangeNotifier {
   void Function(Enriched payment)? onSplitSuggestion;
 
   bool get swConnected => !_sw.isDemo;
+
+  /// Splitwise balances across friends: owed to you, and what you owe.
+  int get owedToYouMinor => swFriends.fold(0, (sum, f) => sum + (f.balanceMinor > 0 ? f.balanceMinor : 0));
+  int get youOweMinor => swFriends.fold(0, (sum, f) => sum + (f.balanceMinor < 0 ? -f.balanceMinor : 0));
+
+  /// Splits sent this calendar month.
+  ({int totalMinor, int count}) get splitThisMonth {
+    final now = DateTime.now();
+    final mine = splitRecords.values.where((r) => r.at.year == now.year && r.at.month == now.month);
+    return (totalMinor: mine.fold(0, (sum, r) => sum + r.amountMinor), count: mine.length);
+  }
   Set<String> get _splitHandled => {...splitRecords.keys, ...splitSkipped};
 
   /// Last 30 days of payments not yet split or skipped.
@@ -74,6 +87,14 @@ class AppController extends ChangeNotifier {
         settings: splitSettings,
         since: DateTime.now().subtract(const Duration(days: 30)),
       );
+
+  Appearance appearance = const Appearance();
+
+  /// Wallpaper colour from the system, when available.
+  Color? wallpaper;
+
+  /// The seed the theme uses right now (null = brand palette).
+  Color? get themeSeed => appearance.wallpaperColors ? wallpaper : null;
 
   bool loading = true;
   bool scanning = false;
@@ -102,6 +123,9 @@ class AppController extends ChangeNotifier {
     budgets = await _store.readBudgets();
     _sentAlerts = await _store.readSentAlerts();
     profile = await _store.readProfile();
+    appearance = await _store.readAppearance();
+    wallpaper = await wallpaperSeed();
+    notifyListeners();
     await _loadSplitState();
     final swKey = await _store.readSplitwiseKey();
     if (swKey != null) _sw = HttpSplitwiseApi(swKey);
@@ -460,6 +484,12 @@ class AppController extends ChangeNotifier {
   Future<void> setSplitTarget(SplitTarget? target) async {
     splitTarget = target;
     await _store.writeSplitTarget(target);
+    notifyListeners();
+  }
+
+  Future<void> setAppearance(Appearance next) async {
+    appearance = next;
+    await _store.writeAppearance(next);
     notifyListeners();
   }
 
