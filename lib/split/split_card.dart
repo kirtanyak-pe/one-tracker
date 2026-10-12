@@ -233,6 +233,7 @@ class SplitCardState extends State<SplitCard> {
           )
         else
           _Picker(
+            pinned: widget.defaultTarget,
             groups: widget.groups,
             friends: widget.friends,
             target: target,
@@ -359,8 +360,12 @@ class _Picker extends StatelessWidget {
     required this.friendIds,
     required this.onGroup,
     required this.onFriend,
+    required this.pinned,
   });
 
+  /// Shown first. The saved default, not the live selection, so chips
+  /// never jump while you tap them.
+  final SplitTarget? pinned;
   final List<SwGroup> groups;
   final List<SwUser> friends;
   final SplitTarget? target;
@@ -379,17 +384,19 @@ class _Picker extends StatelessWidget {
         style: text.bodyMedium?.copyWith(color: Colors.white),
       );
     }
+    bool pinnedGroup(SwGroup g) => pinned?.kind == TargetKind.group && pinned?.groupId == g.id;
+    bool pinnedFriend(SwUser f) => pinned?.kind == TargetKind.friends && pinned!.friendIds.contains(f.id);
+    final sortedGroups = [...groups.where(pinnedGroup), ...groups.where((g) => !pinnedGroup(g))];
+    final sortedFriends = [...friends.where(pinnedFriend), ...friends.where((f) => !pinnedFriend(f))];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (groups.isNotEmpty) ...[
           Text('Group', style: label),
           const SizedBox(height: Space.sm),
-          Wrap(
-            spacing: Space.sm,
-            runSpacing: Space.sm,
+          _ChipRow(
             children: [
-              for (final g in groups)
+              for (final g in sortedGroups)
                 OnAccentPill(
                   label: g.name,
                   selected: target?.kind == TargetKind.group && target?.groupId == g.id,
@@ -402,11 +409,9 @@ class _Picker extends StatelessWidget {
           const SizedBox(height: Space.md),
           Text('Or friends', style: label),
           const SizedBox(height: Space.sm),
-          Wrap(
-            spacing: Space.sm,
-            runSpacing: Space.sm,
+          _ChipRow(
             children: [
-              for (final f in friends)
+              for (final f in sortedFriends)
                 OnAccentPill(label: f.name, selected: friendIds.contains(f.id), onTap: () => onFriend(f)),
             ],
           ),
@@ -414,6 +419,26 @@ class _Picker extends StatelessWidget {
       ],
     );
   }
+}
+
+/// One line of chips that scrolls sideways (keeps the card short however
+/// many groups there are) and bleeds to the card edge.
+class _ChipRow extends StatelessWidget {
+  const _ChipRow({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 44,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          clipBehavior: Clip.none,
+          itemCount: children.length,
+          separatorBuilder: (_, _) => const SizedBox(width: Space.sm),
+          itemBuilder: (_, i) => Center(child: children[i]),
+        ),
+      );
 }
 
 class _DefaultToggle extends StatelessWidget {
@@ -461,13 +486,10 @@ class OnAccentPill extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (selected) ...[
-                    const Icon(Icons.check, size: 16, color: ink),
-                    const SizedBox(width: Space.xs),
-                  ] else if (icon != null) ...[
-                    Icon(icon, size: 16, color: Colors.white),
-                    const SizedBox(width: Space.xs),
-                  ],
+                  // Same-width icon slot either way: selecting never shifts
+                  // the chips next to it.
+                  Icon(selected ? Icons.check : icon ?? Icons.add, size: 16, color: selected ? ink : Colors.white),
+                  const SizedBox(width: Space.xs),
                   Text(
                     label,
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(color: selected ? ink : Colors.white),

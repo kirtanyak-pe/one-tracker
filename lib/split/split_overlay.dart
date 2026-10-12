@@ -87,6 +87,10 @@ class _FloatingState extends State<_Floating> {
   final _card = GlobalKey<SplitCardState>();
   StreamSubscription<dynamic>? _messages;
   double _windowDp = SplitOverlay.initialDp.toDouble();
+
+  /// Only when the card hits the height cap; otherwise the scroll view
+  /// would swallow the swipe-up-to-dismiss gesture.
+  bool _scrolls = false;
   SplitPrompt? _prompt;
   SplitTarget? _target;
   ({List<SwGroup> groups, List<SwUser> friends})? _sw;
@@ -140,9 +144,12 @@ class _FloatingState extends State<_Floating> {
     final display = View.of(context).display;
     final reported = display.devicePixelRatio > 0 ? display.size.height / display.devicePixelRatio : 0.0;
     final screenDp = reported > 300 ? reported : 800.0;
-    final wanted = math.min(card.height + Space.md * 2, screenDp * 0.8);
+    final cap = screenDp * 0.8;
+    final wanted = math.min(card.height + Space.md * 2, cap);
     debugPrint('SplitOverlay fit: card=${card.height.toStringAsFixed(0)} screen=$reported -> $wanted');
     if (card.height < 100) return; // not laid out properly yet
+    final scrolls = card.height + Space.md * 2 > cap;
+    if (scrolls != _scrolls) setState(() => _scrolls = scrolls);
     if ((wanted - _windowDp).abs() < 2) return;
     _windowDp = wanted;
     FlutterOverlayWindow.resizeOverlay(WindowSize.matchParent, wanted.ceil(), false);
@@ -172,6 +179,7 @@ class _FloatingState extends State<_Floating> {
                 onPullDown: () => _card.currentState?.openPicker(),
                 // Scrolls when capped (long picker on a small screen).
                 child: SingleChildScrollView(
+                  physics: _scrolls ? null : const NeverScrollableScrollPhysics(),
                   child: _MeasureSize(
                     onChange: _fit,
                     child: SplitCard(
@@ -233,11 +241,11 @@ class _SwipeAwayState extends State<_SwipeAway> with SingleTickerProviderStateMi
     if (horizontal && (_drag.dx.abs() > width * 0.3 || v.dx.abs() > 700)) {
       _leaving = true;
       _animateTo(Offset(_drag.dx.sign * width, 0), then: widget.onDismiss);
-    } else if (!horizontal && (_drag.dy < -48 || v.dy < -600)) {
+    } else if (!horizontal && (_drag.dy < -40 || v.dy < -500)) {
       _leaving = true;
       _animateTo(const Offset(0, -600), then: widget.onDismiss);
     } else {
-      if (!horizontal && (_drag.dy > 48 || v.dy > 600)) widget.onPullDown();
+      if (!horizontal && (_drag.dy > 20 || v.dy > 300)) widget.onPullDown();
       _animateTo(Offset.zero);
     }
   }
@@ -255,7 +263,7 @@ class _SwipeAwayState extends State<_SwipeAway> with SingleTickerProviderStateMi
             : (d) => setState(() {
                   // Up moves freely; down resists (it's a pull, not a move).
                   final dy = d.delta.dy;
-                  _drag = Offset(0, _drag.dy + (dy > 0 || _drag.dy > 0 ? dy * 0.35 : dy));
+                  _drag = Offset(0, _drag.dy + (dy > 0 || _drag.dy > 0 ? dy * 0.5 : dy));
                 }),
         onVerticalDragEnd: _leaving ? null : (d) => _end(d, horizontal: false),
         onHorizontalDragUpdate: _leaving ? null : (d) => setState(() => _drag = Offset(_drag.dx + d.delta.dx, 0)),

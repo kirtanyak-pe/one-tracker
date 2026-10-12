@@ -94,8 +94,9 @@ class AppController extends ChangeNotifier {
 
   Future<void> init() async {
     _lifecycle; // start listening for resume
-    // Apply any parser improvements to what's already stored.
-    _txns = (await _store.readTxns()).map(reparse).toList();
+    // Apply any parser improvements to what's already stored, and drop
+    // payments made by the adb test hook (TestSmsReceiver uses this id).
+    _txns = (await _store.readTxns()).where((t) => t.vpa != testHookVpa).map(reparse).toList();
     rules = await _store.readRules();
     autoRules = await _store.readAutoRules();
     budgets = await _store.readBudgets();
@@ -530,6 +531,9 @@ class AppController extends ChangeNotifier {
     super.dispose();
   }
 }
+
+/// UPI id used only by on-device tests via TestSmsReceiver (see SmsReceiver.kt).
+const testHookVpa = 'autospend.test@ybl';
 
 /// Makes the [AppController] available to the widget tree.
 class AppScope extends InheritedNotifier<AppController> {
