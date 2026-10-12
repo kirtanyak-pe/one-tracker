@@ -83,13 +83,7 @@ class _ReviewCardState extends State<ReviewCard> {
               radius: 1.3,
               colors: [t.accent, t.accentDeep],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: t.accentDeep.withValues(alpha: 0.30),
-                blurRadius: 28,
-                offset: const Offset(0, 12),
-              ),
-            ],
+            boxShadow: Shadows.lifted(t.accentDeep),
           ),
           clipBehavior: Clip.antiAlias,
           child: Stack(

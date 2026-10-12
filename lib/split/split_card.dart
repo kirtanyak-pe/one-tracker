@@ -118,9 +118,7 @@ class SplitCardState extends State<SplitCard> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(Radii.card),
             gradient: RadialGradient(center: const Alignment(1, -1), radius: 1.3, colors: [t.accent, t.accentDeep]),
-            boxShadow: [
-              BoxShadow(color: t.accentDeep.withValues(alpha: 0.30), blurRadius: 28, offset: const Offset(0, 12)),
-            ],
+            boxShadow: Shadows.lifted(t.accentDeep),
           ),
           clipBehavior: Clip.antiAlias,
           child: Stack(

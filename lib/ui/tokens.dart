@@ -122,6 +122,16 @@ abstract final class Shadows {
       : [
         BoxShadow(color: accent.withValues(alpha: 0.35), blurRadius: 24, spreadRadius: 2),
       ];
+
+  /// The orange hero cards (big payment, split): a soft coloured lift.
+  static List<BoxShadow> lifted(Color color) => Perf.lite
+      ? const []
+      : [BoxShadow(color: color.withValues(alpha: 0.30), blurRadius: 28, offset: const Offset(0, 12))];
+
+  /// Things that float over scrolling content, like the tab bar.
+  static List<BoxShadow> get floating => Perf.lite
+      ? const []
+      : const [BoxShadow(color: Color(0x33000000), blurRadius: 24, offset: Offset(0, 8))];
 }
 
 extension TokensX on BuildContext {

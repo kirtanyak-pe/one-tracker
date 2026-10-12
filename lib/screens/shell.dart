@@ -125,7 +125,7 @@ class _NavPill extends StatelessWidget {
         gradient: LinearGradient(
           colors: dark ? const [Color(0xFF2A2A2A), Color(0xFF3A3A3A)] : const [Color(0xFF5E5E5E), Color(0xFF8A8A8A)],
         ),
-        boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 24, offset: Offset(0, 8))],
+        boxShadow: Shadows.floating,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,

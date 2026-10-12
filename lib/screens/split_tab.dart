@@ -299,14 +299,19 @@ class _ToSplit extends StatefulWidget {
 
 class _ToSplitState extends State<_ToSplit> {
   static const _preview = 5;
-  bool _all = false;
+
+  /// "Show more" adds this many at a time, so a long month never builds
+  /// every row at once on a slow phone.
+  static const _page = 20;
+  int _limit = _preview;
 
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final t = context.tokens;
     final text = Theme.of(context).textTheme;
-    final shown = _all ? widget.items : widget.items.take(_preview).toList();
+    final shown = widget.items.take(_limit).toList();
+    final expanded = _limit > _preview;
     final hidden = widget.items.length - shown.length;
     return Column(
       children: [
@@ -385,12 +390,17 @@ class _ToSplitState extends State<_ToSplit> {
             ],
           ),
         ),
-        if (hidden > 0 || _all)
+        if (hidden > 0)
           TextButton(
-            onPressed: () => setState(() => _all = !_all),
-            child: Text(_all ? 'Show fewer' : 'Show all $hidden more'),
+            onPressed: () => setState(() => _limit += _page),
+            child: Text(hidden <= _page ? 'Show all $hidden more' : 'Show $_page more of $hidden'),
+          )
+        else if (expanded)
+          TextButton(
+            onPressed: () => setState(() => _limit = _preview),
+            child: const Text('Show fewer'),
           ),
-        if (!_all)
+        if (!expanded)
           Padding(
             padding: const EdgeInsets.only(top: Space.xs),
             child: Text('Swipe left to skip one', style: text.bodySmall?.copyWith(color: t.muted)),

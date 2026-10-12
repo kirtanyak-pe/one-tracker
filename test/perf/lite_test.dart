@@ -15,9 +15,13 @@ void main() {
     Perf.lite = false;
     expect(Shadows.card(Brightness.light), isNotEmpty);
     expect(Shadows.glow(Colors.orange), isNotEmpty);
+    expect(Shadows.lifted(Colors.orange), isNotEmpty);
+    expect(Shadows.floating, isNotEmpty);
     Perf.lite = true;
     expect(Shadows.card(Brightness.light), isEmpty);
     expect(Shadows.glow(Colors.orange), isEmpty);
+    expect(Shadows.lifted(Colors.orange), isEmpty);
+    expect(Shadows.floating, isEmpty);
     Perf.lite = false;
   });
 }
