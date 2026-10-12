@@ -21,12 +21,13 @@ abstract class SplitwiseApi {
     required String currency,
   });
 
-  /// Non-group expense with explicit shares.
+  /// Expense with explicit shares — in [groupId], or outside groups (0).
   Future<void> createSharedExpense({
     required List<ExpenseShare> shares,
     required int costMinor,
     required String description,
     required String currency,
+    int groupId = 0,
   });
 }
 
@@ -96,12 +97,13 @@ class HttpSplitwiseApi implements SplitwiseApi {
     required int costMinor,
     required String description,
     required String currency,
+    int groupId = 0,
   }) =>
       _post('create_expense', {
         'cost': minorToDecimal(costMinor),
         'description': description,
         'currency_code': currency,
-        'group_id': 0,
+        'group_id': groupId,
         for (var i = 0; i < shares.length; i++) ...{
           'users__${i}__user_id': shares[i].userId,
           'users__${i}__paid_share': minorToDecimal(shares[i].paidMinor),
@@ -204,6 +206,7 @@ class DemoSplitwiseApi implements SplitwiseApi {
     required int costMinor,
     required String description,
     required String currency,
+    int groupId = 0,
   }) =>
       _latency();
 }

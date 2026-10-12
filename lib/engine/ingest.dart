@@ -30,6 +30,12 @@ class RawMessage {
     if (!seen.add('${m.source.name}:${m.sourceId}')) continue;
     final p = parseMessage(m.body);
     if (p == null) continue;
+    // Same text minutes apart is the same SMS seen twice (e.g. stored under
+    // an older id scheme).
+    final body = m.body.trim();
+    if (txns.any((t) => t.raw?.trim() == body && t.at.difference(m.at).abs() <= const Duration(minutes: 10))) {
+      continue;
+    }
 
     final twinIndex = txns.indexWhere((t) =>
         t.direction == p.direction &&

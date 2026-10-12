@@ -108,6 +108,8 @@ class AppController extends ChangeNotifier {
     swUser = cache.user;
     swGroups = cache.groups;
     swFriends = cache.friends;
+    // Bank SMS arriving while we're running come straight here.
+    SmsSource.listenLive(_onLiveSms);
     if (SplitOverlay.isSupported) {
       // The floating card split something: pick it up straight away.
       _overlayMessages = SplitOverlay.messages.listen((_) async {
@@ -180,6 +182,7 @@ class AppController extends ChangeNotifier {
   // ── Sources ──────────────────────────────────────────────────────────
 
   Future<void> refreshPermissions() async {
+    await SmsSource.upgradeToLive();
     smsGranted = await SmsSource.hasPermission();
     notificationsGranted = await NotificationSource.hasPermission();
     overlayGranted = await SplitOverlay.hasPermission();
@@ -220,6 +223,13 @@ class AppController extends ChangeNotifier {
       scanning = false;
       notifyListeners();
     }
+  }
+
+  /// A bank SMS just arrived (via the native receiver).
+  void _onLiveSms(RawMessage message) {
+    final result = ingest(_txns, [message]);
+    _txns = result.txns;
+    unawaited(_save().then((_) => _suggestSplit(result.addedIds)));
   }
 
   void _onNotification(RawMessage message) {

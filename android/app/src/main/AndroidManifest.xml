@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
         <!-- Reads bank transaction SMS to track spending -->
     <uses-permission android:name="android.permission.READ_SMS" />
+    <!-- Instant: hear about bank SMS as they arrive, even if the app is closed -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <!-- Splitwise: only used when you press Split -->
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Floating "split this?" card over other apps -->
@@ -41,6 +43,26 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Incoming bank SMS -> instant split pop-up -->
+        <receiver
+            android:name=".SmsReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- adb-only test hook for the above (DUMP is held by the shell, not apps) -->
+        <receiver
+            android:name=".TestSmsReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.autosplit.auto_split.TEST_SMS" />
+            </intent-filter>
+        </receiver>
 
         <!-- Home-screen spending widget -->
         <receiver

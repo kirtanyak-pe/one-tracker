@@ -18,6 +18,7 @@ const _flat = SwGroup(id: 101, name: 'Flatmates', members: [_you, _aarav, _meera
 class _FakeApi extends DemoSplitwiseApi {
   final calls = <String>[];
   List<ExpenseShare>? shares;
+  int? sharedGroupId;
 
   @override
   bool get isDemo => false;
@@ -37,8 +38,10 @@ class _FakeApi extends DemoSplitwiseApi {
     required int costMinor,
     required String description,
     required String currency,
+    int groupId = 0,
   }) async {
     this.shares = shares;
+    sharedGroupId = groupId;
     calls.add('shared $costMinor $description');
   }
 }

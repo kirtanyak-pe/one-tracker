@@ -21,6 +21,7 @@ class SplitCard extends StatefulWidget {
     required this.onDismiss,
     this.demo = false,
     this.onExpandedChanged,
+    this.showHandle = false,
   });
 
   final SplitPrompt prompt;
@@ -33,14 +34,17 @@ class SplitCard extends StatefulWidget {
   final Future<void> Function(SplitTarget target, bool makeDefault) onSplit;
   final VoidCallback onDismiss;
 
-  /// The picker opened/closed — the floating window resizes to fit.
+  /// The picker opened/closed.
   final ValueChanged<bool>? onExpandedChanged;
 
+  /// Grab handle hinting at swipe-to-dismiss (floating card).
+  final bool showHandle;
+
   @override
-  State<SplitCard> createState() => _SplitCardState();
+  State<SplitCard> createState() => SplitCardState();
 }
 
-class _SplitCardState extends State<SplitCard> {
+class SplitCardState extends State<SplitCard> {
   static const _badge = 56.0;
   static const _white = Colors.white;
   static const _ink = Color(0xFF111111);
@@ -57,6 +61,11 @@ class _SplitCardState extends State<SplitCard> {
   void initState() {
     super.initState();
     if (_picking) WidgetsBinding.instance.addPostFrameCallback((_) => widget.onExpandedChanged?.call(true));
+  }
+
+  /// Pull-down on the floating card opens the picker.
+  void openPicker() {
+    if (!_done && !_picking) _setPicking(true);
   }
 
   void _setPicking(bool on) {
@@ -121,6 +130,22 @@ class _SplitCardState extends State<SplitCard> {
           child: Stack(
             children: [
               const Positioned(top: 0, right: 0, child: ConcentricArcs()),
+              if (widget.showHandle)
+                Positioned(
+                  bottom: Space.sm,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(Space.xl, _badge / 2 + Space.md, Space.xl, Space.xl),
                 child: AnimatedSize(

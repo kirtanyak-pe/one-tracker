@@ -6,9 +6,23 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    companion object {
+        const val CHANNEL = "auto_spend/sms"
+
+        /** The app's engine while it's running; SmsReceiver hands SMS to it. */
+        @Volatile
+        var liveEngine: FlutterEngine? = null
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        if (liveEngine === flutterEngine) liveEngine = null
+        super.cleanUpFlutterEngine(flutterEngine)
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "auto_spend/sms")
+        liveEngine = flutterEngine
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "inbox" -> {
@@ -25,6 +39,15 @@ class MainActivity : FlutterActivity() {
                                 runOnUiThread { result.error("read_failed", e.message, null) }
                             }
                         }.start()
+                    }
+                    "smsPermissions" -> {
+                        fun has(p: String) = checkSelfPermission(p) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                        result.success(
+                            mapOf(
+                                "read" to has(android.Manifest.permission.READ_SMS),
+                                "receive" to has(android.Manifest.permission.RECEIVE_SMS),
+                            ),
+                        )
                     }
                     "pinWidget" -> {
                         // Shows the launcher's own "Add widget?" confirmation.

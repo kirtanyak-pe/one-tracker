@@ -1,7 +1,11 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'app_controller.dart';
 import 'screens/shell.dart';
+import 'sources/live_sms.dart';
 import 'split/split_overlay.dart';
 import 'storage/app_store.dart';
 import 'ui/theme.dart';
@@ -17,6 +21,26 @@ void main() {
 void overlayMain() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const SplitOverlayApp());
+}
+
+/// A bank SMS arrived while the app was closed: SmsReceiver.kt starts a
+/// short-lived engine here. Args: sender, body, timestamp ms, pixel ratio.
+@pragma('vm:entry-point')
+Future<void> smsMain(List<String> args) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  DartPluginRegistrant.ensureInitialized();
+  try {
+    await handleBackgroundSms(
+      sender: args[0],
+      body: args[1],
+      at: DateTime.fromMillisecondsSinceEpoch(int.parse(args[2])),
+      pixelRatio: double.tryParse(args[3]) ?? 2.625,
+    );
+  } catch (e, s) {
+    debugPrint('Background SMS failed: $e\n$s');
+  } finally {
+    await const MethodChannel('auto_spend/sms').invokeMethod('done');
+  }
 }
 
 class AutoSpendApp extends StatelessWidget {
