@@ -10,7 +10,7 @@ class Appearance {
 
   final ThemeMode mode;
 
-  /// false = Auto Spend's own orange.
+  /// false = One Tracker's own orange.
   final bool wallpaperColors;
 
   /// auto = reduced on low-end phones, full elsewhere.

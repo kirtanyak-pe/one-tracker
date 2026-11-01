@@ -12,7 +12,7 @@ import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.plugin.common.MethodChannel
 
 /**
- * Wakes up for every incoming SMS — even when Auto Spend isn't running —
+ * Wakes up for every incoming SMS — even when One Tracker isn't running —
  * so a bank debit can pop the split card the moment it arrives.
  */
 class SmsReceiver : BroadcastReceiver() {

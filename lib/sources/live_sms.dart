@@ -12,7 +12,7 @@ import 'notifier.dart';
 import 'sms_source.dart';
 import 'widget_bridge.dart';
 
-/// A bank SMS arrived while Auto Spend wasn't running (see SmsReceiver.kt,
+/// A bank SMS arrived while One Tracker wasn't running (see SmsReceiver.kt,
 /// `smsMain`). Saves it, refreshes the widget, checks budgets, and pops the
 /// split card — all from storage, since there's no app state in memory.
 Future<void> handleBackgroundSms({

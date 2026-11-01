@@ -30,7 +30,7 @@ class AppearancePage extends StatelessWidget {
         Text('System follows your phone\'s light/dark setting.', style: text.bodySmall?.copyWith(color: t.muted)),
         const SectionHeader('Colours'),
         PillSegmented<bool>(
-          options: const {true: 'Wallpaper', false: 'Auto Spend'},
+          options: const {true: 'Wallpaper', false: 'One Tracker'},
           value: a.wallpaperColors,
           onChanged: (w) => app.setAppearance(a.copyWith(wallpaperColors: w)),
         ),
@@ -38,9 +38,9 @@ class AppearancePage extends StatelessWidget {
         Text(
           a.wallpaperColors
               ? (app.wallpaper == null
-                  ? "Your phone doesn't share wallpaper colours, so Auto Spend's orange is used."
+                  ? "Your phone doesn't share wallpaper colours, so One Tracker's orange is used."
                   : 'Colours come from your wallpaper (Material You).')
-              : "Auto Spend's own warm grey and orange.",
+              : "One Tracker's own warm grey and orange.",
           style: text.bodySmall?.copyWith(color: t.muted),
         ),
         const SectionHeader('Animations & effects'),
@@ -205,7 +205,7 @@ class SourcesPage extends StatelessWidget {
           );
     return SettingsPage(
       title: 'Sources',
-      intro: 'Where Auto Spend finds your payments. Everything is read on this phone.',
+      intro: 'Where One Tracker finds your payments. Everything is read on this phone.',
       children: [
         if (!app.isAndroid)
           Tray(
@@ -260,7 +260,7 @@ class WidgetPage extends StatelessWidget {
                 final ok = await WidgetBridge.requestPin();
                 if (!ok) {
                   messenger.showSnackBar(
-                    const SnackBar(content: Text('Long-press your home screen → Widgets → Auto Spend')),
+                    const SnackBar(content: Text('Long-press your home screen → Widgets → One Tracker')),
                   );
                 }
               },

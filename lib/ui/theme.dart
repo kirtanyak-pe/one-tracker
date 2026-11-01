@@ -27,7 +27,7 @@ AppTokens tokensFromSeed(Color seed, Brightness brightness) {
   );
 }
 
-/// [seed] = wallpaper colour (Material You); null = Auto Spend's own palette.
+/// [seed] = wallpaper colour (Material You); null = One Tracker's own palette.
 ThemeData buildTheme(Brightness brightness, {Color? seed}) {
   final t = seed != null
       ? tokensFromSeed(seed, brightness)

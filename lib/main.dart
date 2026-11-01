@@ -13,7 +13,7 @@ import 'ui/theme.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   final controller = AppController(AppStore())..init();
-  runApp(AutoSpendApp(controller: controller));
+  runApp(OneTrackerApp(controller: controller));
 }
 
 /// Entry point for the floating split card (its own engine, see SplitOverlay).
@@ -43,8 +43,8 @@ Future<void> smsMain(List<String> args) async {
   }
 }
 
-class AutoSpendApp extends StatelessWidget {
-  const AutoSpendApp({super.key, required this.controller});
+class OneTrackerApp extends StatelessWidget {
+  const OneTrackerApp({super.key, required this.controller});
 
   final AppController controller;
 
@@ -55,7 +55,7 @@ class AutoSpendApp extends StatelessWidget {
         child: ListenableBuilder(
           listenable: controller,
           builder: (context, _) => MaterialApp(
-            title: 'Auto Spend',
+            title: 'One Tracker',
             debugShowCheckedModeBanner: false,
             themeMode: controller.appearance.mode,
             theme: buildTheme(Brightness.light, seed: controller.themeSeed),

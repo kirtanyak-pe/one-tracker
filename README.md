@@ -1,4 +1,4 @@
-# Auto Spend
+# One Tracker
 
 Tracks where your money goes by reading bank SMS and UPI/bank-app
 notifications on your phone, and splits payments on Splitwise. Android-first.
@@ -55,7 +55,7 @@ UPI app notifications ─┘                                                   �
 - **After every payment** (above ₹100, adjustable) a floating card pops up over
   whatever app you paid in: "₹450 at Swiggy → Flatmates, ₹150 each" → **Split**
   creates the Splitwise expense. **Change** opens groups/friends right in the card,
-  with "make this my default". If Auto Spend is open, the card shows in-app instead.
+  with "make this my default". If One Tracker is open, the card shows in-app instead.
 - **Split tab**: connect Splitwise (personal API key, stored in the Android
   keystore), default split, pop-up settings and preview, payments still to split,
   split history. Demo groups until connected — nothing is sent.

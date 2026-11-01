@@ -47,7 +47,7 @@ class HomeTab extends StatelessWidget {
             children: staggered([
               Row(
                 children: [
-                  Expanded(child: Text('Auto Spend', style: text.titleMedium?.copyWith(color: t.muted))),
+                  Expanded(child: Text('One Tracker', style: text.titleMedium?.copyWith(color: t.muted))),
                   if (app.scanning)
                     Padding(
                       padding: const EdgeInsets.only(right: Space.md),

@@ -55,7 +55,7 @@ abstract final class SplitOverlay {
       // We handle swipes ourselves; the plugin's drag can fling the window
       // off-screen.
       enableDrag: false,
-      overlayTitle: 'Auto Spend',
+      overlayTitle: 'One Tracker',
       overlayContent: 'Split this payment?',
     );
   }

@@ -69,13 +69,13 @@ class SpendWidgetProvider : AppWidgetProvider() {
             val p = data?.optJSONObject("periods")?.optJSONObject(period)
             val stale = p == null || System.currentTimeMillis() >= p.optLong("validUntil", 0)
 
-            views.setTextViewText(R.id.widget_title, p?.optString("title") ?: "Auto Spend")
+            views.setTextViewText(R.id.widget_title, p?.optString("title") ?: "One Tracker")
             views.setTextViewText(R.id.widget_amount, if (stale) "—" else p!!.optString("amount"))
             views.setTextViewText(
                 R.id.widget_caption,
                 when {
-                    p == null -> "Open Auto Spend to set up"
-                    stale -> "Open Auto Spend to refresh"
+                    p == null -> "Open One Tracker to set up"
+                    stale -> "Open One Tracker to refresh"
                     else -> p.optString("caption")
                 },
             )
