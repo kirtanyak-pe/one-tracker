@@ -49,6 +49,20 @@ class AppController extends ChangeNotifier {
   Profile profile = const Profile();
   Ledger ledger = Ledger.empty;
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
+
+  /// The calendar month as of the last check. The app can stay alive for
+  /// days (live SMS keeps it running), so "now" has to be re-read.
+  DateTime _calendarMonth = DateTime(DateTime.now().year, DateTime.now().month);
+
+  /// Moves a screen that was showing the current month on to the new one
+  /// when the month changes. Returns true if anything moved.
+  bool _followCalendar() {
+    final current = currentMonthOf(DateTime.now());
+    if (current == _calendarMonth) return false;
+    _month = followMonth(viewed: _month, lastCurrent: _calendarMonth, current: current);
+    _calendarMonth = current;
+    return true;
+  }
   late MonthSummary month = summarize(ledger, _month);
   late Insights insights = buildInsights(ledger, _month);
   List<Recurring> recurring = [];
@@ -183,6 +197,7 @@ class AppController extends ChangeNotifier {
   int _generation = 0;
 
   Future<void> _recompute() async {
+    _followCalendar();
     final generation = ++_generation;
     final input = DeriveInput(
       txns: List.of(_txns),
@@ -467,6 +482,11 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> _onResume() async {
+    if (_followCalendar()) {
+      await _recompute();
+      notifyListeners();
+      await _pushWidget();
+    }
     await _loadSplitState();
     await refreshPermissions();
     await scanSms();
@@ -612,3 +632,11 @@ class AppScope extends InheritedNotifier<AppController> {
   static AppController of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<AppScope>()!.notifier!;
 }
+
+DateTime currentMonthOf(DateTime now) => DateTime(now.year, now.month);
+
+/// Which month to show after the calendar moved from [lastCurrent] to
+/// [current]: follow it if the user was on the then-current month, otherwise
+/// keep the past month they chose.
+DateTime followMonth({required DateTime viewed, required DateTime lastCurrent, required DateTime current}) =>
+    viewed == lastCurrent ? current : viewed;
