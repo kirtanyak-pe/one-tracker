@@ -8,10 +8,13 @@ import '../../money.dart';
 import '../../ui/components.dart';
 import '../../ui/format.dart';
 import '../../ui/motion.dart';
+import '../../ui/payee_logo.dart';
 import '../../ui/tokens.dart';
+import 'prompt_card_parts.dart';
 
-/// The one orange moment: big payments (above the threshold in Settings),
-/// one at a time. Everything else counts as an expense without asking.
+/// Big payments (above the threshold in Settings), one at a time. Everything
+/// else counts as an expense without asking. A white card like the rest of
+/// the app: who and how much, one question, category chips, two actions.
 class ReviewCard extends StatefulWidget {
   const ReviewCard({super.key, required this.queue, required this.currency});
 
@@ -23,7 +26,6 @@ class ReviewCard extends StatefulWidget {
 }
 
 class _ReviewCardState extends State<ReviewCard> {
-  static const _badge = 56.0;
   Category? _picked;
   bool _busy = false;
 
@@ -65,142 +67,110 @@ class _ReviewCardState extends State<ReviewCard> {
     final category = _picked ?? e.category;
     final options = [
       category,
-      ...[Category.people, Category.bills, Category.food, Category.shopping, Category.groceries,
-          Category.transport, Category.health, Category.other]
-          .where((c) => c != category),
+      ...[
+        Category.people,
+        Category.bills,
+        Category.food,
+        Category.shopping,
+        Category.groceries,
+        Category.transport,
+        Category.health,
+        Category.other,
+      ].where((c) => c != category),
     ];
+    final count = widget.queue.length;
+    final filing = _picked != null && _picked != e.category;
 
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.topCenter,
-      children: [
-        Container(
-          margin: const EdgeInsets.only(top: _badge / 2),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(Radii.card),
-            gradient: RadialGradient(
-              center: const Alignment(1, -1),
-              radius: 1.3,
-              colors: [t.accent, t.accentDeep],
+    return PromptSurface(
+      child: AnimatedSwitcher(
+        duration: Motion.of(context, Motion.medium),
+        // Next payment slides in from the right.
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween(
+              begin: const Offset(0.08, 0),
+              end: Offset.zero,
+            ).chain(CurveTween(curve: Motion.enter)).animate(animation),
+            child: child,
+          ),
+        ),
+        child: Column(
+          key: ValueKey(e.txn.id),
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            PromptHeader(
+              icon: category.icon,
+              leading: PayeeAvatar(e, size: 44),
+              title: e.payee,
+              subtitle: count == 1
+                  ? '${dayLabel(e.txn.at)} · Big payment'
+                  : '${dayLabel(e.txn.at)} · Big payment, 1 of $count',
+              amount: formatMoney(e.txn.amountMinor, widget.currency),
             ),
-            boxShadow: Shadows.lifted(t.accentDeep),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Stack(
-            children: [
-              const Positioned(top: 0, right: 0, child: ConcentricArcs()),
-              Positioned(
-                top: Space.lg,
-                left: Space.xl,
-                child: Text(
-                  widget.queue.length == 1 ? '1 big payment' : '${widget.queue.length} big payments',
-                  style: text.bodySmall?.copyWith(color: t.onAccent, fontWeight: FontWeight.w600),
+            const SizedBox(height: Space.lg),
+            Text('Count it as an expense?', style: text.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: Space.xs),
+            SizedBox(
+              height: 48,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: options.length,
+                separatorBuilder: (_, _) => const SizedBox(width: Space.sm),
+                itemBuilder: (_, i) => _CategoryChip(
+                  category: options[i],
+                  selected: options[i] == category,
+                  onTap: _busy ? null : () => setState(() => _picked = options[i]),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(Space.xl, _badge / 2 + Space.lg, Space.xl, Space.xl),
-                child: AnimatedSwitcher(
-                  duration: Motion.of(context, Motion.medium),
-                  // Next payment slides in from the right.
-                  transitionBuilder: (child, animation) => FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: Tween(begin: const Offset(0.15, 0), end: Offset.zero)
-                          .chain(CurveTween(curve: Motion.enter))
-                          .animate(animation),
-                      child: child,
-                    ),
-                  ),
-                  child: Column(
-                    key: ValueKey(e.txn.id),
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        formatMoney(e.txn.amountMinor, widget.currency),
-                        style: text.headlineMedium?.copyWith(
-                          color: t.onAccent,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w700,
-                        ),
+            ),
+            AnimatedSize(
+              duration: Motion.of(context, Motion.fast),
+              alignment: Alignment.topLeft,
+              child: filing
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: Space.xs),
+                      child: Text(
+                        "I'll file ${e.payee} under ${_picked!.label} from now on",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: text.bodySmall?.copyWith(color: t.muted),
                       ),
-                      const SizedBox(height: Space.xs),
-                      Text(
-                        'to ${e.payee} · ${dayLabel(e.txn.at)}\nCount it as an expense?',
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        style: text.bodyLarge?.copyWith(color: t.onAccent, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: Space.xl),
-                      SizedBox(
-                        height: 44,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          clipBehavior: Clip.none,
-                          itemCount: options.length,
-                          separatorBuilder: (_, _) => const SizedBox(width: Space.sm),
-                          itemBuilder: (_, i) => _OnAccentPill(
-                            category: options[i],
-                            selected: options[i] == category,
-                            onTap: _busy ? null : () => setState(() => _picked = options[i]),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: Space.md),
-                      SizedBox(
-                        height: 20,
-                        child: _picked != null && _picked != e.category
-                            ? Text(
-                                "I'll file ${e.payee} under ${_picked!.label} from now on",
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: text.bodySmall?.copyWith(color: t.onAccent),
-                              )
-                            : null,
-                      ),
-                      const SizedBox(height: Space.md),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: FilledButton(
-                              style: OnAccentButtonStyle.ghost(t),
-                              onPressed: _busy ? null : () => _run((app) => app.setKind(e.txn, TxnKind.notExpense)),
-                              child: const OneLineLabel('Not expense'),
-                            ),
-                          ),
-                          const SizedBox(width: Space.md),
-                          Expanded(
-                            child: FilledButton(
-                              style: OnAccentButtonStyle.solid(t),
-                              onPressed: _busy ? null : () => _run(_confirm),
-                              child: const OneLineLabel('Expense'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                    )
+                  : const SizedBox(width: double.infinity),
+            ),
+            const SizedBox(height: Space.md),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    style: PromptButtons.secondary(t),
+                    onPressed: _busy ? null : () => _run((app) => app.setKind(e.txn, TxnKind.notExpense)),
+                    child: const OneLineLabel('Not expense'),
                   ),
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: Space.sm),
+                Expanded(
+                  child: FilledButton(
+                    style: PromptButtons.primary(t),
+                    onPressed: _busy ? null : () => _run(_confirm),
+                    child: const OneLineLabel('Expense'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        Container(
-          width: _badge,
-          height: _badge,
-          padding: const EdgeInsets.all(5),
-          decoration: BoxDecoration(color: t.canvas, shape: BoxShape.circle),
-          child: Container(
-            decoration: const BoxDecoration(color: Color(0xFF151515), shape: BoxShape.circle),
-            child: Icon(Icons.question_mark_rounded, color: t.accent, size: 22),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
 
-class _OnAccentPill extends StatelessWidget {
-  const _OnAccentPill({required this.category, required this.selected, required this.onTap});
+/// Category choice: tray pill, ink-filled when picked. 48dp tall hit area
+/// around a 40dp pill.
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({required this.category, required this.selected, required this.onTap});
 
   final Category category;
   final bool selected;
@@ -209,31 +179,27 @@ class _OnAccentPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    const ink = Color(0xFF111111);
+    final fg = selected ? t.onInk : t.ink;
     return Semantics(
       selected: selected,
       button: true,
-      child: Material(
-        color: selected ? Colors.white : Colors.white.withValues(alpha: 0.16),
-        shape: StadiumBorder(
-          side: BorderSide(color: Colors.white.withValues(alpha: selected ? 1 : 0.4)),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
+      label: category.label,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const StadiumBorder(),
+        child: Center(
+          child: AnimatedContainer(
+            duration: Motion.of(context, Motion.fast),
+            height: 40,
             padding: const EdgeInsets.symmetric(horizontal: Space.lg),
+            decoration: ShapeDecoration(color: selected ? t.ink : t.tray, shape: const StadiumBorder()),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(category.icon, size: 18, color: selected ? ink : t.onAccent),
-                const SizedBox(width: Space.xs + 2),
-                Text(
-                  category.label,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: selected ? ink : t.onAccent,
-                      ),
-                ),
+                Icon(category.icon, size: 18, color: fg),
+                const SizedBox(width: Space.sm),
+                Text(category.label, style: Theme.of(context).textTheme.labelLarge?.copyWith(color: fg)),
               ],
             ),
           ),

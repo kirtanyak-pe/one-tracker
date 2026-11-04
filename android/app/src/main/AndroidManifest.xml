@@ -3,13 +3,7 @@
     <uses-permission android:name="android.permission.READ_SMS" />
     <!-- Instant: hear about bank SMS as they arrive, even if the app is closed -->
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
-    <!-- Splitwise: only used when you press Split -->
-    <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Floating "split this?" card over other apps -->
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <!-- Budget alerts -->
+    <!-- Budget alerts and "split it?" suggestions -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
@@ -44,7 +38,7 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
-        <!-- Incoming bank SMS -> instant split pop-up -->
+        <!-- Incoming bank SMS -> instant tracking + split notification -->
         <receiver
             android:name=".SmsReceiver"
             android:exported="true"
@@ -76,15 +70,19 @@
                 android:resource="@xml/spend_widget_info" />
         </receiver>
 
-        <!-- Hosts the floating split card -->
-        <service
-            android:name="flutter.overlay.window.flutter_overlay_window.OverlayService"
+        <!-- Split notification: tap / Split records it and opens Splitwise (no UI) -->
+        <activity
+            android:name=".SplitActionActivity"
             android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Shows a floating card to split a just-detected payment on Splitwise" />
-        </service>
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:noHistory="true" />
+
+        <!-- Split notification: Skip / Not expense -->
+        <receiver
+            android:name=".SplitActionReceiver"
+            android:exported="false" />
 
         <!-- Reads bank / UPI app notifications to detect payments -->
         <service
@@ -104,6 +102,106 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <!-- Splitwise (to open its Add expense screen) and the store page if it's missing -->
+        <package android:name="com.Splitwise.SplitwiseMobile" />
+        <!-- Launcher icons of merchant / payment apps, shown as payee logos (offline).
+             Keep in sync with lib/ui/payee_logo.dart (test/payee_logo_test.dart checks). -->
+        <package android:name="in.swiggy.android" />
+        <package android:name="com.application.zomato" />
+        <package android:name="com.grofers.customerapp" />
+        <package android:name="com.zeptoconsumerapp" />
+        <package android:name="com.bigbasket.mobileapp" />
+        <package android:name="com.jpl.jiomart" />
+        <package android:name="com.dmartindia.customerapp" />
+        <package android:name="in.dmart.ready" />
+        <package android:name="com.licious" />
+        <package android:name="in.district.app" />
+        <package android:name="com.zomato.district" />
+        <package android:name="com.Dominos" />
+        <package android:name="com.amazon.avod.thirdpartyclient" />
+        <package android:name="com.amazon.kindle" />
+        <package android:name="in.amazon.mShop.android.shopping" />
+        <package android:name="com.amazon.mShop.android.shopping" />
+        <package android:name="com.flipkart.android" />
+        <package android:name="com.myntra.android" />
+        <package android:name="com.ril.ajio" />
+        <package android:name="com.fsn.nykaa" />
+        <package android:name="com.meesho.supply" />
+        <package android:name="com.tul.tatacliq" />
+        <package android:name="com.tatadigital.tcp" />
+        <package android:name="com.lenskart.app" />
+        <package android:name="com.ubercab" />
+        <package android:name="com.olacabs.customer" />
+        <package android:name="com.rapido.passenger" />
+        <package android:name="in.juspay.nammayatri" />
+        <package android:name="cris.org.in.prs.ima" />
+        <package android:name="com.makemytrip" />
+        <package android:name="com.goibibo" />
+        <package android:name="in.redbus.android" />
+        <package android:name="com.ixigo.train.ixitrain" />
+        <package android:name="com.ixigo" />
+        <package android:name="com.cleartrip.android" />
+        <package android:name="com.airbnb.android" />
+        <package android:name="com.bt.bms" />
+        <package android:name="com.netflix.mediaclient" />
+        <package android:name="com.spotify.music" />
+        <package android:name="in.startv.hotstar" />
+        <package android:name="com.sonyliv" />
+        <package android:name="com.graymatrix.did" />
+        <package android:name="com.jio.media.ondemand" />
+        <package android:name="com.jio.media.jiobeats" />
+        <package android:name="com.google.android.youtube" />
+        <package android:name="com.android.vending" />
+        <package android:name="com.google.android.apps.subscriptions.red" />
+        <package android:name="com.openai.chatgpt" />
+        <package android:name="com.anthropic.claude" />
+        <package android:name="com.linkedin.android" />
+        <package android:name="com.myairtelapp" />
+        <package android:name="com.jio.myjio" />
+        <package android:name="com.mventus.selfcare.activity" />
+        <package android:name="com.phonepe.app" />
+        <package android:name="com.google.android.apps.nbu.paisa.user" />
+        <package android:name="net.one97.paytm" />
+        <package android:name="com.dreamplug.androidapp" />
+        <package android:name="in.org.npci.upiapp" />
+        <package android:name="com.mobikwik_new" />
+        <package android:name="com.freecharge.android" />
+        <package android:name="com.bharatpe.app" />
+        <package android:name="com.bharatpe.bharatpe" />
+        <package android:name="com.naviapp" />
+        <package android:name="money.super.payments" />
+        <package android:name="com.zerodha.kite3" />
+        <package android:name="com.nextbillion.groww" />
+        <package android:name="in.upstox.app" />
+        <package android:name="com.rksv.upstox" />
+        <package android:name="com.msf.angelmobile" />
+        <package android:name="in.indwealth" />
+        <package android:name="com.snapwork.hdfc" />
+        <package android:name="com.csam.icici.bank.imobile" />
+        <package android:name="com.axis.mobile" />
+        <package android:name="com.msf.kbank.mobile" />
+        <package android:name="com.idfcfirstbank.optimus" />
+        <package android:name="com.practo.fabric" />
+        <package android:name="com.aranoah.healthkart.plus" />
+        <package android:name="com.phonegap.rxpal" />
+        <package android:name="com.urbanclap.urbanclap" />
+        <package android:name="com.dunzo.user" />
+        <package android:name="com.theporter.android.customerapp" />
+        <package android:name="com.whatsapp" />
+        <package android:name="com.epifi.paisa" />
+        <package android:name="com.sbi.lotusintouch" />
+        <package android:name="com.yesbank" />
+        <package android:name="com.bankofbaroda.mconnect" />
+        <package android:name="com.canarabank.mobility" />
+        <package android:name="com.fedmobile" />
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="market"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

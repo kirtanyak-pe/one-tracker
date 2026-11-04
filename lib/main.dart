@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'app_controller.dart';
 import 'screens/shell.dart';
 import 'sources/live_sms.dart';
-import 'split/split_overlay.dart';
 import 'storage/app_store.dart';
 import 'ui/theme.dart';
 
@@ -16,15 +15,8 @@ void main() {
   runApp(OneTrackerApp(controller: controller));
 }
 
-/// Entry point for the floating split card (its own engine, see SplitOverlay).
-@pragma('vm:entry-point')
-void overlayMain() {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(const SplitOverlayApp());
-}
-
 /// A bank SMS arrived while the app was closed: SmsReceiver.kt starts a
-/// short-lived engine here. Args: sender, body, timestamp ms, pixel ratio.
+/// short-lived engine here. Args: sender, body, timestamp ms, (density).
 @pragma('vm:entry-point')
 Future<void> smsMain(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,7 +26,6 @@ Future<void> smsMain(List<String> args) async {
       sender: args[0],
       body: args[1],
       at: DateTime.fromMillisecondsSinceEpoch(int.parse(args[2])),
-      pixelRatio: double.tryParse(args[3]) ?? 2.625,
     );
   } catch (e, s) {
     debugPrint('Background SMS failed: $e\n$s');

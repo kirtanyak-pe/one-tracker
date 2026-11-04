@@ -16,6 +16,7 @@ import 'settings_screen.dart';
 import 'shell.dart';
 import 'categories_screen.dart';
 import 'transactions_screen.dart';
+import 'widgets/month_nudge_card.dart';
 import 'widgets/month_switcher.dart';
 import 'widgets/review_card.dart';
 import 'widgets/txn_list.dart';
@@ -66,6 +67,10 @@ class HomeTab extends StatelessWidget {
               const SizedBox(height: Space.xl),
               _Headline(app: app),
               const SizedBox(height: Space.xxl),
+              if (app.monthNudge case final nudge?) ...[
+                MonthNudgeCard(nudge: nudge),
+                const SizedBox(height: Space.xl),
+              ],
               if (review.isNotEmpty) ...[
                 ReviewCard(queue: review, currency: appCurrency),
                 const SizedBox(height: Space.xl),

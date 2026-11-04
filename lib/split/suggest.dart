@@ -18,15 +18,15 @@ List<Enriched> splitCandidates(
         .toList()
       ..sort((a, b) => b.txn.at.compareTo(a.txn.at));
 
-/// The one payment to pop up about right now, from those just detected.
+/// The one payment to offer a split for right now, from those just detected.
 /// Only fresh ones (≤ 30 min old), so a backfill scan never triggers it.
-Enriched? popupFor(
+Enriched? notifyFor(
   Iterable<Enriched> justAdded, {
   required Set<String> handled,
   required SplitSettings settings,
   required DateTime now,
 }) {
-  if (!settings.popup) return null;
+  if (!settings.notify) return null;
   return splitCandidates(
     justAdded,
     handled: handled,

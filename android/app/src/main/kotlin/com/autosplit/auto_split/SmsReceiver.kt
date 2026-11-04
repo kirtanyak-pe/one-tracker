@@ -13,7 +13,7 @@ import io.flutter.plugin.common.MethodChannel
 
 /**
  * Wakes up for every incoming SMS — even when One Tracker isn't running —
- * so a bank debit can pop the split card the moment it arrives.
+ * so a bank debit can offer the split notification the moment it arrives.
  */
 class SmsReceiver : BroadcastReceiver() {
 
@@ -76,7 +76,7 @@ internal object IncomingSms {
                             result.success(null)
                             finish()
                         }
-                        else -> result.notImplemented()
+                        else -> if (!SplitChannel.handle(app, call, result)) result.notImplemented()
                     }
                 }
             engine.dartExecutor.executeDartEntrypoint(

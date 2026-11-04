@@ -46,7 +46,7 @@ Map<String, WidgetPeriod> widgetPeriods(Ledger ledger, Budgets budgets, {DateTim
     var spent = 0, count = 0;
     final byCat = <Category, int>{};
     for (final e in ledger.items) {
-      if (!e.countsAsSpend || e.txn.at.isBefore(start) || !e.txn.at.isBefore(end)) continue;
+      if (!e.countsAsSpend || e.countAt.isBefore(start) || !e.countAt.isBefore(end)) continue;
       spent += e.txn.amountMinor;
       count++;
       byCat[e.category] = (byCat[e.category] ?? 0) + e.txn.amountMinor;

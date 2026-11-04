@@ -9,18 +9,34 @@ class Enriched {
   const Enriched({
     required this.txn,
     required this.payee,
+    required this.originalPayee,
     required this.category,
     required this.kind,
     required this.counterpartyKind,
     required this.tags,
     required this.needsReview,
+    this.ruleTags = const [],
     this.reason,
   });
 
   final Txn txn;
 
-  /// Merchant or receiver/sender name for display and tagging.
+  /// Merchant or receiver/sender name for display, tagging and Splitwise —
+  /// the user's own name for it if they renamed the payee.
   final String payee;
+
+  /// The payee as the message/bank wrote it (same as [payee] unless renamed).
+  final String originalPayee;
+
+  /// The user renamed this payee.
+  bool get renamed => payee != originalPayee;
+
+  /// Tags the user put on the whole payee (see [PayeeRule.tags]).
+  final List<String> ruleTags;
+
+  /// Tags the user added — to the payee or to this payment — without the
+  /// payee name and keyword-rule tags.
+  List<String> get userTags => {...ruleTags, ...txn.userTags}.toList();
   final Category category;
   final TxnKind kind;
 
@@ -32,6 +48,10 @@ class Enriched {
 
   /// A big payment the user hasn't confirmed yet.
   final bool needsReview;
+
+  /// When it counts for budgets and month totals: the 1st of [Txn.countMonth]
+  /// if the user moved it, else when it was paid. Lists still show [Txn.at].
+  DateTime get countAt => txn.countMonth ?? txn.at;
 
   bool get countsAsSpend => kind == TxnKind.expense && txn.direction == Direction.debit;
 }
@@ -100,7 +120,7 @@ Ledger enrich(
       kind = t.kindOverride!;
     } else if (rule?.kind != null) {
       kind = rule!.kind!;
-      reason = 'You set this for all ${rule.label} payments';
+      reason = 'You set this for all ${rule.name ?? rule.label} payments';
     } else if (autoKindRule != null) {
       kind = autoKindRule.kind!;
       reason = 'Your rule for "${autoKindRule.contains}"';
@@ -113,22 +133,27 @@ Ledger enrich(
       kind = t.direction == Direction.credit ? TxnKind.income : TxnKind.expense;
     }
 
-    final payee = t.counterparty ??
+    final originalPayee = t.counterparty ??
         (t.vpa != null ? nameFromVpa(t.vpa!) : null) ??
         (t.otherAccount != null
             ? '${t.direction == Direction.debit ? 'To' : 'From'} A/c ••${t.otherAccount}'
             : null) ??
         (atm ? 'ATM' : t.direction == Direction.credit ? 'Money received' : 'Payment');
 
+    final payee = rule?.name ?? originalPayee;
+
     items.add(Enriched(
       txn: t,
       payee: payee,
+      originalPayee: originalPayee,
+      ruleTags: rule?.tags ?? const [],
       category: kind == TxnKind.income && t.categoryOverride == null ? Category.income : category,
       kind: kind,
       reason: reason,
       counterpartyKind: kindOfPayee,
       tags: {
         payee,
+        ...?rule?.tags,
         ...t.userTags,
         for (final r in auto)
           if (r.tag != null && r.tag!.isNotEmpty) r.tag!,

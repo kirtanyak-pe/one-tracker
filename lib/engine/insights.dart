@@ -69,7 +69,7 @@ Insights buildInsights(Ledger ledger, DateTime monthStart, {DateTime? now}) {
 
   final daily = List.filled(daysInMonth, 0);
   for (final e in month.items.where((e) => e.countsAsSpend)) {
-    daily[e.txn.at.day - 1] += e.txn.amountMinor;
+    daily[e.countAt.day - 1] += e.txn.amountMinor;
   }
 
   final trend = [
@@ -78,7 +78,7 @@ Insights buildInsights(Ledger ledger, DateTime monthStart, {DateTime? now}) {
   final previous = trend[4];
 
   final lastMonthToDate = previous.items
-      .where((e) => e.countsAsSpend && e.txn.at.day <= dayOfMonth)
+      .where((e) => e.countsAsSpend && e.countAt.day <= dayOfMonth)
       .fold(0, (sum, e) => sum + e.txn.amountMinor);
 
   int? projected;

@@ -13,7 +13,10 @@ class MonthSwitcher extends StatelessWidget {
     final app = AppScope.of(context);
     final t = context.tokens;
     return Container(
-      decoration: BoxDecoration(color: t.tray, borderRadius: BorderRadius.circular(Radii.pill)),
+      decoration: BoxDecoration(
+        color: t.tray,
+        borderRadius: BorderRadius.circular(Radii.pill),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -26,7 +29,10 @@ class MonthSwitcher extends StatelessWidget {
             width: 132,
             child: FittedBox(
               fit: BoxFit.scaleDown,
-              child: Text(monthLabel(app.month.month), style: Theme.of(context).textTheme.labelLarge),
+              child: Text(
+                monthLabel(app.month.month),
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
             ),
           ),
           IconButton(

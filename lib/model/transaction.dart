@@ -45,6 +45,7 @@ class Txn {
     this.kindOverride,
     this.userTags = const [],
     this.reviewed = false,
+    this.countMonth,
   });
 
   final String id;
@@ -81,6 +82,13 @@ class Txn {
   /// The user confirmed or corrected this one.
   final bool reviewed;
 
+  /// First day of the month this payment counts in, when the user moved it
+  /// (only ever the month after [at]'s). Null = the month it was paid.
+  final DateTime? countMonth;
+
+  /// First day of the month after the one it was paid in.
+  DateTime get nextMonth => DateTime(at.year, at.month + 1);
+
   Txn copyWith({
     String? counterparty,
     String? vpa,
@@ -94,6 +102,8 @@ class Txn {
     bool clearKindOverride = false,
     List<String>? userTags,
     bool? reviewed,
+    DateTime? countMonth,
+    bool clearCountMonth = false,
   }) =>
       Txn(
         id: id,
@@ -115,6 +125,7 @@ class Txn {
         kindOverride: clearKindOverride ? null : kindOverride ?? this.kindOverride,
         userTags: userTags ?? this.userTags,
         reviewed: reviewed ?? this.reviewed,
+        countMonth: clearCountMonth ? null : countMonth ?? this.countMonth,
       );
 
   factory Txn.fromJson(Map<String, dynamic> j) => Txn(
@@ -138,6 +149,7 @@ class Txn {
         kindOverride: TxnKind.byName(j['kindOverride'] as String?),
         userTags: ((j['userTags'] as List?) ?? const []).cast<String>(),
         reviewed: (j['reviewed'] as bool?) ?? false,
+        countMonth: j['countMonth'] == null ? null : DateTime.parse(j['countMonth'] as String),
       );
 
   Map<String, dynamic> toJson() => {
@@ -159,28 +171,81 @@ class Txn {
         'kindOverride': kindOverride?.name,
         'userTags': userTags,
         'reviewed': reviewed,
+        'countMonth': countMonth?.toIso8601String(),
       };
 }
 
-/// "Always treat payments to X like this."
+/// "Always treat payments to X like this." Can also rename X ([name]) and tag
+/// every payment to it ([tags]).
 class PayeeRule {
-  const PayeeRule({required this.key, required this.label, this.category, this.kind});
+  const PayeeRule({
+    required this.key,
+    required this.label,
+    this.category,
+    this.kind,
+    this.name,
+    this.tags = const [],
+  });
 
   /// Normalised payee key — see `payeeKey`.
   final String key;
+
+  /// The payee as the bank wrote it (for lists and reasons).
   final String label;
   final Category? category;
   final TxnKind? kind;
 
-  factory PayeeRule.fromJson(Map<String, dynamic> j) => PayeeRule(
-        key: j['key'] as String,
-        label: j['label'] as String,
-        category: Category.byName(j['category'] as String?),
-        kind: TxnKind.byName(j['kind'] as String?),
+  /// What the user calls this payee ("Maid", "Blinkit"). Shown instead of the
+  /// bank name everywhere, including in Splitwise. Null = the bank's name.
+  final String? name;
+
+  /// Tags on every payment to this payee.
+  final List<String> tags;
+
+  /// Category or type is set (the "Same for all" switch).
+  bool get hasClassification => category != null || kind != null;
+
+  /// Nothing left to remember — the rule can be dropped.
+  bool get isEmpty => !hasClassification && name == null && tags.isEmpty;
+
+  PayeeRule copyWith({
+    Category? category,
+    bool clearCategory = false,
+    TxnKind? kind,
+    bool clearKind = false,
+    String? name,
+    bool clearName = false,
+    List<String>? tags,
+  }) =>
+      PayeeRule(
+        key: key,
+        label: label,
+        category: clearCategory ? null : category ?? this.category,
+        kind: clearKind ? null : kind ?? this.kind,
+        name: clearName ? null : name ?? this.name,
+        tags: tags ?? this.tags,
       );
 
-  Map<String, dynamic> toJson() =>
-      {'key': key, 'label': label, 'category': category?.name, 'kind': kind?.name};
+  factory PayeeRule.fromJson(Map<String, dynamic> j) {
+    final name = (j['name'] as String?)?.trim();
+    return PayeeRule(
+      key: j['key'] as String,
+      label: j['label'] as String,
+      category: Category.byName(j['category'] as String?),
+      kind: TxnKind.byName(j['kind'] as String?),
+      name: name == null || name.isEmpty ? null : name,
+      tags: ((j['tags'] as List?) ?? const []).cast<String>().toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'key': key,
+        'label': label,
+        'category': category?.name,
+        'kind': kind?.name,
+        if (name != null) 'name': name,
+        if (tags.isNotEmpty) 'tags': tags,
+      };
 }
 
 /// Things the detectors need to know about you.

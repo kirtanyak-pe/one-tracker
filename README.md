@@ -1,9 +1,9 @@
 # One Tracker
 
 Tracks where your money goes by reading bank SMS and UPI/bank-app
-notifications on your phone, and splits payments on Splitwise. Android-first.
-Transactions never leave the phone; the internet is used only to talk to
-Splitwise, and only when you split.
+notifications on your phone, and hands payments to the Splitwise app to split.
+Android-first. Fully offline: the app has no internet permission, and
+transactions never leave the phone.
 
 ```
 Bank SMS (inbox scan) ─┐
@@ -51,14 +51,20 @@ UPI app notifications ─┘                                                   �
   biggest payments.
 
 ### Split (Splitwise)
-- **Default split**: pick a group (e.g. roommates) or a set of friends once.
-- **After every payment** (above ₹100, adjustable) a floating card pops up over
-  whatever app you paid in: "₹450 at Swiggy → Flatmates, ₹150 each" → **Split**
-  creates the Splitwise expense. **Change** opens groups/friends right in the card,
-  with "make this my default". If One Tracker is open, the card shows in-app instead.
-- **Split tab**: connect Splitwise (personal API key, stored in the Android
-  keystore), default split, pop-up settings and preview, payments still to split,
-  split history. Demo groups until connected — nothing is sent.
+Nothing is sent anywhere: One Tracker opens the Splitwise app's *Add expense*
+screen with the amount and payee filled in (a link Splitwise handles itself), and
+you pick who to split with and how, there.
+- **After every payment** (above ₹100, adjustable) a notification offers
+  "₹450 · Swiggy — Tap to split it in Splitwise", with **Split**, **Skip** and
+  **Not expense** buttons. It works while the app is closed. If One Tracker is
+  open, a card shows in-app instead.
+- **Default group** (optional): paste the group's link from Splitwise on the web
+  (`secure.splitwise.com/#/groups/<id>`) and new expenses start in it.
+- **Split tab**: payments still to split (Split / Skip), and what you opened in
+  Splitwise, with undo. Settings → Splitwise has the switches and a test.
+- Splitwise isn't installed → its Play Store page opens.
+- The earlier version (floating pop-up card + Splitwise API with equal splits)
+  lives in git history: commit `2ea1973` and earlier.
 
 ### Home-screen widget
 Spent today / this week / this month with a Today | Week | Month toggle on the
@@ -115,10 +121,11 @@ python3 tool/make_icon.py && dart run flutter_launcher_icons
 | `lib/engine/insights.dart` | Pace, projection, daily/6-month series, movers, top payees, budget alerts |
 | `lib/engine/recurring.dart` | Repeating-payment detection |
 | `lib/ui/bar_chart.dart` | Single-series column chart (tap a bar for its value) |
-| `lib/sources/` | SMS inbox (native channel in `MainActivity.kt`), notifications, sample data |
+| `lib/sources/` | SMS inbox (native channel in `MainActivity.kt`), notifications, Splitwise hand-off, sample data |
+| `android/.../SplitwiseLauncher.kt`, `SplitNotifications.kt` | Builds the Splitwise link; posts the split notification and queues its button presses |
 | `lib/engine/widget_data.dart` | Today/week/month figures for the widget |
 | `android/.../SpendWidgetProvider.kt` | The widget: renders figures, handles the period toggle |
-| `lib/split/` | Split target/records, suggestion rules, split action, floating card + overlay |
+| `lib/split/` | Split records and settings, suggestion rules, queued notification actions, group-link parsing |
 | `lib/splitwise/` | Splitwise API client (real + demo), models, equal-split maths |
 | `lib/ui/` | Design system — see `docs/DESIGN_STYLE.md` |
 | `test/` | Parser, detectors, dedupe and an end-to-end sample month |

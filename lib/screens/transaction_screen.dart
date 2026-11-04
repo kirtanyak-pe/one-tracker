@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../app_controller.dart';
 import '../engine/enrich.dart';
@@ -6,9 +7,10 @@ import '../model/transaction.dart';
 import '../money.dart';
 import '../ui/components.dart';
 import '../ui/format.dart';
+import '../ui/payee_logo.dart';
 import '../ui/tokens.dart';
-import 'split_tab.dart' show showSplitSheet;
 import 'widgets/category_pills.dart';
+import 'widgets/payee_dialogs.dart';
 
 /// One transaction: what it counts as, its category and tags. Changes save
 /// immediately.
@@ -17,26 +19,53 @@ class TransactionScreen extends StatelessWidget {
 
   final String id;
 
-  Future<void> _addTag(BuildContext context, Txn txn) async {
-    final controller = TextEditingController();
-    final tag = await showDialog<String>(
+  Future<void> _addTag(BuildContext context, Enriched e) async {
+    final app = AppScope.of(context);
+    final result = await showDialog<({String tag, bool forPayee})>(
+      context: context,
+      builder: (_) => AddTagDialog(
+        payee: e.payee,
+        canRemember: app.canRename(e.txn),
+        suggestions: app.knownTags.where((tag) => !e.tags.contains(tag)).take(8).toList(),
+      ),
+    );
+    if (result != null && context.mounted) {
+      await app.addTag(e.txn, result.tag, forPayee: result.forPayee);
+    }
+  }
+
+  /// Rename the payee for all its payments. Empty result = back to bank name.
+  Future<void> _rename(BuildContext context, Enriched e) async {
+    final app = AppScope.of(context);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => RenameDialog(
+        original: e.originalPayee,
+        current: e.renamed ? e.payee : '',
+        suggestions: {...app.knownNames, ...app.knownTags}
+            .where((n) => n != e.payee)
+            .take(10)
+            .toList(),
+      ),
+    );
+    if (name != null && context.mounted) await app.renamePayee(e, name);
+  }
+
+  Future<void> _removeTag(BuildContext context, Enriched e, String tag) async {
+    final app = AppScope.of(context);
+    if (!e.ruleTags.contains(tag)) return app.removeTag(e.txn, tag);
+    final ok = await showDialog<bool>(
       context: context,
       builder: (dialog) => AlertDialog(
-        title: const Text('Add tag'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(hintText: 'e.g. Goa trip, Office'),
-          onSubmitted: (v) => Navigator.pop(dialog, v),
-        ),
+        title: Text('Remove #$tag?'),
+        content: Text('It will come off every payment to ${e.payee}, not just this one.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(dialog, controller.text), child: const Text('Add')),
+          TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('Remove')),
         ],
       ),
     );
-    if (tag != null && context.mounted) await AppScope.of(context).addTag(txn, tag);
+    if (ok == true && context.mounted) await app.removeTag(e.txn, tag);
   }
 
   Future<void> _delete(BuildContext context, Txn txn) async {
@@ -86,12 +115,7 @@ class TransactionScreen extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(Space.gutter, Space.lg, Space.gutter, Space.xxxl),
                   children: [
                     Center(
-                      child: Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(color: t.card, shape: BoxShape.circle),
-                        child: Icon(e.category.icon, color: t.ink),
-                      ),
+                      child: PayeeAvatar(e, size: 56, background: t.card),
                     ),
                     const SizedBox(height: Space.md),
                     Text(
@@ -105,10 +129,10 @@ class TransactionScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: Space.xs),
-                    Text(
-                      '${credit ? 'from' : 'to'} ${e.payee}',
-                      textAlign: TextAlign.center,
-                      style: text.titleMedium,
+                    PayeeHeader(
+                      prefix: credit ? 'from' : 'to',
+                      e: e,
+                      onRename: app.canRename(txn) ? () => _rename(context, e) : null,
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -142,6 +166,10 @@ class TransactionScreen extends StatelessWidget {
                         style: text.bodySmall?.copyWith(color: t.muted),
                       ),
                     ),
+                    if (e.countsAsSpend || txn.countMonth != null) ...[
+                      const SizedBox(height: Space.xl),
+                      _CountMonthRow(txn: txn),
+                    ],
                     if (e.countsAsSpend) ...[
                       const SizedBox(height: Space.xl),
                       _SplitRow(e: e),
@@ -161,17 +189,26 @@ class TransactionScreen extends StatelessWidget {
                         for (final tag in e.tags)
                           _Tag(
                             label: tag,
-                            onRemove: txn.userTags.contains(tag) ? () => app.removeTag(txn, tag) : null,
+                            onRemove: e.userTags.contains(tag) ? () => _removeTag(context, e, tag) : null,
                           ),
                         ActionChip(
                           avatar: const Icon(Icons.add, size: 18),
                           label: const Text('Add tag'),
                           shape: StadiumBorder(side: BorderSide(color: t.trayDeep)),
                           backgroundColor: Colors.transparent,
-                          onPressed: () => _addTag(context, txn),
+                          onPressed: () => _addTag(context, e),
                         ),
                       ],
                     ),
+                    if (e.ruleTags.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(Space.xs, Space.sm, Space.xs, 0),
+                        child: Text(
+                          '${e.ruleTags.map((tag) => '#$tag').join(' ')} '
+                          '${e.ruleTags.length == 1 ? 'is' : 'are'} on all payments to ${e.payee}.',
+                          style: text.bodySmall?.copyWith(color: t.muted),
+                        ),
+                      ),
                     const SizedBox(height: Space.xxl),
                     SurfaceCard(
                       padding: const EdgeInsets.fromLTRB(Space.lg, Space.md, Space.sm, Space.md),
@@ -183,7 +220,7 @@ class TransactionScreen extends StatelessWidget {
                               children: [
                                 Text('Same for all ${e.payee}', style: text.titleMedium),
                                 Text(
-                                  rule == null
+                                  rule == null || !rule.hasClassification
                                       ? 'Apply this category and type to every payment to them'
                                       : 'On — ${_ruleSummary(rule)}',
                                   style: text.bodySmall?.copyWith(color: t.muted),
@@ -192,9 +229,9 @@ class TransactionScreen extends StatelessWidget {
                             ),
                           ),
                           Switch(
-                            value: rule != null,
+                            value: rule?.hasClassification ?? false,
                             activeTrackColor: t.ink,
-                            onChanged: (on) => on ? app.rememberFor(e) : app.forget(rule!.key),
+                            onChanged: (on) => on ? app.rememberFor(e) : app.forgetClassification(rule!.key),
                           ),
                         ],
                       ),
@@ -261,7 +298,71 @@ class _Tag extends StatelessWidget {
   }
 }
 
-/// Split this payment on Splitwise, or show that it already was.
+/// Counts this payment in the next month (bills paid on salary day), or
+/// shows that it is and offers to move it back.
+class _CountMonthRow extends StatelessWidget {
+  const _CountMonthRow({required this.txn});
+
+  final Txn txn;
+
+  @override
+  Widget build(BuildContext context) {
+    final app = AppScope.of(context);
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    final moved = txn.countMonth != null;
+    final paid = DateTime(txn.at.year, txn.at.month);
+    final next = monthName(txn.nextMonth);
+
+    return SurfaceCard(
+      onTap: moved ? null : () => app.moveToNextMonth(txn.id),
+      padding: const EdgeInsets.fromLTRB(Space.lg, Space.md, Space.md, Space.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(color: t.tray, shape: BoxShape.circle),
+                child: Icon(Icons.event_repeat_outlined, size: 20, color: t.ink),
+              ),
+              const SizedBox(width: Space.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      moved ? 'Counts in $next · paid ${DateFormat('d MMM').format(txn.at)}' : 'Count in $next',
+                      style: text.titleMedium,
+                    ),
+                    if (!moved)
+                      Text(
+                        'Paid on salary day? It belongs to next month.',
+                        style: text.bodySmall?.copyWith(color: t.muted),
+                      ),
+                  ],
+                ),
+              ),
+              if (!moved) Icon(Icons.chevron_right, color: t.muted),
+            ],
+          ),
+          if (moved)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => app.moveBack(txn.id),
+                child: Text('Move back to ${monthName(paid)}'),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Open this payment in Splitwise (prefilled), or show that it already was.
 class _SplitRow extends StatelessWidget {
   const _SplitRow({required this.e});
 
@@ -275,25 +376,22 @@ class _SplitRow extends StatelessWidget {
     final record = app.splitRecords[e.txn.id];
     if (record != null) {
       return Tray(
-        padding: const EdgeInsets.all(Space.lg),
+        padding: const EdgeInsets.fromLTRB(Space.lg, Space.sm, Space.sm, Space.sm),
         radius: Radii.tile,
         child: Row(
           children: [
             Icon(Icons.check_circle, color: t.success),
             const SizedBox(width: Space.md),
             Expanded(
-              child: Text(
-                'Split with ${record.label}${record.demo ? ' (demo)' : ''}, ${friendlyTime(record.at)}',
-                style: text.bodyMedium,
-              ),
+              child: Text('Opened in Splitwise, ${friendlyTime(record.at)}', style: text.bodyMedium),
             ),
+            TextButton(onPressed: () => app.undoSplit(e.txn.id), child: const Text('Undo')),
           ],
         ),
       );
     }
-    final target = app.splitTarget;
     return SurfaceCard(
-      onTap: () => showSplitSheet(context, e),
+      onTap: () => app.openInSplitwise(e.txn.id),
       padding: const EdgeInsets.fromLTRB(Space.lg, Space.md, Space.md, Space.md),
       child: Row(
         children: [
@@ -308,11 +406,9 @@ class _SplitRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Split on Splitwise', style: text.titleMedium),
+                Text('Split in Splitwise', style: text.titleMedium),
                 Text(
-                  target == null
-                      ? 'Choose a group or friends'
-                      : '${target.label}, ${formatMoney(target.shareOf(e.txn.amountMinor), appCurrency)} each',
+                  'Opens it with ${formatMoney(e.txn.amountMinor, appCurrency)} filled in',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: text.bodySmall?.copyWith(color: t.muted),

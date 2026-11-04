@@ -41,11 +41,17 @@ class CategoryPills extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(c.icon, size: 18, color: c == selected ? t.onInk : t.ink),
+                        Icon(
+                          c.icon,
+                          size: 18,
+                          color: c == selected ? t.onInk : t.ink,
+                        ),
                         const SizedBox(width: Space.sm),
                         Text(
                           c.label,
-                          style: text.labelLarge?.copyWith(color: c == selected ? t.onInk : t.ink),
+                          style: text.labelLarge?.copyWith(
+                            color: c == selected ? t.onInk : t.ink,
+                          ),
                         ),
                       ],
                     ),

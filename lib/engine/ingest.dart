@@ -124,5 +124,6 @@ Txn reparse(Txn t) {
     kindOverride: t.kindOverride,
     userTags: t.userTags,
     reviewed: t.reviewed,
+    countMonth: t.countMonth,
   );
 }

@@ -66,6 +66,7 @@ class _ActivityTabState extends State<ActivityTab> {
     if (q.isEmpty) return true;
     final amount = (e.txn.amountMinor / 100).toStringAsFixed(0);
     return e.payee.toLowerCase().contains(q) ||
+        e.originalPayee.toLowerCase().contains(q) ||
         e.category.label.toLowerCase().contains(q) ||
         e.tags.any((tag) => tag.toLowerCase().contains(q)) ||
         amount.contains(q) ||

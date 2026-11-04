@@ -5,12 +5,16 @@ import '../../model/transaction.dart';
 import '../../money.dart';
 import '../../ui/format.dart';
 import '../../ui/motion.dart';
+import '../../ui/payee_logo.dart';
 import '../../ui/tokens.dart';
 import '../transaction_screen.dart';
 
 /// Transactions grouped into one white card per day.
 /// Newest-first payments grouped by day label ("Today", "Mon, 6 Oct").
-List<({String label, List<Enriched> items})> groupByDay(List<Enriched> items, {bool grouped = true}) {
+List<({String label, List<Enriched> items})> groupByDay(
+  List<Enriched> items, {
+  bool grouped = true,
+}) {
   final days = <String, List<Enriched>>{};
   for (final e in items) {
     days.putIfAbsent(grouped ? dayLabel(e.txn.at) : '', () => []).add(e);
@@ -21,7 +25,12 @@ List<({String label, List<Enriched> items})> groupByDay(List<Enriched> items, {b
 /// Transactions grouped into one white card per day. For short lists; long
 /// ones use [groupByDay] + [TxnDayCard] in a lazy SliverList.
 class TxnDayList extends StatelessWidget {
-  const TxnDayList({super.key, required this.items, required this.currency, this.grouped = true});
+  const TxnDayList({
+    super.key,
+    required this.items,
+    required this.currency,
+    this.grouped = true,
+  });
 
   /// Newest first.
   final List<Enriched> items;
@@ -37,7 +46,12 @@ class TxnDayList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (final (i, d) in days.indexed)
-          TxnDayCard(label: grouped ? d.label : null, items: d.items, currency: currency, index: i),
+          TxnDayCard(
+            label: grouped ? d.label : null,
+            items: d.items,
+            currency: currency,
+            index: i,
+          ),
       ],
     );
   }
@@ -45,7 +59,13 @@ class TxnDayList extends StatelessWidget {
 
 /// One day's card: optional day label above, rows inside.
 class TxnDayCard extends StatelessWidget {
-  const TxnDayCard({super.key, required this.label, required this.items, required this.currency, this.index = 0});
+  const TxnDayCard({
+    super.key,
+    required this.label,
+    required this.items,
+    required this.currency,
+    this.index = 0,
+  });
 
   final String? label;
   final List<Enriched> items;
@@ -63,8 +83,16 @@ class TxnDayCard extends StatelessWidget {
       children: [
         if (label != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(Space.xs, Space.lg, Space.xs, Space.sm),
-            child: Text(label!, style: text.bodySmall?.copyWith(color: t.muted)),
+            padding: const EdgeInsets.fromLTRB(
+              Space.xs,
+              Space.lg,
+              Space.xs,
+              Space.sm,
+            ),
+            child: Text(
+              label!,
+              style: text.bodySmall?.copyWith(color: t.muted),
+            ),
           ),
         FadeSlideIn(
           index: index,
@@ -103,22 +131,24 @@ class TxnRow extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final credit = e.txn.direction == Direction.credit;
     final excluded = e.kind.excluded;
-    final amount = '${credit ? '+' : ''}${formatMoney(e.txn.amountMinor, currency)}';
+    final amount =
+        '${credit ? '+' : ''}${formatMoney(e.txn.amountMinor, currency)}';
 
     return Material(
       type: MaterialType.transparency,
       child: InkWell(
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TransactionScreen(id: e.txn.id))),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => TransactionScreen(id: e.txn.id)),
+        ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.md),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Space.lg,
+            vertical: Space.md,
+          ),
           child: Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(color: t.tray, shape: BoxShape.circle),
-                child: Icon(e.category.icon, size: 20, color: excluded ? t.muted : t.ink),
-              ),
+              PayeeAvatar(e, size: 44, muted: excluded),
               const SizedBox(width: Space.md),
               Expanded(
                 child: Column(
@@ -128,11 +158,16 @@ class TxnRow extends StatelessWidget {
                       e.payee,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: text.titleMedium?.copyWith(color: excluded ? t.muted : t.ink),
+                      style: text.titleMedium?.copyWith(
+                        color: excluded ? t.muted : t.ink,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      [excluded ? e.kind.label : e.category.label, ...e.txn.userTags.map((tag) => '#$tag')].join(' · '),
+                      [
+                        excluded ? e.kind.label : e.category.label,
+                        ...e.userTags.map((tag) => '#$tag'),
+                      ].join(' · '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: text.bodySmall?.copyWith(color: t.muted),
@@ -156,12 +191,19 @@ class TxnRow extends StatelessWidget {
                       decorationColor: t.muted,
                     ),
                   ),
+                  if (e.txn.countMonth case final month?) ...[
+                    const SizedBox(height: 4),
+                    _MovedChip(month: month),
+                  ],
                   if (e.needsReview) ...[
                     const SizedBox(height: 4),
                     Container(
                       width: 8,
                       height: 8,
-                      decoration: BoxDecoration(color: t.accent, shape: BoxShape.circle),
+                      decoration: BoxDecoration(
+                        color: t.accent,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ],
                 ],
@@ -169,6 +211,28 @@ class TxnRow extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// "→ Nov": this payment counts in a later month than it was paid.
+class _MovedChip extends StatelessWidget {
+  const _MovedChip({required this.month});
+
+  final DateTime month;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final label = '→ ${monthName(month).substring(0, 3)}';
+    return Semantics(
+      label: 'Counts in ${monthName(month)}',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: Space.sm, vertical: 2),
+        decoration: BoxDecoration(color: t.tray, borderRadius: BorderRadius.circular(Radii.pill)),
+        child: Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: t.muted, fontSize: 11)),
       ),
     );
   }

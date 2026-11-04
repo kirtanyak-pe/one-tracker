@@ -231,12 +231,6 @@ class SourcesPage extends StatelessWidget {
                 subtitle: 'Also catches UPI app payments',
                 trailing: allow(app.notificationsGranted, app.requestNotifications),
               ),
-              SettingsRow(
-                icon: Icons.picture_in_picture_alt_outlined,
-                title: 'Float over other apps',
-                subtitle: 'For the split pop-up after you pay',
-                trailing: allow(app.overlayGranted, app.requestOverlay),
-              ),
             ],
           ),
       ],

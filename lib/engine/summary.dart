@@ -33,7 +33,7 @@ class MonthSummary {
   /// Biggest first.
   final List<CategoryTotal> byCategory;
 
-  /// This month's transactions, newest first.
+  /// What counts in this month (including payments moved here), newest first.
   final List<Enriched> items;
 }
 
@@ -41,7 +41,7 @@ MonthSummary summarize(Ledger ledger, DateTime month) {
   final start = DateTime(month.year, month.month);
   final end = DateTime(month.year, month.month + 1);
   final items = ledger.items
-      .where((e) => !e.txn.at.isBefore(start) && e.txn.at.isBefore(end))
+      .where((e) => !e.countAt.isBefore(start) && e.countAt.isBefore(end))
       .toList();
 
   var spent = 0, count = 0, income = 0, excluded = 0;

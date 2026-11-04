@@ -22,6 +22,9 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         liveEngine = flutterEngine
+        // The Splitwise API key (removed in 1.4) lived in these; make sure none is left.
+        deleteSharedPreferences("FlutterSecureStorage")
+        deleteSharedPreferences("FlutterSecureStorageConfiguration")
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -77,7 +80,7 @@ class MainActivity : FlutterActivity() {
                         SpendWidgetProvider.update(this, call.argument<String>("json") ?: "{}")
                         result.success(null)
                     }
-                    else -> result.notImplemented()
+                    else -> if (!SplitChannel.handle(this, call, result)) result.notImplemented()
                 }
             }
     }

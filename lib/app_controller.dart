@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/widgets.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'engine/classify.dart';
 import 'engine/derive.dart';
@@ -9,6 +10,7 @@ import 'engine/enrich.dart';
 import 'engine/ingest.dart';
 import 'engine/parser.dart' show parserVersion;
 import 'engine/insights.dart';
+import 'engine/month_nudge.dart';
 import 'engine/recurring.dart';
 import 'engine/summary.dart';
 import 'engine/widget_data.dart';
@@ -21,14 +23,13 @@ import 'sources/notification_source.dart';
 import 'sources/notifier.dart';
 import 'sources/sample_data.dart';
 import 'sources/sms_source.dart';
+import 'sources/splitwise_bridge.dart';
 import 'sources/widget_bridge.dart';
+import 'split/pending_actions.dart';
 import 'split/split_models.dart';
-import 'split/split_overlay.dart';
-import 'split/split_service.dart';
 import 'split/suggest.dart';
-import 'splitwise/models.dart';
-import 'splitwise/splitwise_api.dart';
 import 'storage/app_store.dart';
+import 'ui/payee_logo.dart';
 import 'ui/perf.dart';
 import 'ui/wallpaper_colors.dart';
 
@@ -46,6 +47,7 @@ class AppController extends ChangeNotifier {
   List<AutoRule> autoRules = [];
   Budgets budgets = const Budgets();
   Set<String> _sentAlerts = {};
+  Set<String> _dismissedNudges = {};
   Profile profile = const Profile();
   Ledger ledger = Ledger.empty;
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
@@ -67,28 +69,13 @@ class AppController extends ChangeNotifier {
   late Insights insights = buildInsights(ledger, _month);
   List<Recurring> recurring = [];
 
-  // Splitwise
-  SplitwiseApi _sw = DemoSplitwiseApi();
-  CurrentUser? swUser;
-  List<SwGroup> swGroups = [];
-  List<SwUser> swFriends = [];
-  String? swError;
-  bool swLoading = false;
-  SplitTarget? splitTarget;
+  // Splitwise (offline: payments are handed to the Splitwise app)
   Map<String, SplitRecord> splitRecords = {};
   Set<String> splitSkipped = {};
   SplitSettings splitSettings = const SplitSettings();
-  bool overlayGranted = false;
-  StreamSubscription<dynamic>? _overlayMessages;
 
   /// Shows the split card inside the app (when it's open at payment time).
   void Function(Enriched payment)? onSplitSuggestion;
-
-  bool get swConnected => !_sw.isDemo;
-
-  /// Splitwise balances across friends: owed to you, and what you owe.
-  int get owedToYouMinor => swFriends.fold(0, (sum, f) => sum + (f.balanceMinor > 0 ? f.balanceMinor : 0));
-  int get youOweMinor => swFriends.fold(0, (sum, f) => sum + (f.balanceMinor < 0 ? -f.balanceMinor : 0));
 
   /// Splits sent this calendar month.
   ({int totalMinor, int count}) get splitThisMonth {
@@ -128,6 +115,9 @@ class AppController extends ChangeNotifier {
   bool scanning = false;
   bool smsGranted = false;
   bool notificationsGranted = false;
+
+  /// May post notifications (Android 13+ asks; the split offer needs it).
+  bool postNotificationsGranted = true;
   DateTime? lastScan;
 
   static const _backfill = Duration(days: 90);
@@ -155,31 +145,20 @@ class AppController extends ChangeNotifier {
     autoRules = await _store.readAutoRules();
     budgets = await _store.readBudgets();
     _sentAlerts = await _store.readSentAlerts();
+    _dismissedNudges = await _store.readDismissedNudges();
     profile = await _store.readProfile();
     appearance = await _store.readAppearance();
     lowEndDevice = await Perf.isLowEndDevice();
     Perf.lite = lite;
     wallpaper = await wallpaperSeed();
     notifyListeners();
+    await _store.migrateSplitwise();
     await _loadSplitState();
-    final swKey = await _store.readSplitwiseKey();
-    if (swKey != null) _sw = HttpSplitwiseApi(swKey);
-    final cache = await _store.readSplitwiseCache();
-    swUser = cache.user;
-    swGroups = cache.groups;
-    swFriends = cache.friends;
     // Bank SMS arriving while we're running come straight here.
     SmsSource.listenLive(_onLiveSms);
-    if (SplitOverlay.isSupported) {
-      // The floating card split something: pick it up straight away.
-      _overlayMessages = SplitOverlay.messages.listen((_) async {
-        await _loadSplitState();
-        notifyListeners();
-      });
-    }
-    unawaited(refreshSplitwise());
     lastScan = await _store.readLastScan();
     await _recompute();
+    await _applyPendingSplitActions();
     await refreshPermissions();
     if (smsGranted) {
       await scanSms();
@@ -210,6 +189,7 @@ class AppController extends ChangeNotifier {
     final d = _txns.length > _offThreadAbove ? await compute(derive, input) : derive(input);
     if (generation != _generation) return; // a newer change already won
     ledger = d.ledger;
+    PayeeLogos.instance.prefetch(ledger.items.take(150)); // logos of what's on screen first
     month = d.month;
     insights = d.insights;
     recurring = d.recurring;
@@ -263,7 +243,7 @@ class AppController extends ChangeNotifier {
     await SmsSource.upgradeToLive();
     smsGranted = await SmsSource.hasPermission();
     notificationsGranted = await NotificationSource.hasPermission();
-    overlayGranted = await SplitOverlay.hasPermission();
+    postNotificationsGranted = !isAndroid || await Permission.notification.isGranted;
     if (notificationsGranted) _notifications.start();
     notifyListeners();
   }
@@ -353,16 +333,121 @@ class AppController extends ChangeNotifier {
   Future<void> setCategory(Txn txn, Category category) =>
       _update(txn.id, (t) => t.copyWith(categoryOverride: category, reviewed: true));
 
-  Future<void> markReviewed(Txn txn) => _update(txn.id, (t) => t.copyWith(reviewed: true));
+  /// Counts a payment in the month after the one it was paid in (e.g. a bill
+  /// paid on salary day). Only ever one step; [moveBack] undoes it.
+  Future<void> moveToNextMonth(String txnId) => moveManyToNextMonth([txnId]);
 
-  Future<void> addTag(Txn txn, String tag) {
-    final clean = tag.trim();
-    if (clean.isEmpty) return Future.value();
-    return _update(txn.id, (t) => t.copyWith(userTags: {...t.userTags, clean}.toList()));
+  /// Clears the move: it counts in the month it was paid again.
+  Future<void> moveBack(String txnId) => moveManyBack([txnId]);
+
+  Future<void> moveManyToNextMonth(Iterable<String> ids) =>
+      _setCountMonth(ids, (t) => t.copyWith(countMonth: t.nextMonth));
+
+  Future<void> moveManyBack(Iterable<String> ids) =>
+      _setCountMonth(ids, (t) => t.copyWith(clearCountMonth: true));
+
+  Future<void> _setCountMonth(Iterable<String> ids, Txn Function(Txn t) change) async {
+    final wanted = ids.toSet();
+    var changed = false;
+    for (var i = 0; i < _txns.length; i++) {
+      if (!wanted.contains(_txns[i].id)) continue;
+      _txns[i] = change(_txns[i]);
+      changed = true;
+    }
+    if (changed) await _save();
   }
 
-  Future<void> removeTag(Txn txn, String tag) =>
-      _update(txn.id, (t) => t.copyWith(userTags: t.userTags.where((x) => x != tag).toList()));
+  /// The "count last month's end-of-month payments in this month?" card.
+  MonthNudge? get monthNudge => isCurrentMonth ? buildMonthNudge(ledger, _dismissedNudges) : null;
+
+  /// "Not now": hides the card for that month.
+  Future<void> dismissNudge(MonthNudge nudge) async {
+    _dismissedNudges = {..._dismissedNudges, nudge.key};
+    notifyListeners();
+    await _store.writeDismissedNudges(_dismissedNudges);
+  }
+
+  Future<void> markReviewed(Txn txn) => _update(txn.id, (t) => t.copyWith(reviewed: true));
+
+  /// Adds a tag. [forPayee] (the default) remembers it for every payment to
+  /// the same payee, past and future; off, it stays on this payment only.
+  Future<void> addTag(Txn txn, String tag, {bool forPayee = true}) async {
+    final clean = tag.trim();
+    if (clean.isEmpty) return;
+    final key = payeeKey(txn);
+    if (forPayee && key.isNotEmpty) {
+      final rule = rules[key] ?? PayeeRule(key: key, label: _bankName(txn));
+      if (rule.tags.contains(clean)) return;
+      await _putRule(rule.copyWith(tags: [...rule.tags, clean]));
+      return;
+    }
+    await _update(txn.id, (t) => t.copyWith(userTags: {...t.userTags, clean}.toList()));
+  }
+
+  /// Removes a tag wherever it comes from: if it's on the payee rule it goes
+  /// from every payment to that payee.
+  Future<void> removeTag(Txn txn, String tag) async {
+    final rule = ruleFor(txn);
+    final onRule = rule != null && rule.tags.contains(tag);
+    final i = _txns.indexWhere((t) => t.id == txn.id);
+    if (i != -1 && _txns[i].userTags.contains(tag)) {
+      _txns[i] = _txns[i].copyWith(userTags: _txns[i].userTags.where((x) => x != tag).toList());
+    }
+    if (onRule) {
+      await _putRule(rule.copyWith(tags: rule.tags.where((x) => x != tag).toList()));
+    } else {
+      await _save();
+    }
+  }
+
+  /// Names this payee for every payment to it, past and future (and in
+  /// Splitwise). Null or blank — or the bank's own name — goes back to the
+  /// bank's name. Payments with no payee to key on can't be renamed.
+  Future<void> renamePayee(Enriched e, String? name) async {
+    final key = payeeKey(e.txn);
+    if (key.isEmpty) return;
+    final clean = name?.trim() ?? '';
+    final back = clean.isEmpty || clean == e.originalPayee;
+    final rule = rules[key] ?? PayeeRule(key: key, label: e.originalPayee);
+    await _putRule(back ? rule.copyWith(clearName: true) : rule.copyWith(name: clean));
+  }
+
+  /// Whether [renamePayee] and payee-wide tags work for this payment.
+  bool canRename(Txn txn) => payeeKey(txn).isNotEmpty;
+
+  /// Names the user has given to payees, for suggestions.
+  List<String> get knownNames =>
+      ({for (final r in rules.values) if (r.name != null) r.name!}.toList()..sort());
+
+  /// Every tag the user has used (payee-wide or per payment), most used first.
+  List<String> get knownTags {
+    final counts = <String, int>{};
+    for (final r in rules.values) {
+      for (final tag in r.tags) {
+        counts[tag] = (counts[tag] ?? 0) + 1;
+      }
+    }
+    for (final t in _txns) {
+      for (final tag in t.userTags) {
+        counts[tag] = (counts[tag] ?? 0) + 1;
+      }
+    }
+    return counts.keys.toList()..sort((a, b) => counts[b]!.compareTo(counts[a]!));
+  }
+
+  static String _bankName(Txn t) => enrich([t]).items.single.originalPayee;
+
+  /// Stores [rule] (dropping it if nothing is left in it), then recomputes.
+  Future<void> _putRule(PayeeRule rule) async {
+    rules = {...rules};
+    if (rule.isEmpty) {
+      rules.remove(rule.key);
+    } else {
+      rules[rule.key] = rule;
+    }
+    await _store.writeRules(rules);
+    await _save();
+  }
 
   Future<void> delete(Txn txn) async {
     _txns = _txns.where((t) => t.id != txn.id).toList();
@@ -395,28 +480,38 @@ class AppController extends ChangeNotifier {
   // ── Rules & profile ──────────────────────────────────────────────────
 
   /// Applies this transaction's current category and kind to every payment
-  /// to the same payee, now and in future.
+  /// to the same payee, now and in future. Keeps the payee's name and tags.
   Future<void> rememberFor(Enriched e) async {
     final key = payeeKey(e.txn);
     if (key.isEmpty) return;
-    rules = {
-      ...rules,
-      key: PayeeRule(
-        key: key,
-        label: e.payee,
-        category: e.category == Category.income ? null : e.category,
-        kind: e.kind == TxnKind.expense || e.kind == TxnKind.income ? null : e.kind,
-      ),
-    };
-    await _store.writeRules(rules);
-    await _save();
+    final rule = rules[key] ?? PayeeRule(key: key, label: e.originalPayee);
+    await _putRule(PayeeRule(
+      key: key,
+      label: rule.label,
+      category: e.category == Category.income ? null : e.category,
+      kind: e.kind == TxnKind.expense || e.kind == TxnKind.income ? null : e.kind,
+      name: rule.name,
+      tags: rule.tags,
+    ));
   }
 
+  /// Turns "Same for all" off: forgets the payee's category and type but
+  /// keeps its name and tags.
+  Future<void> forgetClassification(String key) async {
+    final rule = rules[key];
+    if (rule == null) return;
+    await _putRule(rule.copyWith(clearCategory: true, clearKind: true));
+  }
+
+  /// Deletes everything remembered about a payee (name, tags, category, type).
   Future<void> forget(String key) async {
     rules = {...rules}..remove(key);
     await _store.writeRules(rules);
     await _save();
   }
+
+  /// Saves an edited rule as is (Rules screen, undo of a delete).
+  Future<void> saveRule(PayeeRule rule) => _putRule(rule);
 
   Future<void> setName(String name) async {
     profile = profile.copyWith(name: name);
@@ -471,8 +566,6 @@ class AppController extends ChangeNotifier {
     autoRules = [];
     budgets = const Budgets();
     _sentAlerts = {};
-    _sw = DemoSplitwiseApi();
-    splitTarget = null;
     splitRecords = {};
     splitSkipped = {};
     splitSettings = const SplitSettings();
@@ -482,6 +575,7 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> _onResume() async {
+    await _applyPendingSplitActions();
     if (_followCalendar()) {
       await _recompute();
       notifyListeners();
@@ -495,54 +589,38 @@ class AppController extends ChangeNotifier {
   // ── Splitwise ──────────────────────────────────────────────────────
 
   Future<void> _loadSplitState() async {
-    splitTarget = await _store.readSplitTarget();
     splitRecords = await _store.readSplitRecords();
     splitSkipped = await _store.readSplitSkipped();
     splitSettings = await _store.readSplitSettings();
   }
 
-  Future<void> refreshSplitwise() async {
-    swLoading = true;
-    swError = null;
-    notifyListeners();
-    try {
-      final results = await Future.wait([_sw.getCurrentUser(), _sw.getGroups(), _sw.getFriends()]);
-      swUser = results[0] as CurrentUser;
-      swGroups = results[1] as List<SwGroup>;
-      swFriends = results[2] as List<SwUser>;
-      await _store.writeSplitwiseCache(swUser!, swGroups, swFriends);
-    } catch (e) {
-      swError = '$e';
-    } finally {
-      swLoading = false;
+  /// Applies what was pressed on split notifications since last time (queued
+  /// natively): Split records it, Skip hides it, Not expense marks it.
+  Future<void> _applyPendingSplitActions() async {
+    final actions = await SplitwiseBridge.takePendingActions();
+    if (actions.isEmpty) return;
+    final out = applySplitActions(
+      actions,
+      records: splitRecords,
+      skipped: splitSkipped,
+      lookup: find,
+      groupName: splitSettings.groupName ?? 'Splitwise',
+    );
+    if (!out.changed) return;
+    splitRecords = out.records;
+    splitSkipped = out.skipped;
+    await _store.writeSplitRecords(splitRecords);
+    await _store.writeSplitSkipped(splitSkipped);
+    if (out.notExpense.isEmpty) {
       notifyListeners();
+      return;
     }
-  }
-
-  /// Checks the key with Splitwise before saving it.
-  Future<void> connectSplitwise(String key) async {
-    final api = HttpSplitwiseApi(key.trim());
-    await api.getCurrentUser();
-    await _store.writeSplitwiseKey(key.trim());
-    _sw = api;
-    splitTarget = null; // demo groups don't exist in the real account
-    await _store.writeSplitTarget(null);
-    await refreshSplitwise();
-  }
-
-  Future<void> disconnectSplitwise() async {
-    await _store.clearSplitwiseKey();
-    await _store.clearSplitwiseCache();
-    _sw = DemoSplitwiseApi();
-    splitTarget = null;
-    await _store.writeSplitTarget(null);
-    await refreshSplitwise();
-  }
-
-  Future<void> setSplitTarget(SplitTarget? target) async {
-    splitTarget = target;
-    await _store.writeSplitTarget(target);
-    notifyListeners();
+    for (var i = 0; i < _txns.length; i++) {
+      if (out.notExpense.contains(_txns[i].id)) {
+        _txns[i] = _txns[i].copyWith(kindOverride: TxnKind.notExpense, reviewed: true);
+      }
+    }
+    await _save();
   }
 
   Future<void> setAppearance(Appearance next) async {
@@ -558,29 +636,48 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> requestOverlay() async {
-    await SplitOverlay.requestPermission();
+  Future<void> requestPostNotifications() async {
+    await Notifier.requestPermission();
     await refreshPermissions();
   }
 
-  static SplitPrompt promptFor(Enriched e) =>
-      SplitPrompt(txnId: e.txn.id, amountMinor: e.txn.amountMinor, payee: e.payee, at: e.txn.at);
+  /// Opens Splitwise's Add expense screen with this payment filled in, and
+  /// remembers it as handed over.
+  Future<void> openInSplitwise(String txnId) async {
+    final e = find(txnId);
+    if (e == null) return;
+    splitRecords = await _store.addSplitRecord(SplitRecord(
+      txnId: txnId,
+      label: splitSettings.groupName ?? 'Splitwise',
+      amountMinor: e.txn.amountMinor,
+      description: e.payee,
+      at: DateTime.now(),
+    ));
+    if (splitSkipped.remove(txnId)) await _store.writeSplitSkipped(splitSkipped);
+    notifyListeners();
+    await SplitwiseBridge.open(amountMinor: e.txn.amountMinor, payee: e.payee, groupId: splitSettings.groupId);
+  }
 
-  Future<void> split(Enriched e, SplitTarget target, {bool makeDefault = false}) async {
-    final record = await splitOnSplitwise(
-      api: _sw,
-      target: target,
-      myUserId: swUser?.user.id ?? 1,
-      prompt: promptFor(e),
-      currency: swUser?.defaultCurrency ?? appCurrency,
-    );
-    splitRecords = await _store.addSplitRecord(record);
-    if (makeDefault || splitTarget == null) await setSplitTarget(target);
+  /// "Not splitting this one": it leaves the To split list.
+  Future<void> skipSplit(String txnId) async {
+    splitSkipped = {...splitSkipped, txnId};
+    await _store.writeSplitSkipped(splitSkipped);
     notifyListeners();
   }
 
-  Future<void> skipSplit(Enriched e) async {
-    splitSkipped = {...splitSkipped, e.txn.id};
+  /// Marks the payment "Not an expense" (like the review card does) and
+  /// takes it off the split list.
+  Future<void> markNotExpense(String txnId) async {
+    splitSkipped = {...splitSkipped, txnId};
+    await _store.writeSplitSkipped(splitSkipped);
+    await _update(txnId, (t) => t.copyWith(kindOverride: TxnKind.notExpense, reviewed: true));
+  }
+
+  /// Back to To split: forgets that it was opened in Splitwise (or skipped).
+  Future<void> undoSplit(String txnId) async {
+    splitRecords = {...splitRecords}..remove(txnId);
+    splitSkipped = {...splitSkipped}..remove(txnId);
+    await _store.writeSplitRecords(splitRecords);
     await _store.writeSplitSkipped(splitSkipped);
     notifyListeners();
   }
@@ -589,7 +686,7 @@ class AppController extends ChangeNotifier {
   Future<void> _suggestSplit(List<String> addedIds) async {
     if (addedIds.isEmpty) return;
     final ids = addedIds.toSet();
-    final pick = popupFor(
+    final pick = notifyFor(
       ledger.items.where((e) => ids.contains(e.txn.id)),
       handled: _splitHandled,
       settings: splitSettings,
@@ -599,22 +696,35 @@ class AppController extends ChangeNotifier {
     final foreground = WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
     if (foreground && onSplitSuggestion != null) {
       onSplitSuggestion!(pick);
-    } else if (overlayGranted) {
-      await SplitOverlay.show(promptFor(pick), _store, expanded: splitTarget == null);
+    } else {
+      await SplitwiseBridge.showNotification(
+        txnId: pick.txn.id,
+        amountMinor: pick.txn.amountMinor,
+        payee: pick.payee,
+        groupId: splitSettings.groupId,
+      );
     }
   }
 
-  /// Shows the floating card for the latest payment, to try it out.
-  Future<bool> previewFloatingCard() async {
+  /// Posts the split notification for the latest payment, to try it out.
+  Future<bool> sendTestSplitNotification() async {
     final e = splitTodo.firstOrNull ?? ledger.items.where((e) => e.countsAsSpend).firstOrNull;
-    if (e == null || !overlayGranted) return false;
-    await SplitOverlay.show(promptFor(e), _store, expanded: splitTarget == null);
+    if (e == null) return false;
+    await SplitwiseBridge.showNotification(
+      txnId: e.txn.id,
+      amountMinor: e.txn.amountMinor,
+      payee: e.payee,
+      groupId: splitSettings.groupId,
+    );
     return true;
   }
 
+  /// Opens Splitwise with "₹1 · Test", to check the hand-off works.
+  Future<bool> tryOpenSplitwise() =>
+      SplitwiseBridge.open(amountMinor: 100, payee: 'Test', groupId: splitSettings.groupId);
+
   @override
   void dispose() {
-    _overlayMessages?.cancel();
     _notifications.stop();
     _lifecycle.dispose();
     super.dispose();

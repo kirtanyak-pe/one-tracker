@@ -1,66 +1,4 @@
-import '../splitwise/models.dart';
-
-enum TargetKind { group, friends }
-
-/// Who a payment gets split with — a Splitwise group, or a set of friends.
-/// Always split equally, you paid.
-class SplitTarget {
-  const SplitTarget._({
-    required this.kind,
-    required this.label,
-    required this.people,
-    this.groupId,
-    this.friendIds = const [],
-  });
-
-  factory SplitTarget.group(SwGroup g) => SplitTarget._(
-        kind: TargetKind.group,
-        groupId: g.id,
-        label: g.name,
-        people: g.members.length,
-      );
-
-  factory SplitTarget.friends(List<SwUser> friends) => SplitTarget._(
-        kind: TargetKind.friends,
-        friendIds: friends.map((f) => f.id).toList(),
-        label: friends.map((f) => f.firstName).join(', '),
-        people: friends.length + 1, // + you
-      );
-
-  final TargetKind kind;
-  final int? groupId;
-  final List<int> friendIds;
-  final String label;
-
-  /// Including you.
-  final int people;
-
-  int shareOf(int amountMinor) => people <= 0 ? amountMinor : amountMinor ~/ people;
-
-  bool sameAs(SplitTarget? other) =>
-      other != null &&
-      other.kind == kind &&
-      other.groupId == groupId &&
-      ({...other.friendIds}.length == friendIds.length && other.friendIds.every(friendIds.contains));
-
-  factory SplitTarget.fromJson(Map<String, dynamic> j) => SplitTarget._(
-        kind: TargetKind.values.byName(j['kind'] as String),
-        groupId: j['groupId'] as int?,
-        friendIds: ((j['friendIds'] as List?) ?? const []).cast<int>(),
-        label: j['label'] as String,
-        people: j['people'] as int,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'kind': kind.name,
-        'groupId': groupId,
-        'friendIds': friendIds,
-        'label': label,
-        'people': people,
-      };
-}
-
-/// A payment that was sent to Splitwise.
+/// A payment that was handed to Splitwise (its Add expense screen opened).
 class SplitRecord {
   const SplitRecord({
     required this.txnId,
@@ -68,27 +6,28 @@ class SplitRecord {
     required this.amountMinor,
     required this.description,
     required this.at,
-    this.demo = false,
   });
 
   final String txnId;
 
-  /// Group name or friends.
+  /// The default group's name, or "Splitwise".
   final String label;
   final int amountMinor;
   final String description;
+
+  /// When it was opened in Splitwise.
   final DateTime at;
 
-  /// Made in demo mode — nothing was sent.
-  final bool demo;
+  /// Records written by the old demo mode (`demo: true`) never reached
+  /// Splitwise; [SplitRecord.fromJson] callers drop them with [isOldDemo].
+  static bool isOldDemo(Map<String, dynamic> j) => j['demo'] == true;
 
   factory SplitRecord.fromJson(Map<String, dynamic> j) => SplitRecord(
         txnId: j['txnId'] as String,
-        label: j['label'] as String,
+        label: (j['label'] as String?) ?? 'Splitwise',
         amountMinor: j['amountMinor'] as int,
         description: j['description'] as String,
         at: DateTime.parse(j['at'] as String),
-        demo: (j['demo'] as bool?) ?? false,
       );
 
   Map<String, dynamic> toJson() => {
@@ -97,55 +36,47 @@ class SplitRecord {
         'amountMinor': amountMinor,
         'description': description,
         'at': at.toIso8601String(),
-        'demo': demo,
       };
 }
 
 class SplitSettings {
-  const SplitSettings({this.popup = true, this.minMinor = 10000});
+  const SplitSettings({this.notify = true, this.minMinor = 10000, this.groupId, this.groupName});
 
-  /// Ask right after each new payment.
-  final bool popup;
+  /// Offer to split right after each new payment.
+  final bool notify;
 
-  /// Don't ask about payments at or below this (default ₹100).
+  /// Don't offer for payments at or below this (default ₹100).
   final int minMinor;
 
-  SplitSettings copyWith({bool? popup, int? minMinor}) =>
-      SplitSettings(popup: popup ?? this.popup, minMinor: minMinor ?? this.minMinor);
+  /// Splitwise group new expenses start in (its id, from the group's link).
+  final int? groupId;
 
-  factory SplitSettings.fromJson(Map<String, dynamic> j) => SplitSettings(
-        popup: (j['popup'] as bool?) ?? true,
-        minMinor: (j['minMinor'] as int?) ?? 10000,
+  /// What the user calls that group (shown in the app only).
+  final String? groupName;
+
+  SplitSettings copyWith({bool? notify, int? minMinor}) =>
+      SplitSettings(notify: notify ?? this.notify, minMinor: minMinor ?? this.minMinor, groupId: groupId, groupName: groupName);
+
+  /// A null [id] clears the default group.
+  SplitSettings withGroup(int? id, [String? name]) => SplitSettings(
+        notify: notify,
+        minMinor: minMinor,
+        groupId: id,
+        groupName: id == null || (name?.trim().isEmpty ?? true) ? null : name!.trim(),
       );
 
-  Map<String, dynamic> toJson() => {'popup': popup, 'minMinor': minMinor};
-}
-
-/// What the floating card needs to know about the payment.
-class SplitPrompt {
-  const SplitPrompt({
-    required this.txnId,
-    required this.amountMinor,
-    required this.payee,
-    required this.at,
-  });
-
-  final String txnId;
-  final int amountMinor;
-  final String payee;
-  final DateTime at;
-
-  factory SplitPrompt.fromJson(Map<String, dynamic> j) => SplitPrompt(
-        txnId: j['txnId'] as String,
-        amountMinor: j['amountMinor'] as int,
-        payee: j['payee'] as String,
-        at: DateTime.parse(j['at'] as String),
+  /// Reads old data too: `popup` was the name of `notify`.
+  factory SplitSettings.fromJson(Map<String, dynamic> j) => SplitSettings(
+        notify: (j['notify'] as bool?) ?? (j['popup'] as bool?) ?? true,
+        minMinor: (j['minMinor'] as int?) ?? 10000,
+        groupId: j['groupId'] as int?,
+        groupName: j['groupName'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
-        'txnId': txnId,
-        'amountMinor': amountMinor,
-        'payee': payee,
-        'at': at.toIso8601String(),
+        'notify': notify,
+        'minMinor': minMinor,
+        if (groupId != null) 'groupId': groupId,
+        if (groupName != null) 'groupName': groupName,
       };
 }

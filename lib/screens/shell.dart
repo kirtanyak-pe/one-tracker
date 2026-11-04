@@ -4,6 +4,7 @@ import '../ui/motion.dart';
 import '../ui/tokens.dart';
 import 'activity_screen.dart';
 import 'home_screen.dart';
+import 'widgets/split_prompt_card.dart';
 import 'insights_screen.dart';
 import 'split_tab.dart';
 import '../app_controller.dart';
@@ -34,7 +35,7 @@ class _AppShellState extends State<AppShell> {
     super.didChangeDependencies();
     // A payment came in while the app is open: offer the split here.
     AppScope.of(context).onSplitSuggestion = (payment) {
-      if (mounted) showSplitSheet(context, payment);
+      if (mounted) showSplitPromptSheet(context, payment);
     };
   }
 

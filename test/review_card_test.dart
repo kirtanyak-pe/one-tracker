@@ -3,6 +3,7 @@ import 'package:auto_split/engine/ingest.dart';
 import 'package:auto_split/model/transaction.dart';
 import 'package:auto_split/screens/widgets/review_card.dart';
 import 'package:auto_split/ui/theme.dart';
+import 'package:auto_split/ui/tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -25,31 +26,41 @@ void main() {
       final queue = enrich(txns).items.where((e) => e.needsReview).toList();
       expect(queue, hasLength(1));
 
-      await tester.pumpWidget(MaterialApp(
-        theme: buildTheme(brightness),
-        home: MediaQuery(
-          data: const MediaQueryData(size: Size(375, 812), textScaler: TextScaler.linear(1.3)),
-          child: Scaffold(
-            body: Padding(
-              padding: const EdgeInsets.all(20),
-              child: ReviewCard(queue: queue, currency: 'INR'),
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(brightness),
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(375, 812), textScaler: TextScaler.linear(1.3)),
+            child: Scaffold(
+              body: Padding(
+                padding: const EdgeInsets.all(20),
+                child: ReviewCard(queue: queue, currency: 'INR'),
+              ),
             ),
           ),
         ),
-      ));
+      );
 
       // One line each: label height ≈ one line of 15px text × 1.3.
       for (final label in ['Not expense', 'Expense']) {
         expect(tester.getSize(find.text(label)).height, lessThan(30), reason: label);
       }
 
-      // Solid button is white with dark text in both themes.
-      final solid = tester.widget<FilledButton>(find.ancestor(
-        of: find.text('Expense'),
-        matching: find.byType(FilledButton),
-      ));
-      expect(solid.style!.backgroundColor!.resolve({}), Colors.white);
-      expect(solid.style!.foregroundColor!.resolve({}), const Color(0xFF111111));
+      // Primary is the accent action with white text; secondary is a quiet tray pill.
+      final t = Theme.of(tester.element(find.byType(ReviewCard))).extension<AppTokens>()!;
+      final primary = tester.widget<FilledButton>(
+        find.ancestor(of: find.text('Expense'), matching: find.byType(FilledButton)),
+      );
+      expect(primary.style!.backgroundColor!.resolve({}), t.accentDeep);
+      expect(primary.style!.foregroundColor!.resolve({}), t.onAccent);
+      for (final label in ['Not expense', 'Expense']) {
+        final button = find.ancestor(of: find.text(label), matching: find.byType(FilledButton));
+        expect(tester.getSize(button).height, greaterThanOrEqualTo(48), reason: label);
+      }
+      // Payee and amount sit in the header row.
+      expect(find.text('ramesh.kumar@oksbi'), findsNothing);
+      expect(find.text('₹18,000'), findsOneWidget);
+      expect(find.text('Count it as an expense?'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }

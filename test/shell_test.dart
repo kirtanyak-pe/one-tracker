@@ -4,7 +4,6 @@ import 'package:auto_split/storage/app_store.dart';
 import 'package:auto_split/ui/theme.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
@@ -12,7 +11,6 @@ import 'package:shared_preferences_platform_interface/shared_preferences_async_p
 void main() {
   testWidgets('switching tabs fully hides the previous tab', (tester) async {
     SharedPreferencesAsyncPlatform.instance = InMemorySharedPreferencesAsync.empty();
-    FlutterSecureStorage.setMockInitialValues({});
     // Not Android: no SMS/notification plugins, sample data like the web preview.
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     tester.view.physicalSize = const Size(375 * 3, 812 * 3);

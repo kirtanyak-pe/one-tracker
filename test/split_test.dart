@@ -1,175 +1,234 @@
+import 'dart:convert';
+
+import 'package:auto_split/app_controller.dart';
 import 'package:auto_split/engine/enrich.dart';
 import 'package:auto_split/engine/ingest.dart';
 import 'package:auto_split/model/transaction.dart';
+import 'package:auto_split/split/group_link.dart';
+import 'package:auto_split/split/pending_actions.dart';
 import 'package:auto_split/split/split_models.dart';
-import 'package:auto_split/split/split_service.dart';
 import 'package:auto_split/split/suggest.dart';
-import 'package:auto_split/splitwise/models.dart';
-import 'package:auto_split/splitwise/split_math.dart';
-import 'package:auto_split/splitwise/splitwise_api.dart';
+import 'package:auto_split/storage/app_store.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-const _you = SwUser(id: 1, firstName: 'You');
-const _aarav = SwUser(id: 2, firstName: 'Aarav', lastName: 'Mehta');
-const _meera = SwUser(id: 3, firstName: 'Meera', lastName: 'Iyer');
-const _flat = SwGroup(id: 101, name: 'Flatmates', members: [_you, _aarav, _meera]);
-
-/// Records what would be sent to Splitwise.
-class _FakeApi extends DemoSplitwiseApi {
-  final calls = <String>[];
-  List<ExpenseShare>? shares;
-  int? sharedGroupId;
-
-  @override
-  bool get isDemo => false;
-
-  @override
-  Future<void> createGroupExpense({
-    required int groupId,
-    required int costMinor,
-    required String description,
-    required String currency,
-  }) async =>
-      calls.add('group $groupId $costMinor $description $currency');
-
-  @override
-  Future<void> createSharedExpense({
-    required List<ExpenseShare> shares,
-    required int costMinor,
-    required String description,
-    required String currency,
-    int groupId = 0,
-  }) async {
-    this.shares = shares;
-    sharedGroupId = groupId;
-    calls.add('shared $costMinor $description');
-  }
-}
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 var _n = 0;
 RawMessage _sms(DateTime at, String body) =>
     RawMessage(source: Source.sms, sourceId: '${_n++}', sender: 'VM-HDFCBK', body: body, at: at);
 
 void main() {
-  final prompt = SplitPrompt(txnId: 't1', amountMinor: 45000, payee: 'Swiggy', at: DateTime(2026, 10, 13));
+  TestWidgetsFlutterBinding.ensureInitialized();
+  final now = DateTime(2026, 10, 13, 20);
+  final ledger = enrich(ingest(const [], [
+    _sms(now.subtract(const Duration(minutes: 2)), 'Rs.450 debited from A/c XX4821 to VPA swiggy@icici'),
+    _sms(now.subtract(const Duration(minutes: 5)), 'Rs.60 debited from A/c XX4821 to VPA chai@ybl'),
+    _sms(now.subtract(const Duration(hours: 3)), 'Rs.900 debited from A/c XX4821 to VPA zomato@hdfc'),
+    _sms(now.subtract(const Duration(minutes: 1)), 'Rs.5000 debited from A/c XX4821 - Self Transfer'),
+    _sms(now.subtract(const Duration(minutes: 1)), 'Rs.800 credited to A/c XX4821 from VPA aarav@okaxis'),
+  ]).txns);
+  Enriched byPayee(String p) => ledger.items.firstWhere((e) => e.payee == p);
 
-  test('friend balances from Splitwise', () {
-    final f = SwUser.fromJson({
-      'id': 9,
-      'first_name': 'Rahul',
-      'balance': [
-        {'currency_code': 'INR', 'amount': '250.5'},
-        {'currency_code': 'INR', 'amount': '-50.0'},
-      ],
-    });
-    expect(f.balanceMinor, 20050);
-    expect(SwUser.fromJson(f.toJson()).balanceMinor, 20050, reason: 'survives the cache');
-  });
-
-  group('targets', () {
-    test('group target splits among its members', () {
-      final t = SplitTarget.group(_flat);
-      expect(t.people, 3);
-      expect(t.shareOf(45000), 15000);
-      expect(t.label, 'Flatmates');
-    });
-
-    test('friends target counts you in', () {
-      final t = SplitTarget.friends([_aarav, _meera]);
-      expect(t.people, 3);
-      expect(t.label, 'Aarav, Meera');
-    });
-
-    test('round-trips and compares', () {
-      final t = SplitTarget.friends([_aarav, _meera]);
-      final back = SplitTarget.fromJson(t.toJson());
-      expect(back.sameAs(t), isTrue);
-      expect(back.sameAs(SplitTarget.group(_flat)), isFalse);
-      expect(SplitTarget.friends([_meera, _aarav]).sameAs(t), isTrue);
-    });
-  });
-
-  group('splitting', () {
-    test('group: one split-equally expense on the group', () async {
-      final api = _FakeApi();
-      final record = await splitOnSplitwise(
-        api: api,
-        target: SplitTarget.group(_flat),
-        myUserId: 1,
-        prompt: prompt,
-        currency: 'INR',
-      );
-      expect(api.calls, ['group 101 45000 Swiggy INR']);
-      expect(record.label, 'Flatmates');
-      expect(record.demo, isFalse);
-    });
-
-    test('friends: you paid, everyone owes an equal part', () async {
-      final api = _FakeApi();
-      await splitOnSplitwise(
-        api: api,
-        target: SplitTarget.friends([_aarav, _meera]),
-        myUserId: 1,
-        prompt: prompt,
-        currency: 'INR',
-      );
-      expect(api.shares!.map((s) => s.userId), [1, 2, 3]);
-      expect(api.shares!.map((s) => s.paidMinor), [45000, 0, 0]);
-      expect(api.shares!.map((s) => s.owedMinor), [15000, 15000, 15000]);
-    });
-
-    test('demo mode is marked', () async {
-      final record = await splitOnSplitwise(
-        api: DemoSplitwiseApi(),
-        target: SplitTarget.group(_flat),
-        myUserId: 1,
-        prompt: prompt,
-        currency: 'INR',
-      );
-      expect(record.demo, isTrue);
-    });
-
-    test('leftover paise go one each so shares add up', () {
-      final shares = equalSplit(payerId: 1, participantIds: [2, 3], totalMinor: 10000);
-      expect(shares.map((s) => s.owedMinor), [3334, 3333, 3333]);
-    });
-
-    test('a 200 with errors is still a failure', () {
-      expect(errorMessage({}), isNull);
-      expect(errorMessage({'base': ['Invalid group']}), 'Invalid group');
-    });
-  });
-
-  group('suggestions', () {
-    final now = DateTime(2026, 10, 13, 20);
-    final ledger = enrich(ingest(const [], [
-      _sms(now.subtract(const Duration(minutes: 2)), 'Rs.450 debited from A/c XX4821 to VPA swiggy@icici'),
-      _sms(now.subtract(const Duration(minutes: 5)), 'Rs.60 debited from A/c XX4821 to VPA chai@ybl'),
-      _sms(now.subtract(const Duration(hours: 3)), 'Rs.900 debited from A/c XX4821 to VPA zomato@hdfc'),
-      _sms(now.subtract(const Duration(minutes: 1)), 'Rs.5000 debited from A/c XX4821 - Self Transfer'),
-      _sms(now.subtract(const Duration(minutes: 1)), 'Rs.800 credited to A/c XX4821 from VPA aarav@okaxis'),
-    ]).txns);
-
-    test('candidates: real spending above the minimum, newest first', () {
+  group('candidates', () {
+    test('real spending above the minimum, newest first', () {
       final c = splitCandidates(ledger.items, handled: {}, settings: const SplitSettings());
       expect(c.map((e) => e.payee), ['Swiggy', 'Zomato']);
     });
 
     test('handled payments are left out', () {
-      final swiggy = ledger.items.firstWhere((e) => e.payee == 'Swiggy').txn.id;
-      final c = splitCandidates(ledger.items, handled: {swiggy}, settings: const SplitSettings());
+      final c = splitCandidates(ledger.items, handled: {byPayee('Swiggy').txn.id}, settings: const SplitSettings());
       expect(c.map((e) => e.payee), ['Zomato']);
     });
 
-    test('popup only for fresh payments', () {
-      final pick = popupFor(ledger.items, handled: {}, settings: const SplitSettings(), now: now);
-      expect(pick!.payee, 'Swiggy');
-      final later = popupFor(ledger.items, handled: {}, settings: const SplitSettings(), now: now.add(const Duration(hours: 1)));
-      expect(later, isNull);
+    test('the minimum is respected', () {
+      final c = splitCandidates(ledger.items, handled: {}, settings: const SplitSettings(minMinor: 50000));
+      expect(c.map((e) => e.payee), ['Zomato']);
+      final any = splitCandidates(ledger.items, handled: {}, settings: const SplitSettings(minMinor: 0));
+      expect(any.map((e) => e.payee), contains('Chai'));
     });
 
-    test('popup can be switched off', () {
-      expect(popupFor(ledger.items, handled: {}, settings: const SplitSettings(popup: false), now: now), isNull);
+    test('notification only for fresh payments', () {
+      final pick = notifyFor(ledger.items, handled: {}, settings: const SplitSettings(), now: now);
+      expect(pick!.payee, 'Swiggy');
+      expect(notifyFor(ledger.items, handled: {}, settings: const SplitSettings(), now: now.add(const Duration(hours: 1))), isNull);
+    });
+
+    test('notifications can be switched off', () {
+      expect(notifyFor(ledger.items, handled: {}, settings: const SplitSettings(notify: false), now: now), isNull);
+    });
+  });
+
+  group('SplitSettings', () {
+    test('reads the old "popup" key', () {
+      expect(SplitSettings.fromJson({'popup': false, 'minMinor': 50000}).notify, isFalse);
+      expect(SplitSettings.fromJson({'popup': true}).notify, isTrue);
+      expect(SplitSettings.fromJson({'notify': false, 'popup': true}).notify, isFalse);
+      final empty = SplitSettings.fromJson({});
+      expect((empty.notify, empty.minMinor, empty.groupId), (true, 10000, null));
+    });
+
+    test('round-trips with a group; clearing drops it', () {
+      final s = const SplitSettings().withGroup(12345678, '  Flatmates ');
+      final back = SplitSettings.fromJson(jsonDecode(jsonEncode(s.toJson())) as Map<String, dynamic>);
+      expect((back.groupId, back.groupName), (12345678, 'Flatmates'));
+      expect(s.copyWith(minMinor: 0).groupId, 12345678, reason: 'other edits keep the group');
+      final cleared = s.withGroup(null, 'ignored');
+      expect((cleared.groupId, cleared.groupName), (null, null));
+      expect(cleared.toJson().containsKey('groupId'), isFalse);
+    });
+  });
+
+  group('group link', () {
+    test('finds the id', () {
+      expect(parseGroupId('https://secure.splitwise.com/#/groups/12345678'), 12345678);
+      expect(parseGroupId('  https://secure.splitwise.com/#/groups/12345678/expenses '), 12345678);
+      expect(parseGroupId('https://secure.splitwise.com/groups/42?x=1'), 42);
+      expect(parseGroupId('12345678'), 12345678);
+    });
+
+    test('no id', () {
+      expect(parseGroupId(''), isNull);
+      expect(parseGroupId('https://secure.splitwise.com/#/friends/9'), isNull);
+      expect(parseGroupId('Flatmates'), isNull);
+      expect(parseGroupId('0'), isNull);
+    });
+  });
+
+  group('pending actions', () {
+    final swiggy = byPayee('Swiggy');
+    final t0 = DateTime(2026, 10, 13, 20, 5);
+    Enriched? lookup(String id) => ledger.items.where((e) => e.txn.id == id).firstOrNull;
+
+    test('parses what the channel sends', () {
+      final a = PendingSplitAction.tryParse({'txnId': 'x', 'action': 'notExpense', 'at': 1760000000000})!;
+      expect((a.txnId, a.action), ('x', SplitAction.notExpense));
+      expect(a.at.millisecondsSinceEpoch, 1760000000000);
+      expect(PendingSplitAction.tryParse({'txnId': 'x', 'action': 'nope'}), isNull);
+      expect(PendingSplitAction.tryParse('junk'), isNull);
+      expect(PendingSplitAction.parseAll([{'txnId': 'x', 'action': 'skip', 'at': 1}, 5]), hasLength(1));
+    });
+
+    test('split records it (at the time of the tap), skip and not-expense hide it', () {
+      final out = applySplitActions(
+        [
+          PendingSplitAction(txnId: swiggy.txn.id, action: SplitAction.split, at: t0),
+          PendingSplitAction(txnId: byPayee('Zomato').txn.id, action: SplitAction.skip, at: t0),
+          PendingSplitAction(txnId: byPayee('Chai').txn.id, action: SplitAction.notExpense, at: t0),
+        ],
+        records: {},
+        skipped: {},
+        lookup: lookup,
+        groupName: 'Flatmates',
+      );
+      final r = out.records[swiggy.txn.id]!;
+      expect((r.label, r.amountMinor, r.description, r.at), ('Flatmates', 45000, 'Swiggy', t0));
+      expect(out.skipped, {byPayee('Zomato').txn.id, byPayee('Chai').txn.id});
+      expect(out.notExpense, {byPayee('Chai').txn.id});
+      expect(out.changed, isTrue);
+    });
+
+    test('unknown payments are ignored; a skip never undoes a split', () {
+      final none = applySplitActions(
+        [PendingSplitAction(txnId: 'gone', action: SplitAction.split, at: t0)],
+        records: {},
+        skipped: {},
+        lookup: lookup,
+      );
+      expect(none.records, isEmpty);
+      expect(none.skipped, isEmpty);
+      expect(none.changed, isFalse);
+
+      final out = applySplitActions(
+        [
+          PendingSplitAction(txnId: swiggy.txn.id, action: SplitAction.split, at: t0),
+          PendingSplitAction(txnId: swiggy.txn.id, action: SplitAction.skip, at: t0),
+        ],
+        records: {},
+        skipped: {},
+        lookup: lookup,
+      );
+      expect(out.records.keys, [swiggy.txn.id]);
+      expect(out.skipped, isEmpty);
+    });
+  });
+
+  group('records', () {
+    test('old JSON still reads (demo flag ignored)', () {
+      final r = SplitRecord.fromJson({
+        'txnId': 't',
+        'label': 'Flatmates',
+        'amountMinor': 100,
+        'description': 'Tea',
+        'at': '2026-10-13T10:00:00.000',
+        'demo': false,
+      });
+      expect(r.label, 'Flatmates');
+      expect(r.toJson().containsKey('demo'), isFalse);
+    });
+  });
+
+  group('storage and controller', () {
+    setUp(() {
+      SharedPreferencesAsyncPlatform.instance = InMemorySharedPreferencesAsync.empty();
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    test('migration: old demo records dropped, old group becomes the default, old keys removed', () async {
+      final prefs = SharedPreferencesAsync();
+      await prefs.setString(
+        'split_records_v1',
+        jsonEncode([
+          {'txnId': 'a', 'label': 'Flatmates', 'amountMinor': 100, 'description': 'A', 'at': '2026-10-01T10:00:00.000'},
+          {'txnId': 'b', 'label': 'Demo', 'amountMinor': 100, 'description': 'B', 'at': '2026-10-01T10:00:00.000', 'demo': true},
+        ]),
+      );
+      await prefs.setString('split_settings_v1', jsonEncode({'popup': false, 'minMinor': 50000}));
+      await prefs.setString(
+        'split_target_v1',
+        jsonEncode({'kind': 'group', 'groupId': 777, 'friendIds': [], 'label': 'Trip', 'people': 4}),
+      );
+      await prefs.setString('sw_groups_v1', '[]');
+      final store = AppStore();
+      await store.migrateSplitwise();
+      expect((await store.readSplitRecords()).keys, ['a']);
+      final s = await store.readSplitSettings();
+      expect((s.notify, s.minMinor, s.groupId, s.groupName), (false, 50000, 777, 'Trip'));
+      expect(await prefs.getString('split_target_v1'), isNull);
+      expect(await prefs.getString('sw_groups_v1'), isNull);
+    });
+
+    test('openInSplitwise records, skip / undo / not-expense move payments between lists', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      final app = AppController(AppStore());
+      await app.init();
+      final todo = app.splitTodo;
+      expect(todo.length, greaterThan(2), reason: 'sample payments are above the minimum');
+      final first = todo[0].txn.id, second = todo[1].txn.id, third = todo[2].txn.id;
+
+      await app.openInSplitwise(first);
+      expect(app.splitRecords[first]!.description, todo[0].payee);
+      expect(app.splitTodo.any((e) => e.txn.id == first), isFalse);
+
+      await app.skipSplit(second);
+      expect(app.splitTodo.any((e) => e.txn.id == second), isFalse);
+      expect(app.splitRecords.containsKey(second), isFalse);
+
+      await app.undoSplit(first);
+      await app.undoSplit(second);
+      expect(app.splitTodo.map((e) => e.txn.id), containsAll([first, second]));
+
+      await app.markNotExpense(third);
+      expect(app.find(third)!.kind, TxnKind.notExpense);
+      expect(app.splitTodo.any((e) => e.txn.id == third), isFalse);
+
+      // Persisted: a fresh controller sees the same state.
+      await app.openInSplitwise(first);
+      final again = AppController(AppStore());
+      await again.init();
+      expect(again.splitRecords.keys, [first]);
     });
   });
 }

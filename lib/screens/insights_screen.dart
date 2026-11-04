@@ -9,6 +9,7 @@ import '../ui/bar_chart.dart';
 import '../ui/components.dart';
 import '../ui/format.dart';
 import '../ui/motion.dart';
+import '../ui/payee_logo.dart';
 import '../ui/tokens.dart';
 import 'home_screen.dart' show push;
 import 'shell.dart';
@@ -243,7 +244,7 @@ class _TopPayees extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: Space.md),
               child: Row(
                 children: [
-                  Avatar(p.payee),
+                  PayeeAvatar.name(p.payee),
                   const SizedBox(width: Space.md),
                   Expanded(
                     child: Column(

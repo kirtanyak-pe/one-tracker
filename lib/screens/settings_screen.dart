@@ -25,7 +25,6 @@ class SettingsScreen extends StatelessWidget {
     final sources = [
       if (app.smsGranted) 'SMS',
       if (app.notificationsGranted) 'notifications',
-      if (app.overlayGranted) 'pop-up',
     ];
 
     return SettingsPage(
@@ -60,8 +59,8 @@ class SettingsScreen extends StatelessWidget {
               icon: Icons.call_split,
               title: 'Splitwise',
               subtitle: [
-                app.swConnected ? 'Connected' : 'Not connected',
-                if (app.splitTarget != null) 'default ${app.splitTarget!.label}',
+                app.splitSettings.notify ? 'Notifies after a payment' : 'Notifications off',
+                if (app.splitSettings.groupId != null) 'group ${app.splitSettings.groupName ?? app.splitSettings.groupId}',
               ].join(', '),
               onTap: () => push(context, const SplitSettingsPage()),
             ),

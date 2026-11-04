@@ -18,12 +18,25 @@ class RulesScreen extends StatelessWidget {
         builder: (_) => _RuleEditor(rule: rule),
       );
 
+  static Future<void> editPayee(BuildContext context, PayeeRule rule) => showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => _PayeeEditor(rule: rule),
+      );
+
+  static String _payeeSummary(PayeeRule r) => [
+        if (r.name != null) 'Bank name: ${r.label}',
+        if (r.category != null) r.category!.label,
+        if (r.kind != null) r.kind!.label,
+        ...r.tags.map((tag) => '#$tag'),
+      ].join(' · ');
+
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final t = context.tokens;
     final text = Theme.of(context).textTheme;
-    final payees = app.rules.values.toList()..sort((a, b) => a.label.compareTo(b.label));
+    final payees = app.rules.values.toList()..sort((a, b) => (a.name ?? a.label).toLowerCase().compareTo((b.name ?? b.label).toLowerCase()));
 
     return Scaffold(
       body: CanvasBackground(
@@ -85,7 +98,7 @@ class RulesScreen extends StatelessWidget {
                     if (payees.isEmpty)
                       Tray(
                         child: Text(
-                          'Turn on "Same for all" on any payment, or pick a category on a big-payment card.',
+                          'Rename a payee, tag all their payments, or turn on "Same for all" on any payment.',
                           textAlign: TextAlign.center,
                           style: text.bodyMedium?.copyWith(color: t.muted),
                         ),
@@ -98,12 +111,18 @@ class RulesScreen extends StatelessWidget {
                             for (final (i, r) in payees.indexed) ...[
                               if (i > 0) Divider(height: 1, color: t.tray),
                               _RuleRow(
-                                title: r.label,
-                                subtitle: [
-                                  if (r.category != null) r.category!.label,
-                                  if (r.kind != null) r.kind!.label,
-                                ].join(' · '),
-                                onDelete: () => app.forget(r.key),
+                                title: r.name ?? r.label,
+                                subtitle: _payeeSummary(r),
+                                onTap: () => editPayee(context, r),
+                                onDelete: () {
+                                  app.forget(r.key);
+                                  ScaffoldMessenger.of(context)
+                                    ..clearSnackBars()
+                                    ..showSnackBar(SnackBar(
+                                      content: Text('Forgot ${r.name ?? r.label}'),
+                                      action: SnackBarAction(label: 'Undo', onPressed: () => app.saveRule(r)),
+                                    ));
+                                },
                               ),
                             ],
                           ],
@@ -278,6 +297,148 @@ class _RuleEditorState extends State<_RuleEditor> {
                         : null,
                     child: Text(widget.rule == null ? 'Create rule' : 'Save rule'),
                   ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Edit what's remembered for one payee: its name and tags. Category and type
+/// stay as set on the payment ("Same for all").
+class _PayeeEditor extends StatefulWidget {
+  const _PayeeEditor({required this.rule});
+
+  final PayeeRule rule;
+
+  @override
+  State<_PayeeEditor> createState() => _PayeeEditorState();
+}
+
+class _PayeeEditorState extends State<_PayeeEditor> {
+  late final _name = TextEditingController(text: widget.rule.name ?? '');
+  final _newTag = TextEditingController();
+  late List<String> _tags = [...widget.rule.tags];
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _newTag.dispose();
+    super.dispose();
+  }
+
+  void _addTag() {
+    final tag = _newTag.text.trim();
+    if (tag.isEmpty) return;
+    setState(() {
+      if (!_tags.contains(tag)) _tags = [..._tags, tag];
+      _newTag.clear();
+    });
+  }
+
+  void _save() {
+    _addTag();
+    final name = _name.text.trim();
+    final rule = widget.rule.copyWith(
+      name: name.isEmpty || name == widget.rule.label ? null : name,
+      clearName: name.isEmpty || name == widget.rule.label,
+      tags: _tags,
+    );
+    final app = AppScope.of(context);
+    if (rule.isEmpty) {
+      app.forget(rule.key);
+    } else {
+      app.saveRule(rule);
+    }
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    final rule = widget.rule;
+    final name = _name.text.trim();
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: Container(
+        decoration: BoxDecoration(
+          color: t.canvas,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(Radii.card)),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(Space.gutter, Space.md, Space.gutter, Space.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(color: t.trayDeep, borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                const SizedBox(height: Space.lg),
+                Text(rule.label, style: text.titleLarge),
+                const SizedBox(height: Space.lg),
+                Text('Show as', style: text.bodySmall?.copyWith(color: t.muted)),
+                const SizedBox(height: Space.sm),
+                TextField(
+                  controller: _name,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: InputDecoration(hintText: rule.label),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: Space.xs),
+                Text(
+                  name.isEmpty || name == rule.label
+                      ? 'All payments to ${rule.label} show their bank name'
+                      : 'All payments to ${rule.label} show as $name',
+                  style: text.bodySmall?.copyWith(color: t.muted),
+                ),
+                const SizedBox(height: Space.lg),
+                Text('Tags on all their payments', style: text.bodySmall?.copyWith(color: t.muted)),
+                const SizedBox(height: Space.sm),
+                if (_tags.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: Space.sm),
+                    child: Wrap(
+                      spacing: Space.sm,
+                      runSpacing: Space.xs,
+                      children: [
+                        for (final tag in _tags)
+                          Chip(
+                            label: Text('#$tag'),
+                            backgroundColor: t.card,
+                            side: BorderSide.none,
+                            shape: const StadiumBorder(),
+                            deleteIcon: const Icon(Icons.close, size: 16),
+                            onDeleted: () => setState(() => _tags = _tags.where((x) => x != tag).toList()),
+                          ),
+                      ],
+                    ),
+                  ),
+                TextField(
+                  controller: _newTag,
+                  decoration: InputDecoration(
+                    hintText: 'Add a tag',
+                    suffixIcon: IconButton(
+                      tooltip: 'Add tag',
+                      icon: const Icon(Icons.add),
+                      onPressed: _addTag,
+                    ),
+                  ),
+                  onSubmitted: (_) => _addTag(),
+                ),
+                const SizedBox(height: Space.xl),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(onPressed: _save, child: const Text('Save')),
                 ),
               ],
             ),

@@ -4,22 +4,20 @@ import '../engine/insights.dart';
 import '../engine/summary.dart';
 import '../engine/widget_data.dart';
 import '../money.dart';
-import '../split/split_models.dart';
-import '../split/split_overlay.dart';
 import '../split/suggest.dart';
 import '../storage/app_store.dart';
 import 'notifier.dart';
 import 'sms_source.dart';
+import 'splitwise_bridge.dart';
 import 'widget_bridge.dart';
 
 /// A bank SMS arrived while One Tracker wasn't running (see SmsReceiver.kt,
-/// `smsMain`). Saves it, refreshes the widget, checks budgets, and pops the
-/// split card — all from storage, since there's no app state in memory.
+/// `smsMain`). Saves it, refreshes the widget, checks budgets, and posts the
+/// split notification — all from storage, since there's no app state in memory.
 Future<void> handleBackgroundSms({
   required String sender,
   required String body,
   required DateTime at,
-  required double pixelRatio,
 }) async {
   final store = AppStore();
   final result = ingest(await store.readTxns(), [SmsSource.liveMessage(sender: sender, body: body, at: at)]);
@@ -52,19 +50,20 @@ Future<void> handleBackgroundSms({
     if (alerts.isNotEmpty) await store.writeSentAlerts(sent);
   }
 
-  // The split pop-up.
+  // The split notification.
   final ids = result.addedIds.toSet();
-  final pick = popupFor(
+  final settings = await store.readSplitSettings();
+  final pick = notifyFor(
     ledger.items.where((e) => ids.contains(e.txn.id)),
     handled: {...(await store.readSplitRecords()).keys, ...await store.readSplitSkipped()},
-    settings: await store.readSplitSettings(),
+    settings: settings,
     now: DateTime.now(),
   );
-  if (pick == null || !await SplitOverlay.hasPermission()) return;
-  await SplitOverlay.show(
-    SplitPrompt(txnId: pick.txn.id, amountMinor: pick.txn.amountMinor, payee: pick.payee, at: pick.txn.at),
-    store,
-    expanded: await store.readSplitTarget() == null,
-    pixelRatio: pixelRatio,
+  if (pick == null) return;
+  await SplitwiseBridge.showNotification(
+    txnId: pick.txn.id,
+    amountMinor: pick.txn.amountMinor,
+    payee: pick.payee,
+    groupId: settings.groupId,
   );
 }
