@@ -12,6 +12,7 @@ import '../ui/tokens.dart';
 import 'home_screen.dart' show push;
 import 'settings/split_settings_page.dart';
 import 'shell.dart';
+import 'transaction_screen.dart';
 
 /// Payments to hand to Splitwise (prefilled), and the ones already opened.
 class SplitTab extends StatelessWidget {
@@ -35,7 +36,9 @@ class SplitTab extends StatelessWidget {
           children: staggered([
             Row(
               children: [
-                Expanded(child: Text('Splitwise', style: text.titleMedium?.copyWith(color: t.muted))),
+                Expanded(
+                  child: Text('Splitwise', style: text.titleMedium?.copyWith(color: t.muted)),
+                ),
                 CircleIconButton(
                   icon: Icons.tune,
                   tooltip: 'Splitwise settings',
@@ -66,10 +69,7 @@ class SplitTab extends StatelessWidget {
                 ],
               ),
             ),
-            SectionHeader(
-              'To split',
-              trailing: todo.isEmpty ? null : Text('${todo.length}', style: text.titleMedium),
-            ),
+            SectionHeader('To split', trailing: todo.isEmpty ? null : Text('${todo.length}', style: text.titleMedium)),
             if (todo.isEmpty)
               Tray(
                 child: Text(
@@ -81,8 +81,17 @@ class SplitTab extends StatelessWidget {
             else
               _ToSplit(items: todo),
             if (history.isNotEmpty) ...[
-              const SectionHeader('Opened in Splitwise'),
+              const SectionHeader('Sent to Splitwise'),
               _History(records: history.take(10).toList()),
+              Padding(
+                padding: const EdgeInsets.only(top: Space.sm),
+                child: Text(
+                  // Without the API the app only sees the tap that opened
+                  // Splitwise, never the saved expense or its group.
+                  "You opened these in Splitwise. One Tracker can't see if you saved them or which group you picked.",
+                  style: text.bodySmall?.copyWith(color: t.muted),
+                ),
+              ),
             ],
           ]),
         ),
@@ -158,58 +167,61 @@ class _ToSplitRow extends StatelessWidget {
     final app = AppScope.of(context);
     final t = context.tokens;
     final text = Theme.of(context).textTheme;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 68),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(Space.lg, Space.xs, Space.xs, Space.xs),
-        child: Row(
-          children: [
-            PayeeAvatar(e, size: 36),
-            const SizedBox(width: Space.sm + 2),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(e.payee, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.titleMedium),
-                  Text(
-                    _when(e.txn.at),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: text.bodySmall?.copyWith(color: t.muted),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: Space.sm),
-            Text(
-              formatMoney(e.txn.amountMinor, appCurrency),
-              maxLines: 1,
-              style: text.titleMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
-            ),
-            const SizedBox(width: Space.sm),
-            _SplitPill(onPressed: () => app.openInSplitwise(e.txn.id)),
-            Tooltip(
-              message: 'Skip',
-              child: InkResponse(
-                radius: 24,
-                onTap: () {
-                  app.skipSplit(e.txn.id);
-                  ScaffoldMessenger.of(context)
-                    ..hideCurrentSnackBar()
-                    ..showSnackBar(
-                      SnackBar(
-                        content: Text('Skipped ${e.payee}'),
-                        action: SnackBarAction(label: 'Undo', onPressed: () => app.undoSplit(e.txn.id)),
-                      ),
-                    );
-                },
-                child: SizedBox.square(
-                  dimension: 40,
-                  child: Icon(Icons.close, size: 20, color: t.muted, semanticLabel: 'Skip'),
+    return InkWell(
+      onTap: () => push(context, TransactionScreen(id: e.txn.id)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 68),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(Space.lg, Space.xs, Space.xs, Space.xs),
+          child: Row(
+            children: [
+              PayeeAvatar(e, size: 36),
+              const SizedBox(width: Space.sm + 2),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(e.payee, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.titleMedium),
+                    Text(
+                      _when(e.txn.at),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: text.bodySmall?.copyWith(color: t.muted),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: Space.sm),
+              Text(
+                formatMoney(e.txn.amountMinor, appCurrency),
+                maxLines: 1,
+                style: text.titleMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+              ),
+              const SizedBox(width: Space.sm),
+              _SplitPill(onPressed: () => app.openInSplitwise(e.txn.id)),
+              Tooltip(
+                message: 'Skip',
+                child: InkResponse(
+                  radius: 24,
+                  onTap: () {
+                    app.skipSplit(e.txn.id);
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(
+                        SnackBar(
+                          content: Text('Skipped ${e.payee}'),
+                          action: SnackBarAction(label: 'Undo', onPressed: () => app.undoSplit(e.txn.id)),
+                        ),
+                      );
+                  },
+                  child: SizedBox.square(
+                    dimension: 40,
+                    child: Icon(Icons.close, size: 20, color: t.muted, semanticLabel: 'Skip'),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -238,7 +250,10 @@ class _SplitPill extends StatelessWidget {
           constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
           child: Center(
             child: DecoratedBox(
-              decoration: ShapeDecoration(color: fg.withValues(alpha: dark ? 0.18 : 0.12), shape: const StadiumBorder()),
+              decoration: ShapeDecoration(
+                color: fg.withValues(alpha: dark ? 0.18 : 0.12),
+                shape: const StadiumBorder(),
+              ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                 child: Text(
@@ -272,37 +287,40 @@ class _History extends StatelessWidget {
         children: [
           for (final (i, r) in records.indexed) ...[
             if (i > 0) Divider(height: 1, color: t.trayDeep),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: Space.sm),
-              child: Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(color: t.card, shape: BoxShape.circle),
-                    child: Icon(Icons.check, size: 18, color: t.success),
-                  ),
-                  const SizedBox(width: Space.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(r.description, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.bodyMedium),
-                        Text(
-                          '${r.label} · ${friendlyTime(r.at)}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: text.bodySmall?.copyWith(color: t.muted),
-                        ),
-                      ],
+            InkWell(
+              onTap: () => push(context, TransactionScreen(id: r.txnId)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: Space.sm),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(color: t.card, shape: BoxShape.circle),
+                      child: Icon(Icons.check, size: 18, color: t.success),
                     ),
-                  ),
-                  Text(
-                    formatMoney(r.amountMinor, appCurrency),
-                    style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  TextButton(onPressed: () => app.undoSplit(r.txnId), child: const Text('Undo')),
-                ],
+                    const SizedBox(width: Space.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(r.description, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.bodyMedium),
+                          Text(
+                            'Opened ${friendlyTime(r.at)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: text.bodySmall?.copyWith(color: t.muted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      formatMoney(r.amountMinor, appCurrency),
+                      style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    TextButton(onPressed: () => app.undoSplit(r.txnId), child: const Text('Undo')),
+                  ],
+                ),
               ),
             ),
           ],

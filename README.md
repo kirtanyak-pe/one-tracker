@@ -60,11 +60,12 @@ you pick who to split with and how, there.
   open, a card shows in-app instead.
 - **Default group** (optional): paste the group's link from Splitwise on the web
   (`secure.splitwise.com/#/groups/<id>`) and new expenses start in it.
-- **Split tab**: payments still to split (Split / Skip), and what you opened in
-  Splitwise, with undo. Settings → Splitwise has the switches and a test.
+- **Split tab**: payments still to split (Split / Skip; tap a row for details),
+  and what you sent to Splitwise, with undo. The app only knows you opened
+  Splitwise, not whether you saved the expense or which group you picked. Settings → Splitwise has the switches and a test.
 - Splitwise isn't installed → its Play Store page opens.
 - The earlier version (floating pop-up card + Splitwise API with equal splits)
-  lives in git history: commit `2ea1973` and earlier.
+  is archived in `archive/splitwise-api/` (not built), with steps to restore it.
 
 ### Home-screen widget
 Spent today / this week / this month with a Today | Week | Month toggle on the

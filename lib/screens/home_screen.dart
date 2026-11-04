@@ -10,8 +10,6 @@ import '../ui/motion.dart';
 import '../ui/tokens.dart';
 import 'activity_screen.dart';
 import 'add_expense_screen.dart';
-import 'budgets_screen.dart';
-import 'rules_screen.dart';
 import 'settings_screen.dart';
 import 'shell.dart';
 import 'categories_screen.dart';
@@ -21,8 +19,7 @@ import 'widgets/month_switcher.dart';
 import 'widgets/review_card.dart';
 import 'widgets/txn_list.dart';
 
-void push(BuildContext context, Widget screen) =>
-    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+void push(BuildContext context, Widget screen) => Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
 
 class HomeTab extends StatelessWidget {
   const HomeTab({super.key});
@@ -48,7 +45,9 @@ class HomeTab extends StatelessWidget {
             children: staggered([
               Row(
                 children: [
-                  Expanded(child: Text('One Tracker', style: text.titleMedium?.copyWith(color: t.muted))),
+                  Expanded(
+                    child: Text('One Tracker', style: text.titleMedium?.copyWith(color: t.muted)),
+                  ),
                   if (app.scanning)
                     Padding(
                       padding: const EdgeInsets.only(right: Space.md),
@@ -57,6 +56,21 @@ class HomeTab extends StatelessWidget {
                         child: CircularProgressIndicator(strokeWidth: 2, color: t.muted),
                       ),
                     ),
+                  CircleIconButton(
+                    icon: Icons.search,
+                    tooltip: 'Search',
+                    onPressed: () {
+                      AppShell.switchTo(context, AppShell.activity);
+                      ActivityTab.focusSearch();
+                    },
+                  ),
+                  const SizedBox(width: Space.sm),
+                  CircleIconButton(
+                    icon: Icons.add,
+                    tooltip: 'Add expense',
+                    onPressed: () => push(context, const AddExpenseScreen()),
+                  ),
+                  const SizedBox(width: Space.sm),
                   CircleIconButton(
                     icon: Icons.tune,
                     tooltip: 'Settings',
@@ -67,58 +81,12 @@ class HomeTab extends StatelessWidget {
               const SizedBox(height: Space.xl),
               _Headline(app: app),
               const SizedBox(height: Space.xxl),
-              if (app.monthNudge case final nudge?) ...[
-                MonthNudgeCard(nudge: nudge),
-                const SizedBox(height: Space.xl),
-              ],
+              if (app.monthNudge case final nudge?) ...[MonthNudgeCard(nudge: nudge), const SizedBox(height: Space.xl)],
               if (review.isNotEmpty) ...[
                 ReviewCard(queue: review, currency: appCurrency),
                 const SizedBox(height: Space.xl),
               ],
-              if (needsSetup) ...[
-                _SetupTray(app: app),
-                const SizedBox(height: Space.xl),
-              ],
-              Row(
-                children: [
-                  Expanded(
-                    child: QuickAction(
-                      icon: Icons.add,
-                      label: 'Add',
-                      onTap: () => push(context, const AddExpenseScreen()),
-                    ),
-                  ),
-                  const SizedBox(width: Space.sm),
-                  Expanded(
-                    // SMS arrive instantly now, so a manual scan is rarely
-                    // needed (it lives in Settings > Data); search is.
-                    child: QuickAction(
-                      icon: Icons.search,
-                      label: 'Search',
-                      onTap: () {
-                        AppShell.switchTo(context, AppShell.activity);
-                        ActivityTab.focusSearch();
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: Space.sm),
-                  Expanded(
-                    child: QuickAction(
-                      icon: Icons.donut_large_outlined,
-                      label: 'Budgets',
-                      onTap: () => push(context, const BudgetsScreen()),
-                    ),
-                  ),
-                  const SizedBox(width: Space.sm),
-                  Expanded(
-                    child: QuickAction(
-                      icon: Icons.auto_fix_high_outlined,
-                      label: 'Rules',
-                      onTap: () => push(context, const RulesScreen()),
-                    ),
-                  ),
-                ],
-              ),
+              if (needsSetup) ...[_SetupTray(app: app), const SizedBox(height: Space.xl)],
               SectionHeader(
                 'Recent',
                 trailing: m.items.isEmpty
@@ -132,14 +100,8 @@ class HomeTab extends StatelessWidget {
                 _Empty(app: app)
               else
                 TxnDayList(items: m.items.take(6).toList(), currency: appCurrency),
-              if (upcoming.isNotEmpty) ...[
-                const SectionHeader('Coming up'),
-                _Upcoming(items: upcoming),
-              ],
-              if (m.byCategory.isNotEmpty) ...[
-                const SizedBox(height: Space.xxxl),
-                _CategoriesLink(summary: m),
-              ],
+              if (upcoming.isNotEmpty) ...[const SectionHeader('Coming up'), _Upcoming(items: upcoming)],
+              if (m.byCategory.isNotEmpty) ...[const SizedBox(height: Space.xxxl), _CategoriesLink(summary: m)],
             ]),
           ),
         ),
@@ -165,21 +127,14 @@ class _Headline extends StatelessWidget {
       children: [
         FittedBox(
           fit: BoxFit.scaleDown,
-          child: AnimatedMoney(
-            m.spentMinor,
-            round: true,
-            style: text.displaySmall?.copyWith(fontSize: 48),
-          ),
+          child: AnimatedMoney(m.spentMinor, round: true, style: text.displaySmall?.copyWith(fontSize: 48)),
         ),
         const SizedBox(height: Space.xs),
         Text(
           app.isCurrentMonth ? 'spent this month' : 'spent in ${monthName(m.month)}',
           style: text.bodyLarge?.copyWith(color: t.muted),
         ),
-        if (_context(app) case final c?) ...[
-          const SizedBox(height: Space.sm),
-          _ContextPill(parts: c),
-        ],
+        if (_context(app) case final c?) ...[const SizedBox(height: Space.sm), _ContextPill(parts: c)],
         if (use != null && limit != null) ...[
           const SizedBox(height: Space.lg),
           Semantics(
@@ -189,7 +144,11 @@ class _Headline extends StatelessWidget {
               height: 6,
               background: t.trayDeep,
               // Meter colour carries severity: ink → accent at 80% → error over.
-              color: use >= 1 ? Theme.of(context).colorScheme.error : use >= 0.8 ? t.accent : t.ink,
+              color: use >= 1
+                  ? Theme.of(context).colorScheme.error
+                  : use >= 0.8
+                  ? t.accent
+                  : t.ink,
             ),
           ),
           const SizedBox(height: Space.sm),
