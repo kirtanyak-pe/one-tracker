@@ -31,11 +31,27 @@ android {
         versionName = flutter.versionName
     }
 
+    // The APK is sideloaded, not served from Play, so nothing compresses it
+    // on the way. Compressing the native libraries (the Flutter engine and the
+    // app's compiled Dart) roughly halves the file; Android unpacks them once
+    // at install.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+            // Builds are 64-bit ARM only (every phone sold in years). Drop the
+            // 32-bit and emulator copies plugins ship, so no other phone
+            // thinks it can run this APK.
+            excludes += listOf("lib/armeabi-v7a/**", "lib/x86_64/**", "lib/x86/**")
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
         }
     }
 }

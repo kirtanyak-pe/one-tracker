@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Resource shrinking can't see names looked up at runtime
+     (flutter_local_notifications loads icons by name), so keep the app's own
+     drawables, icons and widget layouts; unused library ones still go. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_*,@drawable/widget_*,@drawable/launch_background,@mipmap/*,@layout/spend_widget*,@xml/spend_widget_info" />
