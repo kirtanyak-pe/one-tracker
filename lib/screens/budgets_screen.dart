@@ -119,11 +119,11 @@ class _BudgetRowState extends State<_BudgetRow> {
         children: [
           Row(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(color: t.raised, shape: BoxShape.circle),
-                child: Icon(widget.icon, size: 20, color: t.ink),
+              OFinishBox(
+                color: t.raised,
+                depth: ODepth.surface,
+                shape: const CircleBorder(),
+                child: SizedBox.square(dimension: 40, child: Icon(widget.icon, size: 20, color: t.ink)),
               ),
               const SizedBox(width: OSpace.md),
               Expanded(

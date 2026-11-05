@@ -40,11 +40,11 @@ class PromptHeader extends StatelessWidget {
     return Row(
       children: [
         leading ??
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(color: t.onInk.withValues(alpha: 0.14), shape: BoxShape.circle),
-              child: Icon(icon, size: 20, color: t.onInk),
+            OFinishBox(
+              color: t.onInk.withValues(alpha: 0.14),
+              depth: ODepth.surface,
+              shape: const CircleBorder(),
+              child: SizedBox.square(dimension: 44, child: Icon(icon, size: 20, color: t.onInk)),
             ),
         const SizedBox(width: OSpace.md),
         Expanded(

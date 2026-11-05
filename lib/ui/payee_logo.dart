@@ -552,11 +552,14 @@ class PayeeAvatar extends StatelessWidget {
     final e = payment;
     if (e == null) return Avatar(name!, size: size);
     final t = context.colors;
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(color: background ?? t.raised, shape: BoxShape.circle),
-      child: Icon(e.category.icon, size: size * 0.45, color: muted ? t.inkSoft : t.ink),
+    return OFinishBox(
+      color: background ?? t.raised,
+      depth: ODepth.surface,
+      shape: const CircleBorder(),
+      child: SizedBox.square(
+        dimension: size,
+        child: Icon(e.category.icon, size: size * 0.45, color: muted ? t.inkSoft : t.ink),
+      ),
     );
   }
 }

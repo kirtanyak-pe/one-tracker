@@ -13,11 +13,10 @@ class MonthSwitcher extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final t = context.colors;
-    return DecoratedBox(
-      decoration: ShapeDecoration(
-        color: t.surface,
-        shape: StadiumBorder(side: BorderSide(color: t.line)),
-      ),
+    return OFinishBox(
+      color: t.surface,
+      depth: ODepth.soft,
+      shape: StadiumBorder(side: context.onyx.finish.hairlines ? BorderSide(color: t.line) : BorderSide.none),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

@@ -46,24 +46,25 @@ class OToggle extends StatelessWidget {
             width: 52,
             height: 44,
             child: Center(
-              child: AnimatedContainer(
-                duration: d,
-                curve: OMotion.standard,
-                width: 46,
-                height: 28,
-                padding: const EdgeInsets.all(3),
-                decoration: ShapeDecoration(color: value ? c.ink : c.lineStrong, shape: const StadiumBorder()),
-                child: AnimatedAlign(
+              child: OFinishBox(
+                color: value ? c.ink : c.lineStrong,
+                depth: value ? ODepth.strong : ODepth.well,
+                child: AnimatedContainer(
                   duration: d,
-                  curve: OMotion.emphasized,
-                  alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    width: 22,
-                    height: 22,
-                    decoration: BoxDecoration(
+                  curve: OMotion.standard,
+                  width: 46,
+                  height: 28,
+                  padding: const EdgeInsets.all(3),
+
+                  child: AnimatedAlign(
+                    duration: d,
+                    curve: OMotion.emphasized,
+                    alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+                    child: OFinishBox(
                       color: value ? c.onInk : const Color(0xFFFFFFFF),
-                      shape: BoxShape.circle,
-                      boxShadow: const [BoxShadow(color: Color(0x26000000), blurRadius: 3, offset: Offset(0, 1))],
+                      depth: ODepth.soft,
+                      shape: const CircleBorder(),
+                      child: const SizedBox.square(dimension: 22),
                     ),
                   ),
                 ),
@@ -96,16 +97,19 @@ class OCheckbox extends StatelessWidget {
         child: SizedBox.square(
           dimension: 44,
           child: Center(
-            child: AnimatedContainer(
-              duration: OMotion.of(context, OMotion.fast),
-              width: 22,
-              height: 22,
-              decoration: ShapeDecoration(
-                color: value ? c.ink : const Color(0x00000000),
-                shape: ORadius.smooth(7, side: value ? BorderSide.none : BorderSide(color: c.lineStrong, width: 1.5)),
-              ),
-              child: value ? Icon(LucideIcons.check, size: 15, color: c.onInk) : null,
-            ),
+            child: value
+                ? OFinishBox(
+                    color: c.ink,
+                    shape: ORadius.smooth(7),
+                    child: SizedBox.square(dimension: 22, child: Icon(LucideIcons.check, size: 15, color: c.onInk)),
+                  )
+                : Container(
+                    width: 22,
+                    height: 22,
+                    decoration: ShapeDecoration(
+                      shape: ORadius.smooth(7, side: BorderSide(color: c.lineStrong, width: 1.5)),
+                    ),
+                  ),
           ),
         ),
       ),
@@ -217,61 +221,65 @@ class OSegmented<T> extends StatelessWidget {
     final c = context.colors;
     final i = values.indexOf(selected);
     final n = values.length;
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.all(3),
-      decoration: ShapeDecoration(color: c.raised, shape: const StadiumBorder()),
-      child: Stack(
-        children: [
-          if (i >= 0)
-            AnimatedAlign(
-              duration: OMotion.of(context, OMotion.base),
-              curve: OMotion.emphasized,
-              alignment: Alignment(n == 1 ? 0 : -1 + 2 * i / (n - 1), 0),
-              child: FractionallySizedBox(
-                widthFactor: 1 / n,
-                heightFactor: 1,
-                child: OFinishBox(color: c.surface, depth: ODepth.soft),
+    return OFinishBox(
+      color: c.raised,
+      depth: ODepth.well,
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.all(3),
+
+        child: Stack(
+          children: [
+            if (i >= 0)
+              AnimatedAlign(
+                duration: OMotion.of(context, OMotion.base),
+                curve: OMotion.emphasized,
+                alignment: Alignment(n == 1 ? 0 : -1 + 2 * i / (n - 1), 0),
+                child: FractionallySizedBox(
+                  widthFactor: 1 / n,
+                  heightFactor: 1,
+                  child: OFinishBox(color: c.surface, depth: ODepth.soft),
+                ),
               ),
-            ),
-          Row(
-            children: [
-              for (final v in values)
-                Expanded(
-                  child: Semantics(
-                    selected: v == selected,
-                    button: true,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        if (v == selected) return;
-                        HapticFeedback.selectionClick();
-                        onChanged(v);
-                      },
-                      child: Center(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (iconOf?.call(v) case final ic?) ...[
-                              Icon(ic, size: 15, color: v == selected ? c.ink : c.inkSoft),
-                              const SizedBox(width: 6),
-                            ],
-                            Flexible(
-                              child: AnimatedDefaultTextStyle(
-                                duration: OMotion.fast,
-                                style: context.type.smallStrong.tint(v == selected ? c.ink : c.inkSoft),
-                                child: Text(labelOf(v), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Row(
+              children: [
+                for (final v in values)
+                  Expanded(
+                    child: Semantics(
+                      selected: v == selected,
+                      button: true,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          if (v == selected) return;
+                          HapticFeedback.selectionClick();
+                          onChanged(v);
+                        },
+                        child: Center(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (iconOf?.call(v) case final ic?) ...[
+                                Icon(ic, size: 15, color: v == selected ? c.ink : c.inkSoft),
+                                const SizedBox(width: 6),
+                              ],
+                              Flexible(
+                                child: AnimatedDefaultTextStyle(
+                                  duration: OMotion.fast,
+                                  style: context.type.smallStrong.tint(v == selected ? c.ink : c.inkSoft),
+                                  child: Text(labelOf(v), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

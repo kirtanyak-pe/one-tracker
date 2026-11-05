@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import 'button.dart';
+import 'finish.dart';
 import 'theme.dart';
 import 'tokens.dart';
 
@@ -102,12 +103,11 @@ class _SheetState extends State<_Sheet> {
             child: ConstrainedBox(
               key: _key,
               constraints: BoxConstraints(maxHeight: mq.size.height - mq.padding.top - OSpace.xxl, maxWidth: 640),
-              child: DecoratedBox(
-                decoration: ShapeDecoration(
-                  color: c.surface,
-                  shape: const RoundedSuperellipseBorder(
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(ORadius.xl)),
-                  ),
+              child: OFinishBox(
+                color: c.surface,
+                depth: ODepth.surface,
+                shape: const RoundedSuperellipseBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(ORadius.xl)),
                 ),
                 child: Padding(
                   padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
@@ -240,44 +240,50 @@ class ODialog extends StatelessWidget {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 400),
-            child: Container(
-              padding: const EdgeInsets.all(OSpace.xxl),
+            child: DecoratedBox(
               decoration: ShapeDecoration(
-                color: c.surface,
                 shape: ORadius.smooth(ORadius.xl),
                 shadows: OShadow.floating(context.onyx.brightness),
               ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (icon != null) ...[
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: ShapeDecoration(color: c.raised, shape: ORadius.smooth(ORadius.sm)),
-                          child: Icon(icon, size: 22, color: c.ink),
-                        ),
-                      ),
-                      const SizedBox(height: OSpace.lg),
-                    ],
-                    Text(title, style: context.type.title3.copyWith(fontSize: 19)),
-                    if (message != null) ...[
-                      const SizedBox(height: OSpace.sm),
-                      Text(message!, style: context.type.body.tint(c.inkSoft)),
-                    ],
-                    if (content != null) ...[const SizedBox(height: OSpace.lg), content!],
-                    if (actions.isNotEmpty) ...[
-                      const SizedBox(height: OSpace.xxl),
-                      for (var i = 0; i < actions.length; i++) ...[
-                        if (i > 0) const SizedBox(height: OSpace.sm),
-                        actions[i],
+              child: OFinishBox(
+                color: c.surface,
+                depth: ODepth.surface,
+                shape: ORadius.smooth(ORadius.xl),
+                child: Padding(
+                  padding: const EdgeInsets.all(OSpace.xxl),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (icon != null) ...[
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: OFinishBox(
+                              color: c.raised,
+                              depth: ODepth.surface,
+                              shape: ORadius.smooth(ORadius.sm),
+                              child: SizedBox.square(dimension: 44, child: Icon(icon, size: 22, color: c.ink)),
+                            ),
+                          ),
+                          const SizedBox(height: OSpace.lg),
+                        ],
+                        Text(title, style: context.type.title3.copyWith(fontSize: 19)),
+                        if (message != null) ...[
+                          const SizedBox(height: OSpace.sm),
+                          Text(message!, style: context.type.body.tint(c.inkSoft)),
+                        ],
+                        if (content != null) ...[const SizedBox(height: OSpace.lg), content!],
+                        if (actions.isNotEmpty) ...[
+                          const SizedBox(height: OSpace.xxl),
+                          for (var i = 0; i < actions.length; i++) ...[
+                            if (i > 0) const SizedBox(height: OSpace.sm),
+                            actions[i],
+                          ],
+                        ],
                       ],
-                    ],
-                  ],
+                    ),
+                  ),
                 ),
               ),
             ),

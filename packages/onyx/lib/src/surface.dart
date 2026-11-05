@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'finish.dart';
 import 'pressable.dart';
 import 'theme.dart';
 import 'tokens.dart';
@@ -34,17 +35,14 @@ class OCard extends StatelessWidget {
     final c = context.colors;
     final side = selected
         ? BorderSide(color: c.ink, width: 1.5)
-        : border
+        : border && context.onyx.finish.hairlines
         ? BorderSide(color: c.line)
         : BorderSide.none;
-    final card = AnimatedContainer(
-      duration: OMotion.of(context, OMotion.fast),
-      padding: padding,
-      decoration: ShapeDecoration(
-        color: color ?? c.surface,
-        shape: ORadius.smooth(radius, side: side),
-      ),
-      child: child,
+    final card = OFinishBox(
+      color: color ?? c.surface,
+      depth: ODepth.surface,
+      shape: ORadius.smooth(radius, side: side),
+      child: Padding(padding: padding, child: child),
     );
     if (onTap == null && onLongPress == null) return card;
     return OPressable(onTap: onTap, onLongPress: onLongPress, pressedScale: 0.98, child: card);
@@ -67,10 +65,11 @@ class OInset extends StatelessWidget {
   final Color? color;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: padding,
-    decoration: ShapeDecoration(color: color ?? context.colors.raised, shape: ORadius.smooth(radius)),
-    child: child,
+  Widget build(BuildContext context) => OFinishBox(
+    color: color ?? context.colors.raised,
+    depth: ODepth.well,
+    shape: ORadius.smooth(radius),
+    child: Padding(padding: padding, child: child),
   );
 }
 

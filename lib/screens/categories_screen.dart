@@ -107,11 +107,11 @@ class _CategoryRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: OSpace.lg, vertical: OSpace.md),
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(color: t.raised, shape: BoxShape.circle),
-              child: Icon(icon, size: 20, color: t.ink),
+            OFinishBox(
+              color: t.raised,
+              depth: ODepth.surface,
+              shape: const CircleBorder(),
+              child: SizedBox.square(dimension: 40, child: Icon(icon, size: 20, color: t.ink)),
             ),
             const SizedBox(width: OSpace.md),
             Expanded(

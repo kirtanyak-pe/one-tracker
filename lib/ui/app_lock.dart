@@ -133,8 +133,7 @@ class _LockScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final text = context.type;
-    return ColoredBox(
-      color: c.canvas,
+    return OBackground(
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(OSpace.gutter),

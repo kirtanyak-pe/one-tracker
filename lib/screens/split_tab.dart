@@ -253,11 +253,14 @@ class _History extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: OSpace.sm),
                 child: Row(
                   children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(color: t.surface, shape: BoxShape.circle),
-                      child: Icon(LucideIcons.check, size: 18, color: t.positive),
+                    OFinishBox(
+                      color: t.surface,
+                      depth: ODepth.surface,
+                      shape: const CircleBorder(),
+                      child: SizedBox.square(
+                        dimension: 32,
+                        child: Icon(LucideIcons.check, size: 18, color: t.positive),
+                      ),
                     ),
                     const SizedBox(width: OSpace.md),
                     Expanded(

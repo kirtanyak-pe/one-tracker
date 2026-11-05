@@ -263,11 +263,11 @@ class _CountMonthRow extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(color: t.raised, shape: BoxShape.circle),
-                child: Icon(LucideIcons.calendarSync, size: 20, color: t.ink),
+              OFinishBox(
+                color: t.raised,
+                depth: ODepth.surface,
+                shape: const CircleBorder(),
+                child: SizedBox.square(dimension: 40, child: Icon(LucideIcons.calendarSync, size: 20, color: t.ink)),
               ),
               const SizedBox(width: OSpace.md),
               Expanded(
@@ -331,11 +331,11 @@ class _SplitRow extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(OSpace.lg, OSpace.md, OSpace.md, OSpace.md),
       child: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(color: t.raised, shape: BoxShape.circle),
-            child: Icon(LucideIcons.split, size: 20, color: t.ink),
+          OFinishBox(
+            color: t.raised,
+            depth: ODepth.surface,
+            shape: const CircleBorder(),
+            child: SizedBox.square(dimension: 40, child: Icon(LucideIcons.split, size: 20, color: t.ink)),
           ),
           const SizedBox(width: OSpace.md),
           Expanded(

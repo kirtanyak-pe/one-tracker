@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import 'finish.dart';
 import 'theme.dart';
 import 'tokens.dart';
 
@@ -192,39 +193,37 @@ class _OFieldState extends State<OField> implements TextSelectionGestureDetector
       field = GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: widget.enabled ? _focus.requestFocus : null,
-        child: AnimatedContainer(
-          duration: OMotion.of(context, OMotion.fast),
-          constraints: const BoxConstraints(minHeight: 52),
-          padding: EdgeInsets.fromLTRB(widget.prefixIcon != null ? 14 : 16, 0, widget.suffix != null ? 4 : 16, 0),
-          decoration: ShapeDecoration(
-            color: focused ? c.surface : c.raised,
-            shape: ORadius.smooth(
-              ORadius.md,
-              side: BorderSide(
-                color: hasError ? c.negative : (focused ? c.ink : c.raised),
-                width: focused || hasError ? 1.5 : 1,
-              ),
-            ),
+        child: OFinishBox(
+          color: focused ? c.surface : c.raised,
+          depth: focused ? ODepth.surface : ODepth.well,
+          shape: ORadius.smooth(
+            ORadius.md,
+            side: focused || hasError ? BorderSide(color: hasError ? c.negative : c.ink, width: 1.5) : BorderSide.none,
           ),
-          child: Row(
-            children: [
-              if (widget.prefixIcon != null) ...[
-                Icon(widget.prefixIcon, size: 18, color: focused ? c.ink : c.inkSoft),
-                const SizedBox(width: 10),
+          child: AnimatedContainer(
+            duration: OMotion.of(context, OMotion.fast),
+            constraints: const BoxConstraints(minHeight: 52),
+            padding: EdgeInsets.fromLTRB(widget.prefixIcon != null ? 14 : 16, 0, widget.suffix != null ? 4 : 16, 0),
+            child: Row(
+              children: [
+                if (widget.prefixIcon != null) ...[
+                  Icon(widget.prefixIcon, size: 18, color: focused ? c.ink : c.inkSoft),
+                  const SizedBox(width: 10),
+                ],
+                if (widget.prefixText != null) Text(widget.prefixText!, style: style.copyWith(color: c.inkSoft)),
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: widget.maxLines == 1 ? 0 : 14),
+                    child: field,
+                  ),
+                ),
+                if (widget.suffix != null)
+                  IconTheme.merge(
+                    data: IconThemeData(color: c.inkSoft, size: 18),
+                    child: widget.suffix!,
+                  ),
               ],
-              if (widget.prefixText != null) Text(widget.prefixText!, style: style.copyWith(color: c.inkSoft)),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: widget.maxLines == 1 ? 0 : 14),
-                  child: field,
-                ),
-              ),
-              if (widget.suffix != null)
-                IconTheme.merge(
-                  data: IconThemeData(color: c.inkSoft, size: 18),
-                  child: widget.suffix!,
-                ),
-            ],
+            ),
           ),
         ),
       );

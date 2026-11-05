@@ -63,18 +63,18 @@ class Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: c.raised,
-        shape: BoxShape.circle,
-        border: ring == null ? null : Border.all(color: ring!, width: 2),
-      ),
-      child: Text(
-        _initials,
-        style: context.type.small.copyWith(fontSize: size * 0.36, fontWeight: FontWeight.w600, color: c.ink),
+    return OFinishBox(
+      color: c.raised,
+      depth: ODepth.surface,
+      shape: CircleBorder(side: ring == null ? BorderSide.none : BorderSide(color: ring!, width: 2)),
+      child: Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        child: Text(
+          _initials,
+          style: context.type.small.copyWith(fontSize: size * 0.36, fontWeight: FontWeight.w600, color: c.ink),
+        ),
       ),
     );
   }
@@ -101,7 +101,10 @@ class AvatarStack extends StatelessWidget {
       child: Stack(
         children: [
           for (var i = 0; i < shown.length; i++)
-            Positioned(left: step * i, child: Avatar(shown[i], size: size, ring: c.surface)),
+            Positioned(
+              left: step * i,
+              child: Avatar(shown[i], size: size, ring: c.surface),
+            ),
           if (extra > 0)
             Positioned(
               left: step * shown.length,

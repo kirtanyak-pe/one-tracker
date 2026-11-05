@@ -69,7 +69,7 @@ class OApp extends StatelessWidget {
                 selectionColor: c.accent.withValues(alpha: 0.28),
                 child: ScrollConfiguration(
                   behavior: const OScrollBehavior(),
-                  child: ColoredBox(color: c.canvas, child: inner),
+                  child: OBackground(child: inner),
                 ),
               ),
             ),
@@ -124,7 +124,7 @@ class OPageRoute<T> extends PageRoute<T> {
   @override
   Widget buildPage(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation) =>
       // Opaque: a page never shows the one beneath through gaps.
-      ColoredBox(color: context.colors.canvas, child: builder(context));
+      OBackground(child: builder(context));
 
   @override
   Widget buildTransitions(

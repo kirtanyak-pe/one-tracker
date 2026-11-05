@@ -23,8 +23,7 @@ class OScreen extends StatelessWidget {
   final bool back;
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: context.colors.canvas,
+  Widget build(BuildContext context) => OBackground(
     child: Column(
       children: [
         if (title != null || back)
@@ -196,8 +195,7 @@ class _OTabPageState extends State<OTabPage> {
         ),
       ],
     );
-    return ColoredBox(
-      color: c.canvas,
+    return OBackground(
       child: widget.glow
           ? Stack(
               children: [
@@ -352,12 +350,13 @@ class OTabBar extends StatelessWidget {
       ),
       _ => Container(
         height: height,
-        decoration: ShapeDecoration(
+        decoration: ShapeDecoration(shape: const StadiumBorder(), shadows: OShadow.floating(context.onyx.brightness)),
+        child: OFinishBox(
           color: c.surface,
-          shape: StadiumBorder(side: BorderSide(color: c.line)),
-          shadows: OShadow.floating(context.onyx.brightness),
+          depth: ODepth.surface,
+          shape: StadiumBorder(side: finish.hairlines ? BorderSide(color: c.line) : BorderSide.none),
+          child: bar,
         ),
-        child: bar,
       ),
     };
   }
