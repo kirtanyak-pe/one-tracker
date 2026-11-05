@@ -28,74 +28,73 @@ class InsightsTab extends StatelessWidget {
     final i = app.insights;
     final empty = i.month.spendCount == 0;
 
-    return CanvasBackground(
-      child: SafeArea(
-        bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(Space.gutter, Space.lg, Space.gutter, navClearance),
-          children: staggered([
-            Text('Insights', style: text.headlineMedium),
-            const SizedBox(height: Space.lg),
-            const Center(child: MonthSwitcher()),
-            if (empty) ...[
-              const SizedBox(height: Space.xxl),
-              Tray(
-                child: Text(
-                  'No spending in ${monthName(i.month.month)} yet.',
-                  textAlign: TextAlign.center,
-                  style: text.bodyMedium?.copyWith(color: t.muted),
-                ),
+    return TabPage(
+      title: 'Insights',
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(Space.gutter, Space.md, Space.gutter, navClearance),
+        children: staggered([
+          const Center(child: MonthSwitcher()),
+          if (empty) ...[
+            const SizedBox(height: Space.xxl),
+            Tray(
+              child: Text(
+                'No spending in ${monthName(i.month.month)} yet.',
+                textAlign: TextAlign.center,
+                style: text.bodyMedium?.copyWith(color: t.muted),
               ),
-            ] else ...[
-              const SizedBox(height: Space.xl),
-              _Pace(insights: i, current: app.isCurrentMonth),
-              const SectionHeader('Day by day'),
-              SurfaceCard(
-                child: BarChart(
-                  values: i.daily,
-                  highlight: app.isCurrentMonth ? i.dayOfMonth - 1 : null,
-                  average: i.averagePerDay,
-                  semanticLabel:
-                      'Daily spending in ${monthName(i.month.month)}, '
-                      'average ${formatMoney(i.averagePerDay, appCurrency, round: true)} a day',
-                  labelFor: (d) =>
-                      '${d + 1} ${DateFormat('MMM').format(i.month.month)} · '
-                      '${formatMoney(i.daily[d], appCurrency, round: true)}',
-                  axisLabels: {0: '1', 9: '10', 19: '20', i.daily.length - 1: '${i.daily.length}'},
-                ),
+            ),
+          ] else ...[
+            const SizedBox(height: Space.xl),
+            _Pace(insights: i, current: app.isCurrentMonth),
+            const SectionHeader('Day by day'),
+            SurfaceCard(
+              child: BarChart(
+                values: i.daily,
+                highlight: app.isCurrentMonth ? i.dayOfMonth - 1 : null,
+                average: i.averagePerDay,
+                semanticLabel:
+                    'Daily spending in ${monthName(i.month.month)}, '
+                    'average ${formatMoney(i.averagePerDay, appCurrency, round: true)} a day',
+                labelFor: (d) =>
+                    '${d + 1} ${DateFormat('MMM').format(i.month.month)} · '
+                    '${formatMoney(i.daily[d], appCurrency, round: true)}',
+                axisLabels: {0: '1', 9: '10', 19: '20', i.daily.length - 1: '${i.daily.length}'},
               ),
-              const SectionHeader('Last 6 months'),
-              SurfaceCard(
-                child: BarChart(
-                  height: 120,
-                  values: [for (final m in i.trend) m.spentMinor],
-                  highlight: i.trend.length - 1,
-                  semanticLabel: 'Monthly spending for the last six months',
-                  labelFor: (k) =>
-                      '${monthLabel(i.trend[k].month)} · '
-                      '${formatMoney(i.trend[k].spentMinor, appCurrency, round: true)}',
-                  axisLabels: {for (final (k, m) in i.trend.indexed) k: DateFormat('MMM').format(m.month)},
-                ),
+            ),
+            const SectionHeader('Last 6 months'),
+            SurfaceCard(
+              child: BarChart(
+                height: 120,
+                values: [for (final m in i.trend) m.spentMinor],
+                highlight: i.trend.length - 1,
+                semanticLabel: 'Monthly spending for the last six months',
+                labelFor: (k) =>
+                    '${monthLabel(i.trend[k].month)} · '
+                    '${formatMoney(i.trend[k].spentMinor, appCurrency, round: true)}',
+                axisLabels: {for (final (k, m) in i.trend.indexed) k: DateFormat('MMM').format(m.month)},
               ),
-              if (i.changes.isNotEmpty) ...[
-                SectionHeader('vs ${DateFormat('MMMM').format(i.trend[4].month)}'),
-                _Changes(changes: i.changes),
-              ],
-              if (i.topPayees.isNotEmpty) ...[const SectionHeader('Top payees'), _TopPayees(payees: i.topPayees)],
-              if (app.recurring.isNotEmpty) ...[
-                const SectionHeader('Repeating payments'),
-                _Recurring(items: app.recurring),
-              ],
-              if (i.biggest.isNotEmpty) ...[
-                SectionHeader(
-                  'Biggest payments',
-                  trailing: TextButton(onPressed: () => AppShell.switchTo(context, AppShell.activity), child: const Text('All')),
-                ),
-                TxnDayList(items: i.biggest, currency: appCurrency, grouped: false),
-              ],
+            ),
+            if (i.changes.isNotEmpty) ...[
+              SectionHeader('vs ${DateFormat('MMMM').format(i.trend[4].month)}'),
+              _Changes(changes: i.changes),
             ],
-          ]),
-        ),
+            if (i.topPayees.isNotEmpty) ...[const SectionHeader('Top payees'), _TopPayees(payees: i.topPayees)],
+            if (app.recurring.isNotEmpty) ...[
+              const SectionHeader('Repeating payments'),
+              _Recurring(items: app.recurring),
+            ],
+            if (i.biggest.isNotEmpty) ...[
+              SectionHeader(
+                'Biggest payments',
+                trailing: TextButton(
+                  onPressed: () => AppShell.switchTo(context, AppShell.activity),
+                  child: const Text('All'),
+                ),
+              ),
+              TxnDayList(items: i.biggest, currency: appCurrency, grouped: false),
+            ],
+          ],
+        ]),
       ),
     );
   }

@@ -57,6 +57,99 @@ class TopBar extends StatelessWidget {
       );
 }
 
+/// A nav tab: a fixed top bar (title · actions) over the tab's scroll view.
+/// A hairline fades in once content scrolls under the bar, and with
+/// [scrolledTitle] the title swaps to it after [swapAfter] px of scroll.
+class TabPage extends StatefulWidget {
+  const TabPage({
+    super.key,
+    required this.title,
+    required this.body,
+    this.actions = const [],
+    this.scrolledTitle,
+    this.swapAfter = 0,
+  });
+
+  final String title;
+  final Widget body;
+  final List<Widget> actions;
+  final Widget? scrolledTitle;
+  final double swapAfter;
+
+  @override
+  State<TabPage> createState() => _TabPageState();
+}
+
+class _TabPageState extends State<TabPage> {
+  var _under = false;
+  var _swapped = false;
+
+  bool _onScroll(ScrollNotification n) {
+    if (n.depth != 0 || n.metrics.axis != Axis.vertical) return false;
+    final px = n.metrics.pixels;
+    final under = px > 0;
+    final swapped = widget.scrolledTitle != null && px > widget.swapAfter;
+    // Two flags, not the offset, so scrolling doesn't rebuild every frame.
+    if (under != _under || swapped != _swapped) {
+      setState(() {
+        _under = under;
+        _swapped = swapped;
+      });
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    final title = _swapped
+        ? KeyedSubtree(key: const ValueKey('scrolled'), child: widget.scrolledTitle!)
+        : Text(widget.title, key: const ValueKey('title'), maxLines: 1, style: text.titleLarge);
+    return CanvasBackground(
+      child: Column(
+        children: [
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(Space.gutter, Space.sm, Space.gutter, Space.sm),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: Motion.of(context, Motion.medium),
+                      switchInCurve: Motion.enter,
+                      layoutBuilder: (current, previous) =>
+                          Stack(alignment: Alignment.centerLeft, children: [...previous, ?current]),
+                      transitionBuilder: (child, anim) => FadeTransition(
+                        opacity: anim,
+                        child: SlideTransition(
+                          position: Tween(begin: const Offset(0, 0.25), end: Offset.zero).animate(anim),
+                          child: child,
+                        ),
+                      ),
+                      child: title,
+                    ),
+                  ),
+                  for (final (i, a) in widget.actions.indexed) ...[if (i > 0) const SizedBox(width: Space.sm), a],
+                ],
+              ),
+            ),
+          ),
+          AnimatedOpacity(
+            opacity: _under ? 1 : 0,
+            duration: Motion.of(context, Motion.fast),
+            child: Divider(height: 1, thickness: 1, color: t.trayDeep),
+          ),
+          Expanded(
+            child: NotificationListener<ScrollNotification>(onNotification: _onScroll, child: widget.body),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Darker inset area that holds white things.
 class Tray extends StatelessWidget {
   const Tray({

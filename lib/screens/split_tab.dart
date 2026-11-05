@@ -28,73 +28,65 @@ class SplitTab extends StatelessWidget {
     final month = app.splitThisMonth;
     final todoTotal = todo.fold(0, (sum, e) => sum + e.txn.amountMinor);
 
-    return CanvasBackground(
-      child: SafeArea(
-        bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(Space.gutter, Space.sm, Space.gutter, navClearance),
-          children: staggered([
-            Row(
+    return TabPage(
+      title: 'Split',
+      actions: [
+        CircleIconButton(
+          icon: Icons.tune,
+          tooltip: 'Splitwise settings',
+          onPressed: () => push(context, const SplitSettingsPage()),
+        ),
+      ],
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(Space.gutter, Space.md, Space.gutter, navClearance),
+        children: staggered([
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
-                  child: Text('Splitwise', style: text.titleMedium?.copyWith(color: t.muted)),
+                  child: StatTile(
+                    label: 'Opened this month',
+                    value: formatCompact(month.totalMinor),
+                    caption: '${month.count} payment${month.count == 1 ? '' : 's'}',
+                  ),
                 ),
-                CircleIconButton(
-                  icon: Icons.tune,
-                  tooltip: 'Splitwise settings',
-                  onPressed: () => push(context, const SplitSettingsPage()),
+                const SizedBox(width: Space.md),
+                Expanded(
+                  child: StatTile(
+                    label: 'Waiting to split',
+                    value: '${todo.length}',
+                    caption: todo.isEmpty ? 'All caught up' : formatCompact(todoTotal),
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: Space.lg),
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: StatTile(
-                      label: 'Opened this month',
-                      value: formatCompact(month.totalMinor),
-                      caption: '${month.count} payment${month.count == 1 ? '' : 's'}',
-                    ),
-                  ),
-                  const SizedBox(width: Space.md),
-                  Expanded(
-                    child: StatTile(
-                      label: 'Waiting to split',
-                      value: '${todo.length}',
-                      caption: todo.isEmpty ? 'All caught up' : formatCompact(todoTotal),
-                    ),
-                  ),
-                ],
+          ),
+          SectionHeader('To split', trailing: todo.isEmpty ? null : Text('${todo.length}', style: text.titleMedium)),
+          if (todo.isEmpty)
+            Tray(
+              child: Text(
+                'All caught up. New payments show up here.',
+                textAlign: TextAlign.center,
+                style: text.bodyMedium?.copyWith(color: t.muted),
+              ),
+            )
+          else
+            _ToSplit(items: todo),
+          if (history.isNotEmpty) ...[
+            const SectionHeader('Sent to Splitwise'),
+            _History(records: history.take(10).toList()),
+            Padding(
+              padding: const EdgeInsets.only(top: Space.sm),
+              child: Text(
+                // Without the API the app only sees the tap that opened
+                // Splitwise, never the saved expense or its group.
+                "You opened these in Splitwise. One Tracker can't see if you saved them or which group you picked.",
+                style: text.bodySmall?.copyWith(color: t.muted),
               ),
             ),
-            SectionHeader('To split', trailing: todo.isEmpty ? null : Text('${todo.length}', style: text.titleMedium)),
-            if (todo.isEmpty)
-              Tray(
-                child: Text(
-                  'All caught up. New payments show up here.',
-                  textAlign: TextAlign.center,
-                  style: text.bodyMedium?.copyWith(color: t.muted),
-                ),
-              )
-            else
-              _ToSplit(items: todo),
-            if (history.isNotEmpty) ...[
-              const SectionHeader('Sent to Splitwise'),
-              _History(records: history.take(10).toList()),
-              Padding(
-                padding: const EdgeInsets.only(top: Space.sm),
-                child: Text(
-                  // Without the API the app only sees the tap that opened
-                  // Splitwise, never the saved expense or its group.
-                  "You opened these in Splitwise. One Tracker can't see if you saved them or which group you picked.",
-                  style: text.bodySmall?.copyWith(color: t.muted),
-                ),
-              ),
-            ],
-          ]),
-        ),
+          ],
+        ]),
       ),
     );
   }

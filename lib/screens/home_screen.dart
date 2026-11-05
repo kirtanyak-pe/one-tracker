@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../app_controller.dart';
 import '../engine/recurring.dart';
@@ -13,7 +14,6 @@ import 'add_expense_screen.dart';
 import 'settings_screen.dart';
 import 'shell.dart';
 import 'categories_screen.dart';
-import 'transactions_screen.dart';
 import 'widgets/month_nudge_card.dart';
 import 'widgets/month_switcher.dart';
 import 'widgets/review_card.dart';
@@ -34,82 +34,85 @@ class HomeTab extends StatelessWidget {
     final needsSetup = app.isAndroid && (!app.smsGranted || !app.notificationsGranted);
     final upcoming = app.isCurrentMonth ? app.upcoming() : const <Recurring>[];
 
-    return CanvasBackground(
-      child: SafeArea(
-        bottom: false,
-        child: RefreshIndicator(
-          color: t.ink,
-          onRefresh: () => app.scanSms(),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(Space.gutter, Space.sm, Space.gutter, navClearance),
-            children: staggered([
-              Row(
-                children: [
-                  Expanded(
-                    child: Text('One Tracker', style: text.titleMedium?.copyWith(color: t.muted)),
-                  ),
-                  if (app.scanning)
-                    Padding(
-                      padding: const EdgeInsets.only(right: Space.md),
-                      child: SizedBox.square(
-                        dimension: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: t.muted),
-                      ),
-                    ),
-                  CircleIconButton(
-                    icon: Icons.search,
-                    tooltip: 'Search',
-                    onPressed: () {
-                      AppShell.switchTo(context, AppShell.activity);
-                      ActivityTab.focusSearch();
-                    },
-                  ),
-                  const SizedBox(width: Space.sm),
-                  CircleIconButton(
-                    icon: Icons.add,
-                    tooltip: 'Add expense',
-                    onPressed: () => push(context, const AddExpenseScreen()),
-                  ),
-                  const SizedBox(width: Space.sm),
-                  CircleIconButton(
-                    icon: Icons.tune,
-                    tooltip: 'Settings',
-                    onPressed: () => push(context, const SettingsScreen()),
-                  ),
-                ],
-              ),
-              const SizedBox(height: Space.xl),
-              _Headline(app: app),
-              const SizedBox(height: Space.xxl),
-              if (app.monthNudge case final nudge?) ...[MonthNudgeCard(nudge: nudge), const SizedBox(height: Space.xl)],
-              if (review.isNotEmpty) ...[
-                ReviewCard(queue: review, currency: appCurrency),
-                const SizedBox(height: Space.xl),
-              ],
-              if (needsSetup) ...[_SetupTray(app: app), const SizedBox(height: Space.xl)],
-              SectionHeader(
-                'Recent',
-                trailing: m.items.isEmpty
-                    ? null
-                    : TextButton(
-                        onPressed: () => AppShell.switchTo(context, AppShell.activity),
-                        child: const Text('See all'),
-                      ),
-              ),
-              if (m.items.isEmpty)
-                _Empty(app: app)
-              else
-                TxnDayList(items: m.items.take(6).toList(), currency: appCurrency),
-              if (upcoming.isNotEmpty) ...[const SectionHeader('Coming up'), _Upcoming(items: upcoming)],
-              if (m.byCategory.isNotEmpty) ...[const SizedBox(height: Space.xxxl), _CategoriesLink(summary: m)],
-            ]),
+    return TabPage(
+      title: 'One Tracker',
+      // Once the big number scrolls away, the bar keeps it in view.
+      swapAfter: 64,
+      scrolledTitle: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(text: formatMoney(m.spentMinor, appCurrency, round: true)),
+            TextSpan(
+              text: '  ${DateFormat('MMM').format(m.month)}',
+              style: text.titleMedium?.copyWith(color: t.muted),
+            ),
+          ],
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: text.titleLarge?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+      ),
+      actions: [
+        if (app.scanning)
+          Padding(
+            padding: const EdgeInsets.only(right: Space.xs),
+            child: SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2, color: t.muted)),
           ),
+        CircleIconButton(
+          icon: Icons.search,
+          tooltip: 'Search',
+          onPressed: () {
+            AppShell.switchTo(context, AppShell.activity);
+            ActivityTab.focusSearch();
+          },
+        ),
+        CircleIconButton(
+          icon: Icons.add,
+          tooltip: 'Add expense',
+          onPressed: () => push(context, const AddExpenseScreen()),
+        ),
+        CircleIconButton(icon: Icons.tune, tooltip: 'Settings', onPressed: () => push(context, const SettingsScreen())),
+      ],
+      body: RefreshIndicator(
+        color: t.ink,
+        onRefresh: () => app.scanSms(),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(Space.gutter, Space.xl, Space.gutter, navClearance),
+          children: staggered([
+            _Headline(app: app),
+            const SizedBox(height: Space.xxl),
+            if (app.monthNudge case final nudge?) ...[MonthNudgeCard(nudge: nudge), const SizedBox(height: Space.xl)],
+            if (review.isNotEmpty) ...[
+              ReviewCard(queue: review, currency: appCurrency),
+              const SizedBox(height: Space.xl),
+            ],
+            if (needsSetup) ...[_SetupTray(app: app), const SizedBox(height: Space.xl)],
+            const SectionHeader('Recent', top: 0),
+            if (m.items.isEmpty)
+              _Empty(app: app)
+            else ...[
+              TxnDayList(items: m.items.take(6).toList(), currency: appCurrency),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => AppShell.switchTo(context, AppShell.activity),
+                  iconAlignment: IconAlignment.end,
+                  icon: const Icon(Icons.arrow_forward, size: 18),
+                  label: const Text('View all activity'),
+                ),
+              ),
+            ],
+            if (upcoming.isNotEmpty) ...[const SectionHeader('Coming up'), _Upcoming(items: upcoming)],
+            if (m.byCategory.isNotEmpty) ...[const SizedBox(height: Space.xxxl), _CategoriesLink(summary: m)],
+          ]),
         ),
       ),
     );
   }
 }
 
+/// The one number that matters — spent in the month on screen — with how it
+/// moved against last month beside it, and the month itself underneath.
+/// Swipe sideways on it to change month.
 class _Headline extends StatelessWidget {
   const _Headline({required this.app});
 
@@ -122,162 +125,129 @@ class _Headline extends StatelessWidget {
     final m = app.month;
     final use = app.budgetUse;
     final limit = app.budgets.monthlyMinor;
+    final change = _change(app);
 
-    return Column(
-      children: [
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: AnimatedMoney(m.spentMinor, round: true, style: text.displaySmall?.copyWith(fontSize: 48)),
-        ),
-        const SizedBox(height: Space.xs),
-        Text(
-          app.isCurrentMonth ? 'spent this month' : 'spent in ${monthName(m.month)}',
-          style: text.bodyLarge?.copyWith(color: t.muted),
-        ),
-        if (_context(app) case final c?) ...[const SizedBox(height: Space.sm), _ContextPill(parts: c)],
-        if (use != null && limit != null) ...[
-          const SizedBox(height: Space.lg),
-          Semantics(
-            label: '${(use * 100).round()} percent of monthly budget used',
-            child: AnimatedMeter(
-              value: use,
-              height: 6,
-              background: t.trayDeep,
-              // Meter colour carries severity: ink → accent at 80% → error over.
-              color: use >= 1
-                  ? Theme.of(context).colorScheme.error
-                  : use >= 0.8
-                  ? t.accent
-                  : t.ink,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragEnd: (d) {
+        final v = d.primaryVelocity ?? 0;
+        if (v > 300) app.shiftMonth(-1);
+        if (v < -300 && !app.isCurrentMonth) app.shiftMonth(1);
+      },
+      child: Column(
+        children: [
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedMoney(m.spentMinor, round: true, style: text.displaySmall?.copyWith(fontSize: 56)),
+                if (change != null) ...[const SizedBox(width: Space.sm), _ChangePill(change: change)],
+              ],
             ),
           ),
-          const SizedBox(height: Space.sm),
-          Text(
-            use >= 1
-                ? '${formatMoney(m.spentMinor - limit, appCurrency, round: true)} over your ${formatCompact(limit)} budget'
-                : '${formatMoney(limit - m.spentMinor, appCurrency, round: true)} left of ${formatCompact(limit)}',
-            style: text.bodySmall?.copyWith(color: t.muted),
-          ),
-        ],
-        const SizedBox(height: Space.lg),
-        const MonthSwitcher(),
-        if (m.excludedMinor > 0 || m.incomeMinor > 0) ...[
           const SizedBox(height: Space.md),
-          // Tappable: these were a cryptic line before.
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: Space.sm,
-            runSpacing: Space.sm,
-            children: [
-              if (m.incomeMinor > 0)
-                _MiniChip(
-                  icon: Icons.south_west,
-                  label: '${formatCompact(m.incomeMinor)} income',
-                  onTap: () => push(context, const TransactionsScreen.income()),
-                ),
-              if (m.excludedMinor > 0)
-                _MiniChip(
-                  icon: Icons.swap_horiz,
-                  label: '${formatCompact(m.excludedMinor)} not counted',
-                  onTap: () => push(context, const TransactionsScreen.excluded()),
-                ),
-            ],
-          ),
-        ],
-      ],
-    );
-  }
-
-  /// "₹1,240 today · ↓ 12% vs Sep" for the current month; null otherwise or
-  /// when there's nothing useful to say.
-  static List<({IconData? icon, String text})>? _context(AppController app) {
-    if (!app.isCurrentMonth) return null;
-    final now = DateTime.now();
-    final today = app.month.items
-        .where((e) => e.countsAsSpend && DateUtils.isSameDay(e.txn.at, now))
-        .fold(0, (sum, e) => sum + e.txn.amountMinor);
-    final before = app.insights.lastMonthToDate;
-    final spent = app.month.spentMinor;
-    final parts = <({IconData? icon, String text})>[
-      (icon: null, text: today == 0 ? 'Nothing spent today' : '${formatCompact(today)} today'),
-    ];
-    // Only compare when last month had real spending by now.
-    // ₹ rather than %: "↑282%" alarms more than it informs.
-    if (before >= 100000 && spent > 0) {
-      final diff = spent - before;
-      final prev = monthName(DateTime(now.year, now.month - 1)).substring(0, 3);
-      if (diff.abs() * 20 >= before) {
-        parts.add((
-          icon: diff > 0 ? Icons.arrow_upward : Icons.arrow_downward,
-          text: '${formatCompact(diff.abs())} vs $prev',
-        ));
-      } else {
-        parts.add((icon: null, text: 'about the same as $prev'));
-      }
-    }
-    return parts;
-  }
-}
-
-class _ContextPill extends StatelessWidget {
-  const _ContextPill({required this.parts});
-
-  final List<({IconData? icon, String text})> parts;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme.bodySmall?.copyWith(color: t.ink, fontWeight: FontWeight.w600);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: 6),
-      decoration: BoxDecoration(color: t.tray, borderRadius: BorderRadius.circular(Radii.pill)),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final (i, p) in parts.indexed) ...[
-            if (i > 0) Text('  ·  ', style: text?.copyWith(color: t.muted)),
-            if (p.icon != null) ...[
-              // Up = spending more: accent; down: success. Text stays ink.
-              Icon(p.icon, size: 14, color: p.icon == Icons.arrow_upward ? t.accent : t.success),
-              const SizedBox(width: 2),
-            ],
-            Text(p.text, style: text),
+          const MonthSwitcher(),
+          if (use != null && limit != null) ...[
+            const SizedBox(height: Space.xl),
+            Semantics(
+              label: '${(use * 100).round()} percent of monthly budget used',
+              child: AnimatedMeter(
+                value: use,
+                height: 6,
+                background: t.trayDeep,
+                // Meter colour carries severity: ink → accent at 80% → error over.
+                color: use >= 1
+                    ? Theme.of(context).colorScheme.error
+                    : use >= 0.8
+                    ? t.accent
+                    : t.ink,
+              ),
+            ),
+            const SizedBox(height: Space.sm),
+            Text(
+              use >= 1
+                  ? '${formatMoney(m.spentMinor - limit, appCurrency, round: true)} over your ${formatCompact(limit)} budget'
+                  : '${formatMoney(limit - m.spentMinor, appCurrency, round: true)} left of ${formatCompact(limit)}',
+              style: text.bodySmall?.copyWith(color: t.muted),
+            ),
           ],
         ],
       ),
     );
   }
+
+  /// Against last month up to the same day (the whole of last month when
+  /// looking back); null without real spending to compare to.
+  static _Change? _change(AppController app) {
+    final before = app.insights.lastMonthToDate;
+    final spent = app.month.spentMinor;
+    if (before < 100000 || spent == 0) return null;
+    final prev = monthName(DateTime(app.month.month.year, app.month.month.month - 1));
+    return (
+      percent: ((spent - before) / before * 100).round(),
+      diffMinor: spent - before,
+      against: app.isCurrentMonth ? 'this point in $prev' : prev,
+    );
+  }
 }
 
-class _MiniChip extends StatelessWidget {
-  const _MiniChip({required this.icon, required this.label, required this.onTap});
+typedef _Change = ({int percent, int diffMinor, String against});
 
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
+/// ▲ 12% the way a stock quote shows it, except up means spending more, so
+/// it's red and down is green. Tap for the amount behind the percentage.
+class _ChangePill extends StatelessWidget {
+  const _ChangePill({required this.change});
+
+  final _Change change;
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    return Material(
-      color: Colors.transparent,
-      shape: StadiumBorder(side: BorderSide(color: t.trayDeep)),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 36),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Space.md),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 14, color: t.muted),
-                const SizedBox(width: Space.xs),
-                Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: t.ink)),
-                Icon(Icons.chevron_right, size: 16, color: t.muted),
-              ],
-            ),
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final p = change.percent;
+    // Not the accent: it follows the wallpaper, so it can't mean "more".
+    final fg = p > 0
+        ? Theme.of(context).colorScheme.error
+        : p < 0
+        ? t.success
+        : t.muted;
+    final more = change.diffMinor >= 0;
+    final detail =
+        '${formatMoney(change.diffMinor.abs(), appCurrency, round: true)} ${more ? 'more' : 'less'} than ${change.against}';
+    return Tooltip(
+      message: detail,
+      triggerMode: TooltipTriggerMode.tap,
+      child: Semantics(
+        label: detail,
+        excludeSemantics: true,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(6, 4, 8, 4),
+          decoration: BoxDecoration(
+            color: fg.withValues(alpha: dark ? 0.18 : 0.12),
+            borderRadius: BorderRadius.circular(Radii.pill),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                p > 0
+                    ? Icons.arrow_drop_up
+                    : p < 0
+                    ? Icons.arrow_drop_down
+                    : Icons.remove,
+                size: 18,
+                color: fg,
+              ),
+              Text(
+                p.abs() > 999 ? '999+%' : '${p.abs()}%',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: fg,
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
           ),
         ),
       ),

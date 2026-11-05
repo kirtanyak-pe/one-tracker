@@ -5,8 +5,11 @@ import '../engine/enrich.dart';
 import '../model/transaction.dart';
 import '../money.dart';
 import '../ui/components.dart';
+import '../ui/format.dart';
 import '../ui/tokens.dart';
+import 'home_screen.dart' show push;
 import 'shell.dart';
+import 'transactions_screen.dart';
 import 'widgets/txn_list.dart';
 
 enum _Filter {
@@ -92,109 +95,183 @@ class _ActivityTabState extends State<ActivityTab> {
     final total = results.fold(0, (sum, e) => sum + e.txn.amountMinor);
     final days = groupByDay(shown);
 
-    return CanvasBackground(
-      child: SafeArea(
-        bottom: false,
-        // Header widgets, then day cards built lazily as you scroll (a year
-        // of payments would otherwise build hundreds of rows up front).
-        child: CustomScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(Space.gutter, Space.lg, Space.gutter, 0),
-              sliver: SliverList.list(
-                children: [
-                  Text('Activity', style: text.headlineMedium),
+    return TabPage(
+      title: 'Activity',
+      // Header widgets, then day cards built lazily as you scroll (a year
+      // of payments would otherwise build hundreds of rows up front).
+      body: CustomScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(Space.gutter, Space.md, Space.gutter, 0),
+            sliver: SliverList.list(
+              children: [
+                if (app.month.incomeMinor > 0 || app.month.excludedMinor > 0) ...[
+                  _MonthStats(app: app),
                   const SizedBox(height: Space.lg),
-                  TextField(
-                    controller: _search,
-                    textInputAction: TextInputAction.search,
-                    decoration: InputDecoration(
-                      hintText: 'Search payee, #tag or amount',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _search.text.isEmpty
-                          ? null
-                          : IconButton(
-                              tooltip: 'Clear',
-                              icon: const Icon(Icons.close),
-                              onPressed: () => setState(_search.clear),
-                            ),
-                    ),
-                    onChanged: (_) => setState(() {}),
+                ],
+                TextField(
+                  controller: _search,
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    hintText: 'Search payee, #tag or amount',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _search.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Clear',
+                            icon: const Icon(Icons.close),
+                            onPressed: () => setState(_search.clear),
+                          ),
                   ),
-                  const SizedBox(height: Space.md),
-                  SizedBox(
-                    height: 44,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      clipBehavior: Clip.none,
-                      itemCount: _Filter.values.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: Space.sm),
-                      itemBuilder: (_, i) {
-                        final f = _Filter.values[i];
-                        final on = f == _filter;
-                        return Semantics(
-                          selected: on,
-                          button: true,
-                          child: Material(
-                            color: on ? t.ink : t.tray,
-                            shape: const StadiumBorder(),
-                            clipBehavior: Clip.antiAlias,
-                            child: InkWell(
-                              onTap: () => setState(() => _filter = f),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: Space.lg),
-                                child: Center(
-                                  child: Text(
-                                    f == _Filter.big && app.profile.reviewAboveMinor != null
-                                        ? 'Over ${formatCompact(app.profile.reviewAboveMinor!)}'
-                                        : f.label,
-                                    style: text.labelLarge?.copyWith(color: on ? t.onInk : t.ink),
-                                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: Space.md),
+                SizedBox(
+                  height: 44,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    clipBehavior: Clip.none,
+                    itemCount: _Filter.values.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: Space.sm),
+                    itemBuilder: (_, i) {
+                      final f = _Filter.values[i];
+                      final on = f == _filter;
+                      return Semantics(
+                        selected: on,
+                        button: true,
+                        child: Material(
+                          color: on ? t.ink : t.tray,
+                          shape: const StadiumBorder(),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () => setState(() => _filter = f),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: Space.lg),
+                              child: Center(
+                                child: Text(
+                                  f == _Filter.big && app.profile.reviewAboveMinor != null
+                                      ? 'Over ${formatCompact(app.profile.reviewAboveMinor!)}'
+                                      : f.label,
+                                  style: text.labelLarge?.copyWith(color: on ? t.onInk : t.ink),
                                 ),
                               ),
                             ),
                           ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: Space.md),
-                  Text(
-                    results.isEmpty
-                        ? 'Nothing matches'
-                        : [
-                            '${results.length} transaction${results.length == 1 ? '' : 's'}',
-                            // A total across spending, income and transfers means nothing.
-                            if (_filter != _Filter.all) formatMoney(total, appCurrency, round: true),
-                            if (results.length > _cap) 'showing latest $_cap',
-                          ].join(' · '),
-                    style: text.bodySmall?.copyWith(color: t.muted),
-                  ),
-                  if (shown.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: Space.lg),
-                      child: Tray(
-                        child: Text(
-                          q.isEmpty ? 'No transactions here yet.' : 'Try a payee name, #tag or an amount like 450.',
-                          textAlign: TextAlign.center,
-                          style: text.bodyMedium?.copyWith(color: t.muted),
                         ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: Space.md),
+                Text(
+                  results.isEmpty
+                      ? 'Nothing matches'
+                      : [
+                          '${results.length} transaction${results.length == 1 ? '' : 's'}',
+                          // A total across spending, income and transfers means nothing.
+                          if (_filter != _Filter.all) formatMoney(total, appCurrency, round: true),
+                          if (results.length > _cap) 'showing latest $_cap',
+                        ].join(' · '),
+                  style: text.bodySmall?.copyWith(color: t.muted),
+                ),
+                if (shown.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: Space.lg),
+                    child: Tray(
+                      child: Text(
+                        q.isEmpty ? 'No transactions here yet.' : 'Try a payee name, #tag or an amount like 450.',
+                        textAlign: TextAlign.center,
+                        style: text.bodyMedium?.copyWith(color: t.muted),
                       ),
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, navClearance),
-              sliver: SliverList.builder(
-                itemCount: days.length,
-                itemBuilder: (context, i) =>
-                    TxnDayCard(label: days[i].label, items: days[i].items, currency: appCurrency, index: i),
-              ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, navClearance),
+            sliver: SliverList.builder(
+              itemCount: days.length,
+              itemBuilder: (context, i) =>
+                  TxnDayCard(label: days[i].label, items: days[i].items, currency: appCurrency, index: i),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Income and money that isn't spending (transfers, card bills) in the month
+/// open on Home, kept here so Home shows only what was spent.
+class _MonthStats extends StatelessWidget {
+  const _MonthStats({required this.app});
+
+  final AppController app;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = app.month;
+    final month = monthName(m.month);
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _Stat(
+              label: 'Income · $month',
+              value: m.incomeMinor,
+              onTap: () => push(context, const TransactionsScreen.income()),
+            ),
+          ),
+          const SizedBox(width: Space.md),
+          Expanded(
+            child: _Stat(
+              label: 'Not counted · $month',
+              value: m.excludedMinor,
+              onTap: () => push(context, const TransactionsScreen.excluded()),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  const _Stat({required this.label, required this.value, required this.onTap});
+
+  final String label;
+  final int value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    return SurfaceCard(
+      onTap: value == 0 ? null : onTap,
+      padding: const EdgeInsets.fromLTRB(Space.lg, Space.md, Space.sm, Space.md),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.bodySmall?.copyWith(color: t.muted),
+                ),
+                const SizedBox(height: 2),
+                Text(formatMoney(value, appCurrency, round: true), maxLines: 1, style: text.titleMedium),
+              ],
+            ),
+          ),
+          if (value > 0) Icon(Icons.chevron_right, size: 20, color: t.muted),
+        ],
       ),
     );
   }
