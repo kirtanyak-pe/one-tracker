@@ -2,7 +2,7 @@ import '../model/transaction.dart';
 import '../money.dart';
 
 /// Bump when parsing changes, so stored payments get re-parsed once.
-const parserVersion = 4;
+const parserVersion = 5;
 
 /// Facts pulled out of one bank SMS or payment-app notification.
 class Parsed {
@@ -42,7 +42,9 @@ final _amount = _re(r'(?:₹|\brs\.?|\binr)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)');
 // "debited by 500.0" (SBI style, no currency before the number).
 final _bareAmount = _re(r'\b(?:debited|credited)\s+(?:by|with|for)\s+([0-9][0-9,]*(?:\.[0-9]{1,2})?)');
 
-final _debit = _re(r'\b(debited|paid|spent|sent|withdrawn|withdrawal|purchase|payment of|txn of|transferred to|trf to|dr\b)');
+final _debit = _re(
+  r'\b(debited|paid|spent|sent|withdrawn|withdrawal|purchase|payment of|txn of|transferred to|trf to|dr\b)',
+);
 final _credit = _re(r'\b(credited|received|deposited|refund(?:ed)?|reversed|reversal|cr\b)');
 
 /// Mentions money but isn't a completed transaction.
@@ -54,9 +56,13 @@ final _noise = _re(
   r'min(?:imum)? amount|total amount due|bill generated)\b',
 );
 
-final _account = _re(r'(?:a/?c|acct|account|card)(?:\s*(?:no\.?|number|ending(?: with)?))?\s*[:.]?\s*(?:[x*•.]+\s*)?(\d{3,6})\b');
+final _account = _re(
+  r'(?:a/?c|acct|account|card)(?:\s*(?:no\.?|number|ending(?: with)?))?\s*[:.]?\s*(?:[x*•.]+\s*)?(\d{3,6})\b',
+);
 final _vpa = _re(r'\b([a-z0-9][a-z0-9._-]{1,48}@[a-z][a-z0-9]{1,20})\b');
-final _ref = _re(r'\b(?:upi\s*ref(?:\s*no)?|ref(?:erence)?\s*(?:no|number|#)?|utr|rrn|txn\s*id|imps\s*ref)[\s.:#-]*([a-z0-9]{6,})');
+final _ref = _re(
+  r'\b(?:upi\s*ref(?:\s*no)?|ref(?:erence)?\s*(?:no|number|#)?|utr|rrn|txn\s*id|imps\s*ref)[\s.:#-]*([a-z0-9]{6,})',
+);
 
 final _p2m = _re(r'\bupi[/-]p2m\b');
 final _p2a = _re(r'\bupi[/-]p2[ap]\b');
@@ -66,7 +72,8 @@ final _upiString = _re(r'\bupi[/-]p2[amp][/-]\d+[/-]([a-z][a-z .]*[a-z])');
 
 final _selfWords = _re(r'\b(self[ -]?transfer|to self|own account|between your accounts|to your own)\b');
 
-const _stop = r'(?=\s+(?:on|via|using|from|ref|refno|upi|for|with|avl|bal|was|is|has|successful|thru|through|at|dated|txn|info|-)\b|[.,;!\n(]|$)';
+const _stop =
+    r'(?=\s+(?:on|via|using|from|ref|refno|upi|for|with|avl|bal|was|is|has|successful|thru|through|at|dated|txn|info|-)\b|[.,;!\n(]|$)';
 
 final _counterpartyDebit = [
   _re('\\b(?:trf|transfer(?:red)?)\\s+to\\s+([A-Za-z][^.,;!\\n(]*?)$_stop'),
@@ -76,11 +83,53 @@ final _counterpartyDebit = [
   _re(r';\s*([A-Z][A-Z .]{2,40}?)\s+credited\b'),
 ];
 
-final _counterpartyCredit = [
-  _re('\\b(?:from|by)\\s+([A-Za-z][^.,;!\\n(]*?)$_stop'),
-];
+final _counterpartyCredit = [_re('\\b(?:from|by)\\s+([A-Za-z][^.,;!\\n(]*?)$_stop')];
 
-final _notAName = _re(r'^(?:your|you|a/?c|ac|acct|account|card|vpa|upi|the|self|bank|beneficiary|mobile|net ?banking|imps|neft|rtgs|rs|inr|amount|amt)\b');
+final _notAName = _re(
+  r'^(?:your|you|a/?c|ac|acct|account|card|vpa|upi|the|self|bank|beneficiary|mobile|net ?banking|imps|neft|rtgs|rs|inr|amount|amt)\b',
+);
+
+/// Chat, social and email apps. Whatever they notify about is someone's
+/// message, never a payment ("reach us: Chat ... ₹625"). Google Messages is
+/// deliberately absent: it's the SMS app, so bank SMS arrive through it.
+const messagingPackages = {
+  'com.whatsapp',
+  'com.whatsapp.w4b',
+  'org.telegram.messenger',
+  'org.telegram.messenger.web',
+  'org.thunderdog.challegram',
+  'org.thoughtcrime.securesms',
+  'com.facebook.orca',
+  'com.facebook.mlite',
+  'com.instagram.android',
+  'com.snapchat.android',
+  'com.discord',
+  'com.Slack',
+  'com.microsoft.teams',
+  'com.google.android.gm',
+  'com.microsoft.office.outlook',
+  'com.linkedin.android',
+  'com.twitter.android',
+  'com.facebook.katana',
+  'com.viber.voip',
+  'jp.naver.line.android',
+};
+
+/// A whole line of a real WhatsApp Pay notification ("You paid ₹250 to Ravi").
+final _whatsappPayLine = _re(
+  r'^(?:you paid (?:₹|rs\.?)\s*[0-9][0-9,]*(?:\.[0-9]{1,2})? to [^\n]+'
+  r'|[^\n]+ sent you (?:₹|rs\.?)\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?'
+  r'|payment of (?:₹|rs\.?)\s*[0-9][0-9,]*(?:\.[0-9]{1,2})? (?:successful|completed))\s*[.!]?$',
+);
+
+/// Whether a notification from [packageName] may be read as a payment.
+/// Chat/email apps never count, except real WhatsApp Pay lines; every other
+/// app (UPI, banks, the SMS app) is judged by [parseMessage] alone.
+bool notificationMayBePayment(String? packageName, String body) {
+  if (packageName == null || !messagingPackages.contains(packageName)) return true;
+  if (!packageName.startsWith('com.whatsapp')) return false;
+  return body.split('\n').any((l) => _whatsappPayLine.hasMatch(l.trim()));
+}
 
 /// Parses a bank SMS / payment notification. Null when it isn't a completed
 /// debit or credit.
@@ -92,9 +141,7 @@ Parsed? parseMessage(String text) {
   final creditAt = _credit.firstMatch(t)?.start;
   if (debitAt == null && creditAt == null) return null;
   // Earliest verb wins: "debited from your a/c … credited to VPA x" is a debit.
-  final direction = creditAt == null || (debitAt != null && debitAt < creditAt)
-      ? Direction.debit
-      : Direction.credit;
+  final direction = creditAt == null || (debitAt != null && debitAt < creditAt) ? Direction.debit : Direction.credit;
 
   final amountText = _amount.firstMatch(t)?.group(1) ?? _bareAmount.firstMatch(t)?.group(1);
   final amount = amountText == null ? null : parseMinor(amountText);
@@ -172,8 +219,21 @@ final _qrMerchants = {
 };
 
 const _gatewayTags = {
-  'payu', 'rzp', 'razorpay', 'cf', 'cashfree', 'billdesk', 'upi', 'mer', 'pg',
-  'payments', 'pay', 'online', 'ccavenue', 'juspay', 'easebuzz',
+  'payu',
+  'rzp',
+  'razorpay',
+  'cf',
+  'cashfree',
+  'billdesk',
+  'upi',
+  'mer',
+  'pg',
+  'payments',
+  'pay',
+  'online',
+  'ccavenue',
+  'juspay',
+  'easebuzz',
 };
 
 /// "AMAZON PAY INDIA" → "Amazon Pay India"; mixed case kept; trimmed to 40.
@@ -182,14 +242,48 @@ String tidyName(String raw) {
   if (name.length > 40) name = name.substring(0, 40).trim();
   final shouty = name == name.toUpperCase() || name == name.toLowerCase();
   if (!shouty) return name;
-  return name.split(' ').map((w) {
-    if (w.length <= 1 || _acronyms.contains(w.toUpperCase())) return w.toUpperCase();
-    return w[0].toUpperCase() + w.substring(1).toLowerCase();
-  }).join(' ');
+  return name
+      .split(' ')
+      .map((w) {
+        if (w.length <= 1 || _acronyms.contains(w.toUpperCase())) return w.toUpperCase();
+        return w[0].toUpperCase() + w.substring(1).toLowerCase();
+      })
+      .join(' ');
 }
 
 const _acronyms = {
-  'ATM', 'SBI', 'HDFC', 'ICICI', 'PNB', 'BOB', 'IDFC', 'IDBI', 'UPI', 'NEFT', 'IMPS', 'RTGS',
-  'KFC', 'LIC', 'IRCTC', 'BSNL', 'DTH', 'HPCL', 'BPCL', 'IOCL', 'PVR', 'OYO', 'ACT', 'EMI',
-  'GST', 'NSE', 'BSE', 'SIP', 'BMTC', 'BEST', 'DMRC', 'IGL', 'MGL', 'BBMP',
+  'ATM',
+  'SBI',
+  'HDFC',
+  'ICICI',
+  'PNB',
+  'BOB',
+  'IDFC',
+  'IDBI',
+  'UPI',
+  'NEFT',
+  'IMPS',
+  'RTGS',
+  'KFC',
+  'LIC',
+  'IRCTC',
+  'BSNL',
+  'DTH',
+  'HPCL',
+  'BPCL',
+  'IOCL',
+  'PVR',
+  'OYO',
+  'ACT',
+  'EMI',
+  'GST',
+  'NSE',
+  'BSE',
+  'SIP',
+  'BMTC',
+  'BEST',
+  'DMRC',
+  'IGL',
+  'MGL',
+  'BBMP',
 };

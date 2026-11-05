@@ -14,6 +14,16 @@ class MainActivity : FlutterActivity() {
         var liveEngine: FlutterEngine? = null
     }
 
+    private val backup = BackupFiles(this)
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+        if (!backup.onActivityResult(requestCode, resultCode, data)) {
+            @Suppress("DEPRECATION")
+            super.onActivityResult(requestCode, resultCode, data)
+        }
+    }
+
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         if (liveEngine === flutterEngine) liveEngine = null
         super.cleanUpFlutterEngine(flutterEngine)
@@ -76,6 +86,10 @@ class MainActivity : FlutterActivity() {
                         }
                         result.success(supported)
                     }
+                    "appVersion" -> result.success(
+                        packageManager.getPackageInfo(packageName, 0).versionName ?: "",
+                    )
+                    "backupSave", "backupPick" -> backup.handle(call, result)
                     "widget" -> {
                         SpendWidgetProvider.update(this, call.argument<String>("json") ?: "{}")
                         result.success(null)

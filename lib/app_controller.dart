@@ -19,6 +19,7 @@ import 'model/automation.dart';
 import 'model/category.dart';
 import 'model/transaction.dart';
 import 'money.dart';
+import 'sources/backup_bridge.dart';
 import 'sources/notification_source.dart';
 import 'sources/notifier.dart';
 import 'sources/sample_data.dart';
@@ -29,6 +30,7 @@ import 'split/pending_actions.dart';
 import 'split/split_models.dart';
 import 'split/suggest.dart';
 import 'storage/app_store.dart';
+import 'storage/backup.dart';
 import 'ui/payee_logo.dart';
 import 'ui/perf.dart';
 import 'ui/wallpaper_colors.dart';
@@ -133,21 +135,7 @@ class AppController extends ChangeNotifier {
 
   Future<void> init() async {
     _lifecycle; // start listening for resume
-    // Drop payments made by the adb test hook (TestSmsReceiver uses this id),
-    // and re-parse stored payments once whenever the parser has improved.
-    _txns = (await _store.readTxns()).where((t) => t.vpa != testHookVpa).toList();
-    if (await _store.readParserVersion() != parserVersion) {
-      _txns = _txns.length > _offThreadAbove ? await compute(reparseAll, _txns) : reparseAll(_txns);
-      await _store.writeTxns(_txns);
-      await _store.writeParserVersion(parserVersion);
-    }
-    rules = await _store.readRules();
-    autoRules = await _store.readAutoRules();
-    budgets = await _store.readBudgets();
-    _sentAlerts = await _store.readSentAlerts();
-    _dismissedNudges = await _store.readDismissedNudges();
-    profile = await _store.readProfile();
-    appearance = await _store.readAppearance();
+    await _readStore();
     lowEndDevice = await Perf.isLowEndDevice();
     Perf.lite = lite;
     wallpaper = await wallpaperSeed();
@@ -168,6 +156,25 @@ class AppController extends ChangeNotifier {
     loading = false;
     notifyListeners();
     await _pushWidget();
+  }
+
+  /// Loads the saved facts and choices (on start, and after a restore).
+  Future<void> _readStore() async {
+    // Drop payments made by the adb test hook (TestSmsReceiver uses this id),
+    // and re-parse stored payments once whenever the parser has improved.
+    _txns = (await _store.readTxns()).where((t) => t.vpa != testHookVpa).toList();
+    if (await _store.readParserVersion() != parserVersion) {
+      _txns = _txns.length > _offThreadAbove ? await compute(reparseAll, _txns) : reparseAll(_txns);
+      await _store.writeTxns(_txns);
+      await _store.writeParserVersion(parserVersion);
+    }
+    rules = await _store.readRules();
+    autoRules = await _store.readAutoRules();
+    budgets = await _store.readBudgets();
+    _sentAlerts = await _store.readSentAlerts();
+    _dismissedNudges = await _store.readDismissedNudges();
+    profile = await _store.readProfile();
+    appearance = await _store.readAppearance();
   }
 
   /// Above this many payments, deriving runs on a background isolate so the
@@ -571,6 +578,26 @@ class AppController extends ChangeNotifier {
     splitSettings = const SplitSettings();
     profile = const Profile();
     lastScan = null;
+    await _save();
+  }
+
+  // ── Backup ─────────────────────────────────────────────────────────
+
+  /// Asks where to save, then writes a backup of everything. False if the
+  /// user backed out of the picker.
+  Future<bool> exportBackup() async {
+    final now = DateTime.now();
+    final json = Backup.encode(await _store.readBackupData(), version: await BackupBridge.appVersion(), now: now);
+    return BackupBridge.save(Backup.fileName(now), json);
+  }
+
+  /// Replaces everything on this phone with [backup] and reloads it all.
+  Future<void> restoreBackup(Backup backup) async {
+    await _store.writeBackupData(backup.data);
+    await _readStore();
+    await _loadSplitState();
+    lastScan = await _store.readLastScan();
+    Perf.lite = lite;
     await _save();
   }
 

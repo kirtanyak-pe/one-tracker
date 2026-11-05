@@ -23,7 +23,10 @@ class RawMessage {
 /// those are merged into one, keeping the richer facts.
 ({List<Txn> txns, int added, List<String> addedIds}) ingest(List<Txn> existing, Iterable<RawMessage> messages) {
   final txns = [...existing];
-  final seen = {for (final t in txns) if (t.sourceId != null) '${t.source.name}:${t.sourceId}'};
+  final seen = {
+    for (final t in txns)
+      if (t.sourceId != null) '${t.source.name}:${t.sourceId}',
+  };
   // Indexes instead of scanning every stored payment per message — keeps a
   // big backfill linear on slow phones.
   final byAmount = <String, List<int>>{}; // "debit:45000" → positions in txns
@@ -42,6 +45,7 @@ class RawMessage {
 
   for (final m in messages) {
     if (!seen.add('${m.source.name}:${m.sourceId}')) continue;
+    if (m.source == Source.notification && !notificationMayBePayment(m.sender, m.body)) continue;
     final p = parseMessage(m.body);
     if (p == null) continue;
     // Same text minutes apart is the same SMS seen twice (e.g. stored under
@@ -51,13 +55,12 @@ class RawMessage {
       continue;
     }
 
-    final twinIndex = (byAmount['${p.direction.name}:${p.amountMinor}'] ?? const <int>[])
-            .where((i) {
-              final t = txns[i];
-              return t.at.difference(m.at).abs() <= const Duration(minutes: 5) &&
-                  ((p.ref != null && p.ref == t.ref) || t.source != m.source);
-            })
-            .firstOrNull ??
+    final twinIndex =
+        (byAmount['${p.direction.name}:${p.amountMinor}'] ?? const <int>[]).where((i) {
+          final t = txns[i];
+          return t.at.difference(m.at).abs() <= const Duration(minutes: 5) &&
+              ((p.ref != null && p.ref == t.ref) || t.source != m.source);
+        }).firstOrNull ??
         -1;
     if (twinIndex != -1) {
       final twin = txns[twinIndex];
@@ -72,32 +75,43 @@ class RawMessage {
       continue;
     }
 
-    txns.add(Txn(
-      id: '${m.source.name}-${m.sourceId}',
-      source: m.source,
-      sourceId: m.sourceId,
-      direction: p.direction,
-      amountMinor: p.amountMinor,
-      at: m.at,
-      counterparty: p.counterparty,
-      vpa: p.vpa,
-      account: p.account,
-      otherAccount: p.otherAccount,
-      ref: p.ref,
-      kindHint: p.kindHint,
-      raw: m.body,
-      sender: m.sender,
-    ));
+    txns.add(
+      Txn(
+        id: '${m.source.name}-${m.sourceId}',
+        source: m.source,
+        sourceId: m.sourceId,
+        direction: p.direction,
+        amountMinor: p.amountMinor,
+        at: m.at,
+        counterparty: p.counterparty,
+        vpa: p.vpa,
+        account: p.account,
+        otherAccount: p.otherAccount,
+        ref: p.ref,
+        kindHint: p.kindHint,
+        raw: m.body,
+        sender: m.sender,
+      ),
+    );
     index(txns.length - 1);
     addedIds.add(txns.last.id);
   }
   return (txns: txns, added: addedIds.length, addedIds: addedIds);
 }
 
+/// A stored notification payment that today's chat-app rule rejects.
+bool isRejectedNotification(Txn t) =>
+    t.source == Source.notification && !notificationMayBePayment(t.sender, t.raw ?? '');
+
+/// The user changed something on this payment, so it is never dropped.
+bool isUserEdited(Txn t) =>
+    t.categoryOverride != null || t.kindOverride != null || t.userTags.isNotEmpty || t.reviewed || t.countMonth != null;
+
 /// Re-reads stored messages with the current parser, so parser fixes reach
 /// transactions saved before them. Your edits (category, kind, tags,
 /// reviewed) are kept; amount, direction and time never change.
 Txn reparse(Txn t) {
+  if (isRejectedNotification(t) && !isUserEdited(t)) return t;
   final raw = t.raw;
   if (raw == null) return t;
   final p = parseMessage(raw);
@@ -111,8 +125,7 @@ Txn reparse(Txn t) {
     at: t.at,
     // Merged notification twins may have filled these; keep them if the
     // new parse finds nothing.
-    counterparty: p.counterparty ??
-        (t.counterparty != null && isUsableName(t.counterparty!) ? t.counterparty : null),
+    counterparty: p.counterparty ?? (t.counterparty != null && isUsableName(t.counterparty!) ? t.counterparty : null),
     vpa: p.vpa ?? t.vpa,
     account: p.account ?? t.account,
     otherAccount: p.otherAccount ?? t.otherAccount,
@@ -127,3 +140,10 @@ Txn reparse(Txn t) {
     countMonth: t.countMonth,
   );
 }
+
+/// [reparse] over a whole list, also dropping stored chat-app notifications
+/// that were wrongly counted as payments (unless the user edited them).
+List<Txn> reparseAll(List<Txn> txns) => [
+  for (final t in txns)
+    if (!isRejectedNotification(t) || isUserEdited(t)) reparse(t),
+];

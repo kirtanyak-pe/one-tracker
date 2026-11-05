@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../app_controller.dart';
 import '../../model/appearance.dart';
+import '../../sources/backup_bridge.dart';
 import '../../sources/widget_bridge.dart';
+import '../../storage/backup.dart';
 import '../../ui/components.dart';
 import '../../ui/format.dart';
 import '../../ui/tokens.dart';
@@ -22,12 +24,19 @@ class AppearancePage extends StatelessWidget {
       children: [
         const SectionHeader('Theme', top: 0),
         PillSegmented<ThemeMode>(
-          options: const {ThemeMode.system: 'System', ThemeMode.light: 'Light', ThemeMode.dark: 'Dark'},
+          options: const {
+            ThemeMode.system: 'System',
+            ThemeMode.light: 'Light',
+            ThemeMode.dark: 'Dark',
+          },
           value: a.mode,
           onChanged: (m) => app.setAppearance(a.copyWith(mode: m)),
         ),
         const SizedBox(height: Space.sm),
-        Text('System follows your phone\'s light/dark setting.', style: text.bodySmall?.copyWith(color: t.muted)),
+        Text(
+          'System follows your phone\'s light/dark setting.',
+          style: text.bodySmall?.copyWith(color: t.muted),
+        ),
         const SectionHeader('Colours'),
         PillSegmented<bool>(
           options: const {true: 'Wallpaper', false: 'One Tracker'},
@@ -38,28 +47,31 @@ class AppearancePage extends StatelessWidget {
         Text(
           a.wallpaperColors
               ? (app.wallpaper == null
-                  ? "Your phone doesn't share wallpaper colours, so One Tracker's orange is used."
-                  : 'Colours come from your wallpaper (Material You).')
+                    ? "Your phone doesn't share wallpaper colours, so One Tracker's orange is used."
+                    : 'Colours come from your wallpaper (Material You).')
               : "One Tracker's own warm grey and orange.",
           style: text.bodySmall?.copyWith(color: t.muted),
         ),
         const SectionHeader('Animations & effects'),
         PillSegmented<Effects>(
-          options: const {Effects.auto: 'Auto', Effects.reduced: 'Reduced', Effects.full: 'Full'},
+          options: const {
+            Effects.auto: 'Auto',
+            Effects.reduced: 'Reduced',
+            Effects.full: 'Full',
+          },
           value: a.effects,
           onChanged: (e) => app.setAppearance(a.copyWith(effects: e)),
         ),
         const SizedBox(height: Space.sm),
-        Text(
-          switch (a.effects) {
-            Effects.auto => app.lowEndDevice
+        Text(switch (a.effects) {
+          Effects.auto =>
+            app.lowEndDevice
                 ? 'This phone looks low on memory, so animations and soft shadows are off to keep it smooth.'
                 : 'Full effects on this phone; turned down automatically on low-memory phones.',
-            Effects.reduced => 'No animations or soft shadows. Smoothest on slower phones.',
-            Effects.full => 'All animations and shadows, on any phone.',
-          },
-          style: text.bodySmall?.copyWith(color: t.muted),
-        ),
+          Effects.reduced =>
+            'No animations or soft shadows. Smoothest on slower phones.',
+          Effects.full => 'All animations and shadows, on any phone.',
+        }, style: text.bodySmall?.copyWith(color: t.muted)),
         const SizedBox(height: Space.xl),
         _Preview(),
       ],
@@ -80,7 +92,10 @@ class _Preview extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Preview', style: text.titleMedium),
-                Text('Cards, buttons and the accent', style: text.bodySmall?.copyWith(color: t.muted)),
+                Text(
+                  'Cards, buttons and the accent',
+                  style: text.bodySmall?.copyWith(color: t.muted),
+                ),
                 const SizedBox(height: Space.md),
                 FilledButton(onPressed: () {}, child: const Text('Button')),
               ],
@@ -102,7 +117,9 @@ class SelfTransfersPage extends StatefulWidget {
 }
 
 class _SelfTransfersPageState extends State<SelfTransfersPage> {
-  late final _name = TextEditingController(text: AppScope.of(context).profile.name);
+  late final _name = TextEditingController(
+    text: AppScope.of(context).profile.name,
+  );
 
   @override
   void dispose() {
@@ -154,7 +171,9 @@ class _SelfTransfersPageState extends State<SelfTransfersPage> {
                   selectedColor: t.ink,
                   backgroundColor: t.card,
                   labelStyle: text.labelLarge?.copyWith(
-                    color: app.profile.ignoredAccounts.contains(a) ? t.muted : t.onInk,
+                    color: app.profile.ignoredAccounts.contains(a)
+                        ? t.muted
+                        : t.onInk,
                   ),
                   side: BorderSide.none,
                   shape: const StadiumBorder(),
@@ -179,7 +198,12 @@ class BigPaymentsPage extends StatelessWidget {
       intro: 'Every payment counts as an expense. Ask me only about payments above:',
       children: [
         PillSegmented<int>(
-          options: const {200000: '₹2k', 500000: '₹5k', 1000000: '₹10k', -1: 'Never'},
+          options: const {
+            200000: '₹2k',
+            500000: '₹5k',
+            1000000: '₹10k',
+            -1: 'Never',
+          },
           value: app.profile.reviewAboveMinor ?? -1,
           onChanged: (v) => app.setReviewAbove(v == -1 ? null : v),
         ),
@@ -197,7 +221,10 @@ class SourcesPage extends StatelessWidget {
     final t = context.tokens;
     final text = Theme.of(context).textTheme;
     Widget allow(bool granted, VoidCallback onGrant) => granted
-        ? Padding(padding: const EdgeInsets.all(Space.sm), child: Icon(Icons.check_circle, color: t.success))
+        ? Padding(
+            padding: const EdgeInsets.all(Space.sm),
+            child: Icon(Icons.check_circle, color: t.success),
+          )
         : FilledButton(
             onPressed: onGrant,
             style: FilledButton.styleFrom(minimumSize: const Size(72, 44)),
@@ -229,7 +256,10 @@ class SourcesPage extends StatelessWidget {
                 icon: Icons.notifications_active_outlined,
                 title: 'Payment notifications',
                 subtitle: 'Also catches UPI app payments',
-                trailing: allow(app.notificationsGranted, app.requestNotifications),
+                trailing: allow(
+                  app.notificationsGranted,
+                  app.requestNotifications,
+                ),
               ),
             ],
           ),
@@ -243,27 +273,31 @@ class WidgetPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SettingsPage(
-        title: 'Home-screen widget',
-        intro: "Today, this week or this month's spending at a glance, with a toggle on the widget itself.",
-        children: [
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () async {
-                final messenger = ScaffoldMessenger.of(context);
-                final ok = await WidgetBridge.requestPin();
-                if (!ok) {
-                  messenger.showSnackBar(
-                    const SnackBar(content: Text('Long-press your home screen → Widgets → One Tracker')),
-                  );
-                }
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Add to home screen'),
-            ),
-          ),
-        ],
-      );
+    title: 'Home-screen widget',
+    intro: "Today, this week or this month's spending at a glance, with a toggle on the widget itself.",
+    children: [
+      SizedBox(
+        width: double.infinity,
+        child: FilledButton.icon(
+          onPressed: () async {
+            final messenger = ScaffoldMessenger.of(context);
+            final ok = await WidgetBridge.requestPin();
+            if (!ok) {
+              messenger.showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Long-press your home screen → Widgets → One Tracker',
+                  ),
+                ),
+              );
+            }
+          },
+          icon: const Icon(Icons.add),
+          label: const Text('Add to home screen'),
+        ),
+      ),
+    ],
+  );
 }
 
 class DataPage extends StatelessWidget {
@@ -280,13 +314,97 @@ class DataPage extends StatelessWidget {
           'Bank SMS can be scanned again afterwards.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('Clear')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('Clear'),
+          ),
         ],
       ),
     );
     if (ok == true) await app.clearAll();
   }
+
+  void _say(BuildContext context, String message) =>
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message)));
+
+  Future<void> _backUp(BuildContext context) async {
+    final app = AppScope.of(context);
+    try {
+      final saved = await app.exportBackup();
+      if (saved && context.mounted) _say(context, 'Backup saved');
+    } catch (_) {
+      if (context.mounted) {
+        _say(context, "Couldn't save the backup. Try another location.");
+      }
+    }
+  }
+
+  Future<void> _restore(BuildContext context) async {
+    final app = AppScope.of(context);
+    final Backup backup;
+    try {
+      final raw = await BackupBridge.pick();
+      if (raw == null) return;
+      backup = Backup.parse(raw);
+    } on BackupException catch (e) {
+      if (context.mounted) _say(context, e.message);
+      return;
+    } catch (_) {
+      if (context.mounted) _say(context, "Couldn't read that file.");
+      return;
+    }
+    if (!context.mounted) return;
+    final when = backup.exportedAt;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Restore this backup?'),
+        content: Text(
+          'Replace everything on this phone with the backup'
+          '${when == null ? '' : ' from ${when.day} ${_months[when.month - 1]} ${when.year}'}? '
+          '${backup.payments} ${backup.payments == 1 ? 'payment' : 'payments'}.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('Restore'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await app.restoreBackup(backup);
+      if (context.mounted) _say(context, 'Backup restored');
+    } catch (_) {
+      if (context.mounted) _say(context, "Couldn't restore that backup.");
+    }
+  }
+
+  static const _months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -304,9 +422,25 @@ class DataPage extends StatelessWidget {
                 title: 'Re-read last 90 days of SMS',
                 onTap: () => app.scanSms(full: true),
               ),
+            if (BackupBridge.isSupported) ...[
+              SettingsRow(
+                icon: Icons.upload_file_outlined,
+                title: 'Back up data',
+                subtitle: 'Save everything to a file',
+                onTap: () => _backUp(context),
+              ),
+              SettingsRow(
+                icon: Icons.settings_backup_restore,
+                title: 'Restore from backup',
+                subtitle: 'Replaces what is on this phone',
+                onTap: () => _restore(context),
+              ),
+            ],
             SettingsRow(
               icon: Icons.science_outlined,
-              title: app.hasSampleData ? 'Remove sample data' : 'Add sample data',
+              title: app.hasSampleData
+                  ? 'Remove sample data'
+                  : 'Add sample data',
               onTap: app.hasSampleData ? app.removeSamples : app.loadSamples,
             ),
             SettingsRow(

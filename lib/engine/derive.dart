@@ -1,7 +1,6 @@
 import '../model/automation.dart';
 import '../model/transaction.dart';
 import 'enrich.dart';
-import 'ingest.dart';
 import 'insights.dart';
 import 'recurring.dart';
 import 'summary.dart';
@@ -44,6 +43,3 @@ Derived derive(DeriveInput i) {
     recurring: findRecurring(ledger, now: i.now),
   );
 }
-
-/// Applies parser improvements to stored payments (background-isolate safe).
-List<Txn> reparseAll(List<Txn> txns) => txns.map(reparse).toList();
