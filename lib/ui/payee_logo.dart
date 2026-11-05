@@ -1,13 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 
 import '../engine/enrich.dart';
 import '../model/transaction.dart';
 import 'components.dart';
-import 'tokens.dart';
+import 'package:onyx/onyx.dart';
 
 /// Real logos without bundling or downloading any: the launcher icon of the
 /// merchant's (or payment app's) app, if it is installed on this phone.
@@ -353,7 +353,7 @@ class PayeeAvatar extends StatelessWidget {
                 right: -badgeSize * 0.12,
                 bottom: -badgeSize * 0.12,
                 child: DecoratedBox(
-                  decoration: BoxDecoration(color: context.tokens.card, shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: context.colors.surface, shape: BoxShape.circle),
                   child: Padding(
                     padding: const EdgeInsets.all(1.5),
                     child: _LogoDisc(badge, badgeSize - 3),
@@ -370,12 +370,12 @@ class PayeeAvatar extends StatelessWidget {
   Widget _fallback(BuildContext context) {
     final e = payment;
     if (e == null) return Avatar(name!, size: size);
-    final t = context.tokens;
+    final t = context.colors;
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(color: background ?? t.tray, shape: BoxShape.circle),
-      child: Icon(e.category.icon, size: size * 0.45, color: muted ? t.muted : t.ink),
+      decoration: BoxDecoration(color: background ?? t.raised, shape: BoxShape.circle),
+      child: Icon(e.category.icon, size: size * 0.45, color: muted ? t.inkSoft : t.ink),
     );
   }
 }
@@ -390,13 +390,13 @@ class _LogoDisc extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
+    final t = context.colors;
     final dpr = MediaQuery.devicePixelRatioOf(context);
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFFFFFFF),
         shape: BoxShape.circle,
         border: Border.all(color: t.ink.withValues(alpha: 0.12)),
       ),

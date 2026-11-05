@@ -1,18 +1,19 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:onyx/onyx.dart';
 
 enum Category {
-  food('Food & drinks', Icons.restaurant_outlined),
-  groceries('Groceries', Icons.local_grocery_store_outlined),
-  transport('Transport', Icons.directions_car_outlined),
-  shopping('Shopping', Icons.shopping_bag_outlined),
-  bills('Bills & utilities', Icons.receipt_long_outlined),
-  entertainment('Entertainment', Icons.movie_outlined),
-  health('Health', Icons.favorite_outline),
-  travel('Travel', Icons.flight_outlined),
-  people('People', Icons.person_outline),
-  cash('Cash', Icons.local_atm_outlined),
-  income('Income', Icons.south_west),
-  other('Other', Icons.more_horiz);
+  food('Food & drinks', LucideIcons.utensils),
+  groceries('Groceries', LucideIcons.shoppingCart),
+  transport('Transport', LucideIcons.car),
+  shopping('Shopping', LucideIcons.shoppingBag),
+  bills('Bills & utilities', LucideIcons.receiptText),
+  entertainment('Entertainment', LucideIcons.film),
+  health('Health', LucideIcons.heart),
+  travel('Travel', LucideIcons.plane),
+  people('People', LucideIcons.user),
+  cash('Cash', LucideIcons.banknote),
+  income('Income', LucideIcons.arrowDownLeft),
+  other('Other', LucideIcons.ellipsis);
 
   const Category(this.label, this.icon);
 

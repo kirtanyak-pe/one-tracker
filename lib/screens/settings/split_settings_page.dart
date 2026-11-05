@@ -1,9 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 
 import '../../app_controller.dart';
 import '../../split/group_link.dart';
-import '../../ui/components.dart';
-import '../../ui/tokens.dart';
+
+import 'package:onyx/onyx.dart';
+
 import 'settings_page.dart';
 
 /// Splitwise: when to offer a split, the default group, and a test.
@@ -15,15 +17,16 @@ class SplitSettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final s = app.splitSettings;
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     return SettingsPage(
       title: 'Splitwise',
-      intro: 'After you pay, One Tracker offers to open Splitwise with the payment filled in. '
+      intro:
+          'After you pay, One Tracker offers to open Splitwise with the payment filled in. '
           'You choose who to split with there.',
       children: [
-        SurfaceCard(
-          padding: const EdgeInsets.fromLTRB(Space.lg, Space.sm, Space.sm, Space.lg),
+        OCard(
+          padding: const EdgeInsets.all(OSpace.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -33,14 +36,14 @@ class SplitSettingsPage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Split notifications', style: text.titleMedium),
-                        Text('Right after each new payment', style: text.bodySmall?.copyWith(color: t.muted)),
+                        Text('Split notifications', style: text.bodyStrong),
+                        Text('Right after each new payment', style: text.small),
                       ],
                     ),
                   ),
-                  Switch(
+                  OToggle(
                     value: s.notify,
-                    activeTrackColor: t.ink,
+                    label: 'Split notifications',
                     onChanged: (v) {
                       app.setSplitSettings(s.copyWith(notify: v));
                       if (v && app.isAndroid && !app.postNotificationsGranted) app.requestPostNotifications();
@@ -49,101 +52,72 @@ class SplitSettingsPage extends StatelessWidget {
                 ],
               ),
               if (s.notify && app.isAndroid && !app.postNotificationsGranted) ...[
-                const SizedBox(height: Space.sm),
+                const SizedBox(height: OSpace.md),
                 Row(
                   children: [
                     Expanded(
                       child: Text(
                         'Notifications are blocked for One Tracker',
-                        style: text.bodySmall?.copyWith(color: Theme.of(context).colorScheme.error),
+                        style: text.small.copyWith(color: t.negative),
                       ),
                     ),
-                    FilledButton(
-                      onPressed: app.requestPostNotifications,
-                      style: FilledButton.styleFrom(minimumSize: const Size(72, 44)),
-                      child: const Text('Allow'),
-                    ),
+                    const SizedBox(width: OSpace.md),
+                    OButton(label: 'Allow', size: OButtonSize.sm, onPressed: app.requestPostNotifications),
                   ],
                 ),
               ],
-              const SizedBox(height: Space.md),
-              Text('Only for payments above', style: text.bodySmall?.copyWith(color: t.muted)),
-              const SizedBox(height: Space.sm),
-              Padding(
-                padding: const EdgeInsets.only(right: Space.sm),
-                child: PillSegmented<int>(
-                  options: const {0: 'Any', 10000: '₹100', 50000: '₹500', 100000: '₹1k'},
-                  value: s.minMinor,
-                  onChanged: (v) => app.setSplitSettings(s.copyWith(minMinor: v)),
-                ),
+              const SizedBox(height: OSpace.lg),
+              Text('Only for payments above', style: text.small),
+              const SizedBox(height: OSpace.sm),
+              OSegmented<int>(
+                values: const [0, 10000, 50000, 100000],
+                labelOf: (v) => const {0: 'Any', 10000: '₹100', 50000: '₹500', 100000: '₹1k'}[v]!,
+                selected: s.minMinor,
+                onChanged: (v) => app.setSplitSettings(s.copyWith(minMinor: v)),
               ),
             ],
           ),
         ),
-        const SectionHeader('Default group'),
-        SurfaceCard(
-          onTap: () => _editGroup(context, app),
-          padding: const EdgeInsets.fromLTRB(Space.lg, Space.lg, Space.md, Space.lg),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(color: t.tray, shape: BoxShape.circle),
-                child: Icon(Icons.groups_outlined, color: t.ink),
+        const OSectionHeader('Default group'),
+        OGroup(
+          children: [
+            ORow(
+              onTap: () => _editGroup(context, app),
+              leading: const Icon(LucideIcons.users),
+              title: Text(s.groupId == null ? 'Not set' : (s.groupName ?? 'Group ${s.groupId}')),
+              subtitle: Text(
+                s.groupId == null ? 'Splitwise asks who to split with each time' : 'New expenses start in this group',
               ),
-              const SizedBox(width: Space.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      s.groupId == null ? 'Not set' : (s.groupName ?? 'Group ${s.groupId}'),
-                      style: text.titleMedium,
-                    ),
-                    Text(
-                      s.groupId == null
-                          ? 'Splitwise asks who to split with each time'
-                          : 'New expenses start in this group',
-                      style: text.bodySmall?.copyWith(color: t.muted),
-                    ),
-                  ],
-                ),
-              ),
-              FilledButton(
+              trailing: OButton.secondary(
+                label: s.groupId == null ? 'Set' : 'Change',
+                size: OButtonSize.sm,
                 onPressed: () => _editGroup(context, app),
-                style: FilledButton.styleFrom(minimumSize: const Size(72, 44)),
-                child: Text(s.groupId == null ? 'Set' : 'Change'),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-        const SectionHeader('Try it'),
+        const OSectionHeader('Try it'),
         SettingsGroup(
           children: [
             SettingsRow(
-              icon: Icons.open_in_new,
+              icon: LucideIcons.externalLink,
               title: 'Open Splitwise with ₹1 · Test',
               subtitle: 'Checks the hand-off works on this phone',
               onTap: () async {
-                final messenger = ScaffoldMessenger.of(context);
                 final ok = await app.tryOpenSplitwise();
-                if (!ok) {
-                  messenger.showSnackBar(
-                    SnackBar(content: Text(app.isAndroid ? 'Splitwise is not installed' : 'Needs Android with Splitwise')),
-                  );
+                if (!ok && context.mounted) {
+                  OToast.show(context, app.isAndroid ? 'Splitwise is not installed' : 'Needs Android with Splitwise');
                 }
               },
             ),
             if (app.isAndroid)
               SettingsRow(
-                icon: Icons.notifications_none,
+                icon: LucideIcons.bell,
                 title: 'Send a test notification',
                 subtitle: 'For your latest payment',
                 onTap: () async {
-                  final messenger = ScaffoldMessenger.of(context);
                   final ok = await app.sendTestSplitNotification();
-                  if (!ok) messenger.showSnackBar(const SnackBar(content: Text('No payment to use yet')));
+                  if (!ok && context.mounted) OToast.show(context, 'No payment to use yet');
                 },
               ),
           ],
@@ -152,11 +126,8 @@ class SplitSettingsPage extends StatelessWidget {
     );
   }
 
-  Future<void> _editGroup(BuildContext context, AppController app) => showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        builder: (_) => _GroupSheet(app: app),
-      );
+  Future<void> _editGroup(BuildContext context, AppController app) =>
+      showOSheet<void>(context, builder: (_) => _GroupSheet(app: app));
 }
 
 /// Paste the group's link from Splitwise on the web (the number in it is the
@@ -191,68 +162,42 @@ class _GroupSheetState extends State<_GroupSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
     final hasText = _link.text.trim().isNotEmpty;
-    return Container(
-      decoration: BoxDecoration(
-        color: t.canvas,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(Radii.card)),
-      ),
-      child: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(
-            Space.gutter,
-            Space.lg,
-            Space.gutter,
-            Space.lg + MediaQuery.viewInsetsOf(context).bottom,
+    return OSheetBody(
+      title: 'Default group',
+      subtitle:
+          'On splitwise.com open the group and copy its link from the address bar, '
+          'like secure.splitwise.com/#/groups/12345678. Paste it here.',
+      actions: [
+        OButton(label: 'Save', expand: true, onPressed: _id == null ? null : _save),
+        if (widget.app.splitSettings.groupId != null)
+          OButton.ghost(
+            label: 'Clear',
+            expand: true,
+            onPressed: () {
+              widget.app.setSplitSettings(widget.app.splitSettings.withGroup(null));
+              Navigator.pop(context);
+            },
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Default group', style: text.titleLarge),
-              const SizedBox(height: Space.xs),
-              Text(
-                'On splitwise.com open the group and copy its link from the address bar, '
-                'like secure.splitwise.com/#/groups/12345678. Paste it here.',
-                style: text.bodySmall?.copyWith(color: t.muted),
-              ),
-              const SizedBox(height: Space.lg),
-              TextField(
-                controller: _link,
-                autocorrect: false,
-                keyboardType: TextInputType.url,
-                decoration: InputDecoration(
-                  hintText: 'Group link or number',
-                  errorText: hasText && _id == null ? 'No group number found in that' : null,
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: Space.md),
-              TextField(
-                controller: _name,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(hintText: 'Name (optional), e.g. Flatmates'),
-              ),
-              const SizedBox(height: Space.lg),
-              Row(
-                children: [
-                  if (widget.app.splitSettings.groupId != null)
-                    TextButton(
-                      onPressed: () {
-                        widget.app.setSplitSettings(widget.app.splitSettings.withGroup(null));
-                        Navigator.pop(context);
-                      },
-                      child: const Text('Clear'),
-                    ),
-                  const Spacer(),
-                  FilledButton(onPressed: _id == null ? null : _save, child: const Text('Save')),
-                ],
-              ),
-            ],
+      ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          OField(
+            controller: _link,
+            autocorrect: false,
+            keyboardType: TextInputType.url,
+            placeholder: 'Group link or number',
+            error: hasText && _id == null ? 'No group number found in that' : null,
+            onChanged: (_) => setState(() {}),
           ),
-        ),
+          const SizedBox(height: OSpace.md),
+          OField(
+            controller: _name,
+            textCapitalization: TextCapitalization.words,
+            placeholder: 'Name (optional), e.g. Flatmates',
+          ),
+        ],
       ),
     );
   }

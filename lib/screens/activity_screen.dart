@@ -1,12 +1,14 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 
 import '../app_controller.dart';
 import '../engine/enrich.dart';
 import '../model/transaction.dart';
 import '../money.dart';
-import '../ui/components.dart';
 import '../ui/format.dart';
-import '../ui/tokens.dart';
+
+import 'package:onyx/onyx.dart';
+
 import 'home_screen.dart' show push;
 import 'shell.dart';
 import 'transactions_screen.dart';
@@ -87,15 +89,15 @@ class _ActivityTabState extends State<ActivityTab> {
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     final q = _search.text.trim().toLowerCase().replaceAll('#', '');
     final results = app.ledger.items.where((e) => _matches(e, q, app.profile.reviewAboveMinor)).toList();
     final shown = results.take(_cap).toList();
     final total = results.fold(0, (sum, e) => sum + e.txn.amountMinor);
     final days = groupByDay(shown);
 
-    return TabPage(
+    return OTabPage(
       title: 'Activity',
       // Header widgets, then day cards built lazily as you scroll (a year
       // of payments would otherwise build hundreds of rows up front).
@@ -103,67 +105,54 @@ class _ActivityTabState extends State<ActivityTab> {
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         slivers: [
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(Space.gutter, Space.md, Space.gutter, 0),
+            padding: const EdgeInsets.fromLTRB(OSpace.gutter, OSpace.md, OSpace.gutter, 0),
             sliver: SliverList.list(
               children: [
                 if (app.month.incomeMinor > 0 || app.month.excludedMinor > 0) ...[
                   _MonthStats(app: app),
-                  const SizedBox(height: Space.lg),
+                  const SizedBox(height: OSpace.lg),
                 ],
-                TextField(
+                OField(
                   controller: _search,
+                  focusNode: _searchFocus,
                   textInputAction: TextInputAction.search,
-                  decoration: InputDecoration(
-                    hintText: 'Search payee, #tag or amount',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _search.text.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: 'Clear',
-                            icon: const Icon(Icons.close),
-                            onPressed: () => setState(_search.clear),
-                          ),
-                  ),
+                  placeholder: 'Search payee, #tag or amount',
+                  prefixIcon: LucideIcons.search,
+                  suffix: _search.text.isEmpty
+                      ? null
+                      : OIconButton(
+                          label: 'Clear',
+                          icon: LucideIcons.x,
+                          size: 32,
+                          iconSize: 18,
+                          onPressed: () => setState(_search.clear),
+                        ),
                   onChanged: (_) => setState(() {}),
                 ),
-                const SizedBox(height: Space.md),
+                const SizedBox(height: OSpace.md),
                 SizedBox(
                   height: 44,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     clipBehavior: Clip.none,
                     itemCount: _Filter.values.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: Space.sm),
+                    separatorBuilder: (_, _) => const SizedBox(width: OSpace.sm),
                     itemBuilder: (_, i) {
                       final f = _Filter.values[i];
                       final on = f == _filter;
-                      return Semantics(
-                        selected: on,
-                        button: true,
-                        child: Material(
-                          color: on ? t.ink : t.tray,
-                          shape: const StadiumBorder(),
-                          clipBehavior: Clip.antiAlias,
-                          child: InkWell(
-                            onTap: () => setState(() => _filter = f),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: Space.lg),
-                              child: Center(
-                                child: Text(
-                                  f == _Filter.big && app.profile.reviewAboveMinor != null
-                                      ? 'Over ${formatCompact(app.profile.reviewAboveMinor!)}'
-                                      : f.label,
-                                  style: text.labelLarge?.copyWith(color: on ? t.onInk : t.ink),
-                                ),
-                              ),
-                            ),
-                          ),
+                      return Center(
+                        child: OChip(
+                          selected: on,
+                          label: f == _Filter.big && app.profile.reviewAboveMinor != null
+                              ? 'Over ${formatCompact(app.profile.reviewAboveMinor!)}'
+                              : f.label,
+                          onTap: () => setState(() => _filter = f),
                         ),
                       );
                     },
                   ),
                 ),
-                const SizedBox(height: Space.md),
+                const SizedBox(height: OSpace.md),
                 Text(
                   results.isEmpty
                       ? 'Nothing matches'
@@ -173,16 +162,18 @@ class _ActivityTabState extends State<ActivityTab> {
                           if (_filter != _Filter.all) formatMoney(total, appCurrency, round: true),
                           if (results.length > _cap) 'showing latest $_cap',
                         ].join(' · '),
-                  style: text.bodySmall?.copyWith(color: t.muted),
+                  style: text.small.copyWith(color: t.inkSoft),
                 ),
                 if (shown.isEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(top: Space.lg),
-                    child: Tray(
+                    padding: const EdgeInsets.only(top: OSpace.lg),
+                    child: OInset(
+                      padding: const EdgeInsets.all(OSpace.xl),
+                      radius: ORadius.lg,
                       child: Text(
                         q.isEmpty ? 'No transactions here yet.' : 'Try a payee name, #tag or an amount like 450.',
                         textAlign: TextAlign.center,
-                        style: text.bodyMedium?.copyWith(color: t.muted),
+                        style: text.body.copyWith(color: t.inkSoft),
                       ),
                     ),
                   ),
@@ -190,7 +181,7 @@ class _ActivityTabState extends State<ActivityTab> {
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, navClearance),
+            padding: const EdgeInsets.fromLTRB(OSpace.gutter, 0, OSpace.gutter, navClearance),
             sliver: SliverList.builder(
               itemCount: days.length,
               itemBuilder: (context, i) =>
@@ -225,7 +216,7 @@ class _MonthStats extends StatelessWidget {
               onTap: () => push(context, const TransactionsScreen.income()),
             ),
           ),
-          const SizedBox(width: Space.md),
+          const SizedBox(width: OSpace.md),
           Expanded(
             child: _Stat(
               label: 'Not counted · $month',
@@ -248,11 +239,11 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
-    return SurfaceCard(
+    final t = context.colors;
+    final text = context.type;
+    return OCard(
       onTap: value == 0 ? null : onTap,
-      padding: const EdgeInsets.fromLTRB(Space.lg, Space.md, Space.sm, Space.md),
+      padding: const EdgeInsets.fromLTRB(OSpace.lg, OSpace.md, OSpace.sm, OSpace.md),
       child: Row(
         children: [
           Expanded(
@@ -263,14 +254,14 @@ class _Stat extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: text.bodySmall?.copyWith(color: t.muted),
+                  style: text.small.copyWith(color: t.inkSoft),
                 ),
                 const SizedBox(height: 2),
-                Text(formatMoney(value, appCurrency, round: true), maxLines: 1, style: text.titleMedium),
+                Text(formatMoney(value, appCurrency, round: true), maxLines: 1, style: text.title3),
               ],
             ),
           ),
-          if (value > 0) Icon(Icons.chevron_right, size: 20, color: t.muted),
+          if (value > 0) Icon(LucideIcons.chevronRight, size: 20, color: t.inkSoft),
         ],
       ),
     );

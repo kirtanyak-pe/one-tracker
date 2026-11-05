@@ -1,10 +1,10 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
 import '../money.dart';
 import 'motion.dart';
-import 'tokens.dart';
+import 'package:onyx/onyx.dart';
 
 /// Single-series column chart (see dataviz rules): ink bars ≤ 24px with 4px
 /// rounded tops, square at a hairline baseline; one highlighted bar in the
@@ -79,8 +79,8 @@ class _BarChartState extends State<BarChart> with SingleTickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     final selected = _selected ?? widget.highlight;
     final maxValue = math.max(widget.values.fold(0, math.max), widget.average ?? 0);
 
@@ -93,9 +93,9 @@ class _BarChartState extends State<BarChart> with SingleTickerProviderStateMixin
             height: 20,
             child: selected == null
                 ? null
-                : Text(widget.labelFor(selected), style: text.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
+                : Text(widget.labelFor(selected), style: text.small.copyWith(fontWeight: FontWeight.w700)),
           ),
-          const SizedBox(height: Space.sm),
+          const SizedBox(height: OSpace.sm),
           LayoutBuilder(
             builder: (context, box) => GestureDetector(
               behavior: HitTestBehavior.opaque,
@@ -115,11 +115,11 @@ class _BarChartState extends State<BarChart> with SingleTickerProviderStateMixin
                       average: widget.average,
                       bar: t.ink,
                       accent: t.accent,
-                      faint: t.trayDeep,
-                      axis: t.tray,
-                      muted: t.muted,
+                      faint: t.lineStrong,
+                      axis: t.raised,
+                      muted: t.inkSoft,
                       averageLabel: widget.average == null ? null : 'avg ${formatCompact(widget.average!)}',
-                      labelStyle: text.bodySmall!.copyWith(fontSize: 11, color: t.muted),
+                      labelStyle: text.small.copyWith(fontSize: 11, color: t.inkSoft),
                     ),
                   ),
                 ),
@@ -127,7 +127,7 @@ class _BarChartState extends State<BarChart> with SingleTickerProviderStateMixin
             ),
           ),
           if (widget.axisLabels.isNotEmpty) ...[
-            const SizedBox(height: Space.sm),
+            const SizedBox(height: OSpace.sm),
             LayoutBuilder(
               builder: (context, box) {
                 final slot = box.maxWidth / widget.values.length;
@@ -143,7 +143,7 @@ class _BarChartState extends State<BarChart> with SingleTickerProviderStateMixin
                           child: Text(
                             value,
                             textAlign: TextAlign.center,
-                            style: text.bodySmall?.copyWith(fontSize: 11, color: t.muted),
+                            style: text.small.copyWith(fontSize: 11, color: t.inkSoft),
                           ),
                         ),
                     ],

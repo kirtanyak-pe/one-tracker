@@ -1,20 +1,19 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
 import '../../app_controller.dart';
 import '../../engine/enrich.dart';
 import '../../model/category.dart';
 import '../../model/transaction.dart';
 import '../../money.dart';
-import '../../ui/components.dart';
 import '../../ui/format.dart';
-import '../../ui/motion.dart';
 import '../../ui/payee_logo.dart';
-import '../../ui/tokens.dart';
+
+import 'package:onyx/onyx.dart';
+
 import 'prompt_card_parts.dart';
 
 /// Big payments (above the threshold in Settings), one at a time. Everything
-/// else counts as an expense without asking. A white card like the rest of
-/// the app: who and how much, one question, category chips, two actions.
+/// else counts as an expense without asking. An ink card: who and how much, one question, category chips, two actions.
 class ReviewCard extends StatefulWidget {
   const ReviewCard({super.key, required this.queue, required this.currency});
 
@@ -61,8 +60,8 @@ class _ReviewCardState extends State<ReviewCard> {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     final e = _current;
     final category = _picked ?? e.category;
     final options = [
@@ -83,7 +82,7 @@ class _ReviewCardState extends State<ReviewCard> {
 
     return PromptSurface(
       child: AnimatedSwitcher(
-        duration: Motion.of(context, Motion.medium),
+        duration: OMotion.of(context, OMotion.base),
         // Next payment slides in from the right.
         transitionBuilder: (child, animation) => FadeTransition(
           opacity: animation,
@@ -91,7 +90,7 @@ class _ReviewCardState extends State<ReviewCard> {
             position: Tween(
               begin: const Offset(0.08, 0),
               end: Offset.zero,
-            ).chain(CurveTween(curve: Motion.enter)).animate(animation),
+            ).chain(CurveTween(curve: OMotion.standard)).animate(animation),
             child: child,
           ),
         ),
@@ -109,15 +108,15 @@ class _ReviewCardState extends State<ReviewCard> {
                   : '${dayLabel(e.txn.at)} · Big payment, 1 of $count',
               amount: formatMoney(e.txn.amountMinor, widget.currency),
             ),
-            const SizedBox(height: Space.lg),
-            Text('Count it as an expense?', style: text.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: Space.xs),
+            const SizedBox(height: OSpace.lg),
+            Text('Count it as an expense?', style: text.body.semibold.copyWith(color: t.onInk)),
+            const SizedBox(height: OSpace.xs),
             SizedBox(
               height: 48,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: options.length,
-                separatorBuilder: (_, _) => const SizedBox(width: Space.sm),
+                separatorBuilder: (_, _) => const SizedBox(width: OSpace.sm),
                 itemBuilder: (_, i) => _CategoryChip(
                   category: options[i],
                   selected: options[i] == category,
@@ -126,36 +125,40 @@ class _ReviewCardState extends State<ReviewCard> {
               ),
             ),
             AnimatedSize(
-              duration: Motion.of(context, Motion.fast),
+              duration: OMotion.of(context, OMotion.fast),
               alignment: Alignment.topLeft,
               child: filing
                   ? Padding(
-                      padding: const EdgeInsets.only(top: Space.xs),
+                      padding: const EdgeInsets.only(top: OSpace.xs),
                       child: Text(
                         "I'll file ${e.payee} under ${_picked!.label} from now on",
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: text.bodySmall?.copyWith(color: t.muted),
+                        style: text.small.copyWith(color: promptMuted(t)),
                       ),
                     )
                   : const SizedBox(width: double.infinity),
             ),
-            const SizedBox(height: Space.md),
+            const SizedBox(height: OSpace.md),
             Row(
               children: [
                 Expanded(
-                  child: FilledButton(
-                    style: PromptButtons.secondary(t),
+                  child: OButton(
+                    label: 'Not expense',
+                    variant: OButtonVariant.inverseSoft,
+                    size: OButtonSize.lg,
+                    expand: true,
                     onPressed: _busy ? null : () => _run((app) => app.setKind(e.txn, TxnKind.notExpense)),
-                    child: const OneLineLabel('Not expense'),
                   ),
                 ),
-                const SizedBox(width: Space.sm),
+                const SizedBox(width: OSpace.sm),
                 Expanded(
-                  child: FilledButton(
-                    style: PromptButtons.primary(t),
+                  child: OButton(
+                    label: 'Expense',
+                    variant: OButtonVariant.inverse,
+                    size: OButtonSize.lg,
+                    expand: true,
                     onPressed: _busy ? null : () => _run(_confirm),
-                    child: const OneLineLabel('Expense'),
                   ),
                 ),
               ],
@@ -167,8 +170,8 @@ class _ReviewCardState extends State<ReviewCard> {
   }
 }
 
-/// Category choice: tray pill, ink-filled when picked. 48dp tall hit area
-/// around a 40dp pill.
+/// Category choice on the ink card: soft pill, canvas-filled when picked.
+/// 48dp tall hit area around a 40dp pill.
 class _CategoryChip extends StatelessWidget {
   const _CategoryChip({required this.category, required this.selected, required this.onTap});
 
@@ -178,28 +181,30 @@ class _CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final fg = selected ? t.onInk : t.ink;
+    final t = context.colors;
+    final fg = selected ? t.ink : t.onInk;
     return Semantics(
       selected: selected,
       button: true,
       label: category.label,
       excludeSemantics: true,
-      child: InkWell(
+      child: OPressable(
         onTap: onTap,
-        customBorder: const StadiumBorder(),
         child: Center(
           child: AnimatedContainer(
-            duration: Motion.of(context, Motion.fast),
+            duration: OMotion.of(context, OMotion.fast),
             height: 40,
-            padding: const EdgeInsets.symmetric(horizontal: Space.lg),
-            decoration: ShapeDecoration(color: selected ? t.ink : t.tray, shape: const StadiumBorder()),
+            padding: const EdgeInsets.symmetric(horizontal: OSpace.lg),
+            decoration: ShapeDecoration(
+              color: selected ? t.onInk : t.onInk.withValues(alpha: 0.14),
+              shape: const StadiumBorder(),
+            ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(category.icon, size: 18, color: fg),
-                const SizedBox(width: Space.sm),
-                Text(category.label, style: Theme.of(context).textTheme.labelLarge?.copyWith(color: fg)),
+                const SizedBox(width: OSpace.sm),
+                Text(category.label, style: context.type.label.copyWith(color: fg)),
               ],
             ),
           ),

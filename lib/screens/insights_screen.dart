@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
 
 import '../app_controller.dart';
@@ -10,7 +10,9 @@ import '../ui/components.dart';
 import '../ui/format.dart';
 import '../ui/motion.dart';
 import '../ui/payee_logo.dart';
-import '../ui/tokens.dart';
+
+import 'package:onyx/onyx.dart';
+
 import 'home_screen.dart' show push;
 import 'shell.dart';
 import 'transactions_screen.dart';
@@ -23,31 +25,33 @@ class InsightsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     final i = app.insights;
     final empty = i.month.spendCount == 0;
 
-    return TabPage(
+    return OTabPage(
       title: 'Insights',
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(Space.gutter, Space.md, Space.gutter, navClearance),
+        padding: const EdgeInsets.fromLTRB(OSpace.gutter, OSpace.md, OSpace.gutter, navClearance),
         children: staggered([
           const Center(child: MonthSwitcher()),
           if (empty) ...[
-            const SizedBox(height: Space.xxl),
-            Tray(
+            const SizedBox(height: OSpace.xxl),
+            OInset(
+              padding: const EdgeInsets.all(OSpace.xl),
+              radius: ORadius.lg,
               child: Text(
                 'No spending in ${monthName(i.month.month)} yet.',
                 textAlign: TextAlign.center,
-                style: text.bodyMedium?.copyWith(color: t.muted),
+                style: text.body.copyWith(color: t.inkSoft),
               ),
             ),
           ] else ...[
-            const SizedBox(height: Space.xl),
+            const SizedBox(height: OSpace.xl),
             _Pace(insights: i, current: app.isCurrentMonth),
-            const SectionHeader('Day by day'),
-            SurfaceCard(
+            const OSectionHeader('Day by day'),
+            OCard(
               child: BarChart(
                 values: i.daily,
                 highlight: app.isCurrentMonth ? i.dayOfMonth - 1 : null,
@@ -61,8 +65,8 @@ class InsightsTab extends StatelessWidget {
                 axisLabels: {0: '1', 9: '10', 19: '20', i.daily.length - 1: '${i.daily.length}'},
               ),
             ),
-            const SectionHeader('Last 6 months'),
-            SurfaceCard(
+            const OSectionHeader('Last 6 months'),
+            OCard(
               child: BarChart(
                 height: 120,
                 values: [for (final m in i.trend) m.spentMinor],
@@ -75,21 +79,18 @@ class InsightsTab extends StatelessWidget {
               ),
             ),
             if (i.changes.isNotEmpty) ...[
-              SectionHeader('vs ${DateFormat('MMMM').format(i.trend[4].month)}'),
+              OSectionHeader('vs ${DateFormat('MMMM').format(i.trend[4].month)}'),
               _Changes(changes: i.changes),
             ],
-            if (i.topPayees.isNotEmpty) ...[const SectionHeader('Top payees'), _TopPayees(payees: i.topPayees)],
+            if (i.topPayees.isNotEmpty) ...[const OSectionHeader('Top payees'), _TopPayees(payees: i.topPayees)],
             if (app.recurring.isNotEmpty) ...[
-              const SectionHeader('Repeating payments'),
+              const OSectionHeader('Repeating payments'),
               _Recurring(items: app.recurring),
             ],
             if (i.biggest.isNotEmpty) ...[
-              SectionHeader(
+              OSectionHeader(
                 'Biggest payments',
-                trailing: TextButton(
-                  onPressed: () => AppShell.switchTo(context, AppShell.activity),
-                  child: const Text('All'),
-                ),
+                trailing: OTextButton(label: 'All', onPressed: () => AppShell.switchTo(context, AppShell.activity)),
               ),
               TxnDayList(items: i.biggest, currency: appCurrency, grouped: false),
             ],
@@ -108,8 +109,8 @@ class _Pace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     final i = insights;
     final spent = i.month.spentMinor;
     final before = i.lastMonthToDate;
@@ -132,7 +133,7 @@ class _Pace extends StatelessWidget {
                       : 'vs ${formatCompact(before)} ${current ? 'by now ' : ''}last month',
                 ),
               ),
-              const SizedBox(width: Space.md),
+              const SizedBox(width: OSpace.md),
               Expanded(
                 child: StatTile(
                   label: i.projectedMinor != null ? 'On track for' : 'Per day',
@@ -146,20 +147,24 @@ class _Pace extends StatelessWidget {
           ),
         ),
         if (pct != null && pct.abs() >= 10) ...[
-          const SizedBox(height: Space.md),
-          Tray(
-            padding: const EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.md),
-            radius: Radii.tile,
+          const SizedBox(height: OSpace.md),
+          OInset(
+            padding: const EdgeInsets.symmetric(horizontal: OSpace.lg, vertical: OSpace.md),
+            radius: ORadius.lg,
             child: Row(
               children: [
-                Icon(up ? Icons.trending_up : Icons.trending_down, color: up ? t.accent : t.success),
-                const SizedBox(width: Space.md),
+                Icon(
+                  up ? LucideIcons.trendingUp : LucideIcons.trendingDown,
+                  size: 20,
+                  color: up ? t.negative : t.positive,
+                ),
+                const SizedBox(width: OSpace.md),
                 Expanded(
                   child: Text(
                     up
                         ? "You're spending ${formatCompact(spent - before)} more than this time last month."
                         : "You're ${formatCompact(before - spent)} under where you were last month.",
-                    style: text.bodyMedium,
+                    style: text.body,
                   ),
                 ),
               ],
@@ -178,41 +183,43 @@ class _Changes extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
-    return SurfaceCard(
-      padding: const EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.xs),
+    final t = context.colors;
+    final text = context.type;
+    return OCard(
+      padding: const EdgeInsets.symmetric(horizontal: OSpace.lg, vertical: OSpace.xs),
       child: Column(
         children: [
           for (final (k, c) in changes.indexed) ...[
-            if (k > 0) Divider(height: 1, color: t.tray),
-            InkWell(
+            if (k > 0) const ODivider(),
+            OPressable(
               onTap: () => push(context, TransactionsScreen.category(c.category)),
+              pressedScale: 1,
+              pressedOpacity: 0.6,
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: Space.md),
+                padding: const EdgeInsets.symmetric(vertical: OSpace.md),
                 child: Row(
                   children: [
-                    Icon(c.category.icon, size: 20, color: t.muted),
-                    const SizedBox(width: Space.md),
+                    Icon(c.category.icon, size: 20, color: t.inkSoft),
+                    const SizedBox(width: OSpace.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(c.category.label, style: text.bodyMedium),
+                          Text(c.category.label, style: text.body),
                           Text(
                             '${formatCompact(c.lastMonth)} → ${formatCompact(c.thisMonth)}',
-                            style: text.bodySmall?.copyWith(color: t.muted),
+                            style: text.small.copyWith(color: t.inkSoft),
                           ),
                         ],
                       ),
                     ),
                     Icon(
-                      c.delta > 0 ? Icons.arrow_upward : Icons.arrow_downward,
+                      c.delta > 0 ? LucideIcons.arrowUp : LucideIcons.arrowDown,
                       size: 16,
-                      color: c.delta > 0 ? t.accent : t.success,
+                      color: c.delta > 0 ? t.negative : t.positive,
                     ),
-                    const SizedBox(width: Space.xs),
-                    Text(formatCompact(c.delta.abs()), style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(width: OSpace.xs),
+                    Text(formatCompact(c.delta.abs()), style: text.body.tabular.semibold),
                   ],
                 ),
               ),
@@ -231,36 +238,33 @@ class _TopPayees extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
-    return SurfaceCard(
-      padding: const EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.xs),
+    final t = context.colors;
+    final text = context.type;
+    return OCard(
+      padding: const EdgeInsets.symmetric(horizontal: OSpace.lg, vertical: OSpace.xs),
       child: Column(
         children: [
           for (final (k, p) in payees.indexed) ...[
-            if (k > 0) Divider(height: 1, color: t.tray),
+            if (k > 0) const ODivider(),
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: Space.md),
+              padding: const EdgeInsets.symmetric(vertical: OSpace.md),
               child: Row(
                 children: [
                   PayeeAvatar.name(p.payee),
-                  const SizedBox(width: Space.md),
+                  const SizedBox(width: OSpace.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(p.payee, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.bodyMedium),
+                        Text(p.payee, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.body),
                         Text(
                           '${p.count} payment${p.count == 1 ? '' : 's'}',
-                          style: text.bodySmall?.copyWith(color: t.muted),
+                          style: text.small.copyWith(color: t.inkSoft),
                         ),
                       ],
                     ),
                   ),
-                  Text(
-                    formatMoney(p.amountMinor, appCurrency, round: true),
-                    style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
-                  ),
+                  Text(formatMoney(p.amountMinor, appCurrency, round: true), style: text.body.tabular.semibold),
                 ],
               ),
             ),
@@ -278,46 +282,43 @@ class _Recurring extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     final monthly = items.fold(0, (sum, r) => sum + r.monthlyMinor);
-    return SurfaceCard(
-      padding: const EdgeInsets.fromLTRB(Space.lg, Space.lg, Space.lg, Space.xs),
+    return OCard(
+      padding: const EdgeInsets.fromLTRB(OSpace.lg, OSpace.lg, OSpace.lg, OSpace.xs),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '${formatMoney(monthly, appCurrency, round: true)} a month across ${items.length}',
-            style: text.bodySmall?.copyWith(color: t.muted),
+            style: text.small.copyWith(color: t.inkSoft),
           ),
           for (final r in items) ...[
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: Space.md),
+              padding: const EdgeInsets.symmetric(vertical: OSpace.md),
               child: Row(
                 children: [
                   Container(
                     width: 40,
                     height: 40,
-                    decoration: BoxDecoration(color: t.tray, shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: t.raised, shape: BoxShape.circle),
                     child: Icon(r.category.icon, size: 20, color: t.ink),
                   ),
-                  const SizedBox(width: Space.md),
+                  const SizedBox(width: OSpace.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(r.payee, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.bodyMedium),
+                        Text(r.payee, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.body),
                         Text(
                           '${r.cadence.label} · next ${DateFormat('d MMM').format(r.nextDue)}',
-                          style: text.bodySmall?.copyWith(color: t.muted),
+                          style: text.small.copyWith(color: t.inkSoft),
                         ),
                       ],
                     ),
                   ),
-                  Text(
-                    formatMoney(r.amountMinor, appCurrency),
-                    style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
-                  ),
+                  Text(formatMoney(r.amountMinor, appCurrency), style: text.body.tabular.semibold),
                 ],
               ),
             ),

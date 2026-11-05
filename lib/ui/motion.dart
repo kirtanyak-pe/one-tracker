@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:onyx/onyx.dart';
 
 import '../money.dart';
 
@@ -103,7 +104,7 @@ class AnimatedMoney extends StatelessWidget {
           curve: Motion.emphasized,
           builder: (context, value, _) => Text(
             _format(value.round()),
-            style: style?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+            style: style?.tabular,
             textAlign: textAlign,
           ),
         ),
@@ -126,52 +127,7 @@ class AnimatedMeter extends StatelessWidget {
   final double height;
 
   @override
-  Widget build(BuildContext context) => ClipRRect(
-        borderRadius: BorderRadius.circular(999),
-        child: TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: value.clamp(0, 1)),
-          duration: Motion.of(context, Motion.slow),
-          curve: Motion.emphasized,
-          builder: (context, v, _) => LinearProgressIndicator(
-            value: v,
-            minHeight: height,
-            backgroundColor: background,
-            color: color,
-          ),
-        ),
-      );
-}
-
-/// Presses in slightly while touched — tactile feedback for cards and tiles.
-class PressScale extends StatefulWidget {
-  const PressScale({super.key, required this.child, this.enabled = true});
-
-  final Widget child;
-  final bool enabled;
-
-  @override
-  State<PressScale> createState() => _PressScaleState();
-}
-
-class _PressScaleState extends State<PressScale> {
-  bool _down = false;
-
-  void _set(bool down) {
-    if (widget.enabled && down != _down) setState(() => _down = down);
-  }
-
-  @override
-  Widget build(BuildContext context) => Listener(
-        onPointerDown: (_) => _set(true),
-        onPointerUp: (_) => _set(false),
-        onPointerCancel: (_) => _set(false),
-        child: AnimatedScale(
-          scale: _down ? 0.97 : 1,
-          duration: Motion.of(context, Motion.fast),
-          curve: Curves.easeOut,
-          child: widget.child,
-        ),
-      );
+  Widget build(BuildContext context) => OProgressBar(value: value, height: height, color: color, track: background);
 }
 
 /// Wraps each child in a [FadeSlideIn] with increasing delay.

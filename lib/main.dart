@@ -1,13 +1,13 @@
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+import 'package:onyx/onyx.dart';
 
 import 'app_controller.dart';
 import 'screens/shell.dart';
 import 'sources/live_sms.dart';
 import 'storage/app_store.dart';
-import 'ui/theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,15 +42,12 @@ class OneTrackerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AppScope(
         controller: controller,
-        // Rebuilds when the theme choice or wallpaper colour changes.
+        // Rebuilds when the theme choice or lite mode changes.
         child: ListenableBuilder(
           listenable: controller,
-          builder: (context, _) => MaterialApp(
+          builder: (context, _) => OApp(
             title: 'One Tracker',
-            debugShowCheckedModeBanner: false,
-            themeMode: controller.appearance.mode,
-            theme: buildTheme(Brightness.light, seed: controller.themeSeed),
-            darkTheme: buildTheme(Brightness.dark, seed: controller.themeSeed),
+            mode: controller.appearance.mode,
             // Lite mode: every Motion animation becomes instant.
             builder: (context, child) => controller.lite
                 ? MediaQuery(data: MediaQuery.of(context).copyWith(disableAnimations: true), child: child!)

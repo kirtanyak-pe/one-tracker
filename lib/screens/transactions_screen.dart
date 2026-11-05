@@ -1,13 +1,14 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
 import '../app_controller.dart';
 import '../engine/enrich.dart';
 import '../model/category.dart';
 import '../model/transaction.dart';
 import '../money.dart';
-import '../ui/components.dart';
 import '../ui/format.dart';
-import '../ui/tokens.dart';
+
+import 'package:onyx/onyx.dart';
+
 import 'widgets/txn_list.dart';
 
 /// One slice of the selected month: a category, excluded, or income.
@@ -20,16 +21,16 @@ class TransactionsScreen extends StatelessWidget {
   final _Mode _mode;
 
   bool _matches(Enriched e) => switch (_mode) {
-        _Mode.category => e.countsAsSpend && e.category == category,
-        _Mode.excluded => e.kind.excluded,
-        _Mode.income => e.kind == TxnKind.income,
-      };
+    _Mode.category => e.countsAsSpend && e.category == category,
+    _Mode.excluded => e.kind.excluded,
+    _Mode.income => e.kind == TxnKind.income,
+  };
 
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     final items = app.month.items.where(_matches).toList();
     final total = items.fold(0, (sum, e) => sum + e.txn.amountMinor);
     final title = switch (_mode) {
@@ -43,44 +44,30 @@ class TransactionsScreen extends StatelessWidget {
       _Mode.income => 'Money in, excluding transfers between your accounts',
     };
 
-    return Scaffold(
-      body: CanvasBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              TopBar(title: title),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(Space.gutter, Space.lg, Space.gutter, Space.xxxl),
-                  children: [
-                    Text(
-                      formatMoney(total, appCurrency),
-                      textAlign: TextAlign.center,
-                      style: text.displaySmall,
-                    ),
-                    const SizedBox(height: Space.xs),
-                    Text(
-                      '${monthLabel(app.month.month)} · $note',
-                      textAlign: TextAlign.center,
-                      style: text.bodySmall?.copyWith(color: t.muted),
-                    ),
-                    const SizedBox(height: Space.lg),
-                    if (items.isEmpty)
-                      Tray(
-                        child: Text(
-                          'Nothing here this month.',
-                          textAlign: TextAlign.center,
-                          style: text.bodyMedium?.copyWith(color: t.muted),
-                        ),
-                      )
-                    else
-                      TxnDayList(items: items, currency: appCurrency),
-                  ],
-                ),
-              ),
-            ],
+    return OScreen(
+      title: title,
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(OSpace.gutter, OSpace.lg, OSpace.gutter, OSpace.xxxl),
+        children: [
+          Text(formatMoney(total, appCurrency), textAlign: TextAlign.center, style: text.display.tabular),
+          const SizedBox(height: OSpace.xs),
+          Text(
+            '${monthLabel(app.month.month)} · $note',
+            textAlign: TextAlign.center,
+            style: text.small.copyWith(color: t.inkSoft),
           ),
-        ),
+          const SizedBox(height: OSpace.lg),
+          if (items.isEmpty)
+            OInset(
+              child: Text(
+                'Nothing here this month.',
+                textAlign: TextAlign.center,
+                style: text.body.copyWith(color: t.inkSoft),
+              ),
+            )
+          else
+            TxnDayList(items: items, currency: appCurrency),
+        ],
       ),
     );
   }

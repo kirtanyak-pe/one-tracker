@@ -1,139 +1,122 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 
 import '../app_controller.dart';
 import '../model/automation.dart';
 import '../model/category.dart';
 import '../model/transaction.dart';
-import '../ui/components.dart';
-import '../ui/tokens.dart';
+
+import 'package:onyx/onyx.dart';
+
 import 'widgets/category_pills.dart';
 
 /// Automation: keyword rules you write, and payees you've taught it.
 class RulesScreen extends StatelessWidget {
   const RulesScreen({super.key});
 
-  static Future<void> edit(BuildContext context, [AutoRule? rule]) => showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        builder: (_) => _RuleEditor(rule: rule),
-      );
+  static Future<void> edit(BuildContext context, [AutoRule? rule]) =>
+      showOSheet<void>(context, builder: (_) => _RuleEditor(rule: rule));
 
-  static Future<void> editPayee(BuildContext context, PayeeRule rule) => showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        builder: (_) => _PayeeEditor(rule: rule),
-      );
+  static Future<void> editPayee(BuildContext context, PayeeRule rule) =>
+      showOSheet<void>(context, builder: (_) => _PayeeEditor(rule: rule));
 
   static String _payeeSummary(PayeeRule r) => [
-        if (r.name != null) 'Bank name: ${r.label}',
-        if (r.category != null) r.category!.label,
-        if (r.kind != null) r.kind!.label,
-        ...r.tags.map((tag) => '#$tag'),
-      ].join(' · ');
+    if (r.name != null) 'Bank name: ${r.label}',
+    if (r.category != null) r.category!.label,
+    if (r.kind != null) r.kind!.label,
+    ...r.tags.map((tag) => '#$tag'),
+  ].join(' · ');
 
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
-    final payees = app.rules.values.toList()..sort((a, b) => (a.name ?? a.label).toLowerCase().compareTo((b.name ?? b.label).toLowerCase()));
+    final t = context.colors;
+    final text = context.type;
+    final payees = app.rules.values.toList()
+      ..sort((a, b) => (a.name ?? a.label).toLowerCase().compareTo((b.name ?? b.label).toLowerCase()));
 
-    return Scaffold(
-      body: CanvasBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              const TopBar(title: 'Rules'),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(Space.gutter, Space.sm, Space.gutter, Space.xxxl),
-                  children: [
-                    Text(
-                      'Rules sort payments for you — past ones and every new one.',
-                      textAlign: TextAlign.center,
-                      style: text.bodySmall?.copyWith(color: t.muted),
-                    ),
-                    SectionHeader(
-                      'Keyword rules',
-                      top: Space.xl,
-                      trailing: TextButton.icon(
-                        onPressed: () => edit(context),
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('New'),
-                      ),
-                    ),
-                    if (app.autoRules.isEmpty)
-                      Tray(
-                        child: Column(
-                          children: [
-                            Text(
-                              'e.g. anything mentioning "zerodha" → Not an expense, '
-                              'or "canteen" → Food & drinks #office.',
-                              textAlign: TextAlign.center,
-                              style: text.bodyMedium?.copyWith(color: t.muted),
-                            ),
-                            const SizedBox(height: Space.md),
-                            FilledButton(onPressed: () => edit(context), child: const Text('Create a rule')),
-                          ],
-                        ),
-                      )
-                    else
-                      SurfaceCard(
-                        padding: const EdgeInsets.symmetric(vertical: Space.xs),
-                        child: Column(
-                          children: [
-                            for (final (i, r) in app.autoRules.indexed) ...[
-                              if (i > 0) Divider(height: 1, color: t.tray),
-                              _RuleRow(
-                                title: '"${r.contains}"',
-                                subtitle: '${_matchCount(app, r)} payments · ${r.summary}',
-                                onTap: () => edit(context, r),
-                                onDelete: () => app.removeAutoRule(r.id),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    const SectionHeader('Remembered payees'),
-                    if (payees.isEmpty)
-                      Tray(
-                        child: Text(
-                          'Rename a payee, tag all their payments, or turn on "Same for all" on any payment.',
-                          textAlign: TextAlign.center,
-                          style: text.bodyMedium?.copyWith(color: t.muted),
-                        ),
-                      )
-                    else
-                      SurfaceCard(
-                        padding: const EdgeInsets.symmetric(vertical: Space.xs),
-                        child: Column(
-                          children: [
-                            for (final (i, r) in payees.indexed) ...[
-                              if (i > 0) Divider(height: 1, color: t.tray),
-                              _RuleRow(
-                                title: r.name ?? r.label,
-                                subtitle: _payeeSummary(r),
-                                onTap: () => editPayee(context, r),
-                                onDelete: () {
-                                  app.forget(r.key);
-                                  ScaffoldMessenger.of(context)
-                                    ..clearSnackBars()
-                                    ..showSnackBar(SnackBar(
-                                      content: Text('Forgot ${r.name ?? r.label}'),
-                                      action: SnackBarAction(label: 'Undo', onPressed: () => app.saveRule(r)),
-                                    ));
-                                },
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
+    return OScreen(
+      title: 'Rules',
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(OSpace.gutter, OSpace.sm, OSpace.gutter, OSpace.xxxl),
+        children: [
+          Text(
+            'Rules sort payments for you — past ones and every new one.',
+            textAlign: TextAlign.center,
+            style: text.small.copyWith(color: t.inkSoft),
           ),
-        ),
+          OSectionHeader(
+            'Keyword rules',
+            top: OSpace.xl,
+            trailing: OTextButton(onPressed: () => edit(context), icon: LucideIcons.plus, label: 'New'),
+          ),
+          if (app.autoRules.isEmpty)
+            OInset(
+              child: Column(
+                children: [
+                  Text(
+                    'e.g. anything mentioning "zerodha" → Not an expense, '
+                    'or "canteen" → Food & drinks #office.',
+                    textAlign: TextAlign.center,
+                    style: text.body.copyWith(color: t.inkSoft),
+                  ),
+                  const SizedBox(height: OSpace.md),
+                  OButton(onPressed: () => edit(context), label: 'Create a rule'),
+                ],
+              ),
+            )
+          else
+            OCard(
+              padding: const EdgeInsets.symmetric(vertical: OSpace.xs),
+              child: Column(
+                children: [
+                  for (final (i, r) in app.autoRules.indexed) ...[
+                    if (i > 0) const ODivider(indent: OSpace.lg),
+                    _RuleRow(
+                      title: '"${r.contains}"',
+                      subtitle: '${_matchCount(app, r)} payments · ${r.summary}',
+                      onTap: () => edit(context, r),
+                      onDelete: () => app.removeAutoRule(r.id),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          const OSectionHeader('Remembered payees'),
+          if (payees.isEmpty)
+            OInset(
+              child: Text(
+                'Rename a payee, tag all their payments, or turn on "Same for all" on any payment.',
+                textAlign: TextAlign.center,
+                style: text.body.copyWith(color: t.inkSoft),
+              ),
+            )
+          else
+            OCard(
+              padding: const EdgeInsets.symmetric(vertical: OSpace.xs),
+              child: Column(
+                children: [
+                  for (final (i, r) in payees.indexed) ...[
+                    if (i > 0) const ODivider(indent: OSpace.lg),
+                    _RuleRow(
+                      title: r.name ?? r.label,
+                      subtitle: _payeeSummary(r),
+                      onTap: () => editPayee(context, r),
+                      onDelete: () {
+                        app.forget(r.key);
+                        OToast.show(
+                          context,
+                          'Forgot ${r.name ?? r.label}',
+                          actionLabel: 'Undo',
+                          onAction: () => app.saveRule(r),
+                        );
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -153,24 +136,25 @@ class _RuleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
-    return InkWell(
+    final t = context.colors;
+    final text = context.type;
+    return OPressable(
       onTap: onTap,
+      pressedScale: 0.99,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(Space.lg, Space.sm, Space.xs, Space.sm),
+        padding: const EdgeInsets.fromLTRB(OSpace.lg, OSpace.sm, OSpace.xs, OSpace.sm),
         child: Row(
           children: [
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: text.titleMedium),
-                  Text(subtitle, style: text.bodySmall?.copyWith(color: t.muted)),
+                  Text(title, style: text.title3),
+                  Text(subtitle, style: text.small.copyWith(color: t.inkSoft)),
                 ],
               ),
             ),
-            IconButton(tooltip: 'Delete', icon: const Icon(Icons.close), onPressed: onDelete),
+            OIconButton(icon: LucideIcons.x, label: 'Delete', onPressed: onDelete),
           ],
         ),
       ),
@@ -195,12 +179,12 @@ class _RuleEditorState extends State<_RuleEditor> {
   late int _kind = widget.rule?.kind?.index ?? -1;
 
   AutoRule get _draft => AutoRule(
-        id: widget.rule?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
-        contains: _contains.text.trim(),
-        category: _category,
-        kind: _kind == -1 ? null : TxnKind.values[_kind],
-        tag: _tag.text.trim().isEmpty ? null : _tag.text.trim(),
-      );
+    id: widget.rule?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+    contains: _contains.text.trim(),
+    category: _category,
+    kind: _kind == -1 ? null : TxnKind.values[_kind],
+    tag: _tag.text.trim().isEmpty ? null : _tag.text.trim(),
+  );
 
   bool get _valid =>
       _contains.text.trim().length >= 2 && (_category != null || _kind != -1 || _tag.text.trim().isNotEmpty);
@@ -215,93 +199,63 @@ class _RuleEditorState extends State<_RuleEditor> {
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     final matches = _contains.text.trim().length < 2 ? 0 : RulesScreen._matchCount(app, _draft);
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: t.canvas,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(Radii.card)),
+    return OSheetBody(
+      title: widget.rule == null ? 'New rule' : 'Edit rule',
+      actions: [
+        OButton(
+          label: widget.rule == null ? 'Create rule' : 'Save rule',
+          expand: true,
+          onPressed: _valid
+              ? () {
+                  app.saveAutoRule(_draft);
+                  Navigator.pop(context);
+                }
+              : null,
         ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(Space.gutter, Space.md, Space.gutter, Space.lg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(color: t.trayDeep, borderRadius: BorderRadius.circular(2)),
-                  ),
-                ),
-                const SizedBox(height: Space.lg),
-                Text(widget.rule == null ? 'New rule' : 'Edit rule', style: text.titleLarge),
-                const SizedBox(height: Space.lg),
-                Text('If a payment mentions', style: text.bodySmall?.copyWith(color: t.muted)),
-                const SizedBox(height: Space.sm),
-                TextField(
-                  controller: _contains,
-                  autofocus: widget.rule == null,
-                  decoration: const InputDecoration(hintText: 'e.g. zomato, canteen, rent'),
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: Space.xs),
-                Text(
-                  _contains.text.trim().length < 2
-                      ? ' '
-                      : 'Matches $matches payment${matches == 1 ? '' : 's'} so far',
-                  style: text.bodySmall?.copyWith(color: t.muted),
-                ),
-                const SizedBox(height: Space.lg),
-                Text('Count it as', style: text.bodySmall?.copyWith(color: t.muted)),
-                const SizedBox(height: Space.sm),
-                PillSegmented<int>(
-                  options: {
-                    -1: 'Unchanged',
-                    TxnKind.notExpense.index: 'Not expense',
-                    TxnKind.selfTransfer.index: 'Self transfer',
-                  },
-                  value: _kind,
-                  onChanged: (v) => setState(() => _kind = v),
-                ),
-                const SizedBox(height: Space.lg),
-                Text('Category (tap again to clear)', style: text.bodySmall?.copyWith(color: t.muted)),
-                const SizedBox(height: Space.sm),
-                CategoryPills(
-                  selected: _category,
-                  onSelected: (c) => setState(() => _category = c == _category ? null : c),
-                ),
-                const SizedBox(height: Space.lg),
-                Text('Add tag', style: text.bodySmall?.copyWith(color: t.muted)),
-                const SizedBox(height: Space.sm),
-                TextField(
-                  controller: _tag,
-                  decoration: const InputDecoration(hintText: 'Optional, e.g. Office'),
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: Space.xl),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _valid
-                        ? () {
-                            app.saveAutoRule(_draft);
-                            Navigator.pop(context);
-                          }
-                        : null,
-                    child: Text(widget.rule == null ? 'Create rule' : 'Save rule'),
-                  ),
-                ),
-              ],
-            ),
+      ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('If a payment mentions', style: text.small.copyWith(color: t.inkSoft)),
+          const SizedBox(height: OSpace.sm),
+          OField(
+            controller: _contains,
+            autofocus: widget.rule == null,
+            placeholder: 'e.g. zomato, canteen, rent',
+            onChanged: (_) => setState(() {}),
           ),
-        ),
+          const SizedBox(height: OSpace.xs),
+          Text(
+            _contains.text.trim().length < 2 ? ' ' : 'Matches $matches payment${matches == 1 ? '' : 's'} so far',
+            style: text.small.copyWith(color: t.inkSoft),
+          ),
+          const SizedBox(height: OSpace.lg),
+          Text('Count it as', style: text.small.copyWith(color: t.inkSoft)),
+          const SizedBox(height: OSpace.sm),
+          OSegmented<int>(
+            values: [-1, TxnKind.notExpense.index, TxnKind.selfTransfer.index],
+            selected: _kind,
+            labelOf: (v) => v == -1
+                ? 'Unchanged'
+                : v == TxnKind.notExpense.index
+                ? 'Not expense'
+                : 'Self transfer',
+            onChanged: (v) => setState(() => _kind = v),
+          ),
+          const SizedBox(height: OSpace.lg),
+          Text('Category (tap again to clear)', style: text.small.copyWith(color: t.inkSoft)),
+          const SizedBox(height: OSpace.sm),
+          CategoryPills(selected: _category, onSelected: (c) => setState(() => _category = c == _category ? null : c)),
+          const SizedBox(height: OSpace.lg),
+          Text('Add tag', style: text.small.copyWith(color: t.inkSoft)),
+          const SizedBox(height: OSpace.sm),
+          OField(controller: _tag, placeholder: 'Optional, e.g. Office', onChanged: (_) => setState(() {})),
+        ],
       ),
     );
   }
@@ -358,92 +312,58 @@ class _PayeeEditorState extends State<_PayeeEditor> {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     final rule = widget.rule;
     final name = _name.text.trim();
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: t.canvas,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(Radii.card)),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(Space.gutter, Space.md, Space.gutter, Space.lg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(color: t.trayDeep, borderRadius: BorderRadius.circular(2)),
-                  ),
-                ),
-                const SizedBox(height: Space.lg),
-                Text(rule.label, style: text.titleLarge),
-                const SizedBox(height: Space.lg),
-                Text('Show as', style: text.bodySmall?.copyWith(color: t.muted)),
-                const SizedBox(height: Space.sm),
-                TextField(
-                  controller: _name,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: InputDecoration(hintText: rule.label),
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: Space.xs),
-                Text(
-                  name.isEmpty || name == rule.label
-                      ? 'All payments to ${rule.label} show their bank name'
-                      : 'All payments to ${rule.label} show as $name',
-                  style: text.bodySmall?.copyWith(color: t.muted),
-                ),
-                const SizedBox(height: Space.lg),
-                Text('Tags on all their payments', style: text.bodySmall?.copyWith(color: t.muted)),
-                const SizedBox(height: Space.sm),
-                if (_tags.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: Space.sm),
-                    child: Wrap(
-                      spacing: Space.sm,
-                      runSpacing: Space.xs,
-                      children: [
-                        for (final tag in _tags)
-                          Chip(
-                            label: Text('#$tag'),
-                            backgroundColor: t.card,
-                            side: BorderSide.none,
-                            shape: const StadiumBorder(),
-                            deleteIcon: const Icon(Icons.close, size: 16),
-                            onDeleted: () => setState(() => _tags = _tags.where((x) => x != tag).toList()),
-                          ),
-                      ],
-                    ),
-                  ),
-                TextField(
-                  controller: _newTag,
-                  decoration: InputDecoration(
-                    hintText: 'Add a tag',
-                    suffixIcon: IconButton(
-                      tooltip: 'Add tag',
-                      icon: const Icon(Icons.add),
-                      onPressed: _addTag,
-                    ),
-                  ),
-                  onSubmitted: (_) => _addTag(),
-                ),
-                const SizedBox(height: Space.xl),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(onPressed: _save, child: const Text('Save')),
-                ),
-              ],
-            ),
+    return OSheetBody(
+      title: rule.label,
+      actions: [OButton(label: 'Save', expand: true, onPressed: _save)],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Show as', style: text.small.copyWith(color: t.inkSoft)),
+          const SizedBox(height: OSpace.sm),
+          OField(
+            controller: _name,
+            textCapitalization: TextCapitalization.words,
+            placeholder: rule.label,
+            onChanged: (_) => setState(() {}),
           ),
-        ),
+          const SizedBox(height: OSpace.xs),
+          Text(
+            name.isEmpty || name == rule.label
+                ? 'All payments to ${rule.label} show their bank name'
+                : 'All payments to ${rule.label} show as $name',
+            style: text.small.copyWith(color: t.inkSoft),
+          ),
+          const SizedBox(height: OSpace.lg),
+          Text('Tags on all their payments', style: text.small.copyWith(color: t.inkSoft)),
+          const SizedBox(height: OSpace.sm),
+          if (_tags.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: OSpace.sm),
+              child: Wrap(
+                spacing: OSpace.sm,
+                runSpacing: OSpace.xs,
+                children: [
+                  for (final tag in _tags)
+                    OChip(
+                      label: '#$tag',
+                      trailingIcon: LucideIcons.x,
+                      onTap: () => setState(() => _tags = _tags.where((x) => x != tag).toList()),
+                    ),
+                ],
+              ),
+            ),
+          OField(
+            controller: _newTag,
+            placeholder: 'Add a tag',
+            suffix: OIconButton(icon: LucideIcons.plus, label: 'Add tag', onPressed: _addTag),
+            onSubmitted: (_) => _addTag(),
+          ),
+        ],
       ),
     );
   }

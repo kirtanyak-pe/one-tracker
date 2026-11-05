@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:onyx/onyx.dart';
 
 import '../ui/motion.dart';
-import '../ui/tokens.dart';
+
+
 import 'activity_screen.dart';
 import 'home_screen.dart';
 import 'widgets/split_prompt_card.dart';
@@ -55,117 +57,45 @@ class _AppShellState extends State<AppShell> {
     });
   }
 
-  static const _tabs = [
-    (icon: Icons.home_outlined, label: 'Home'),
-    (icon: Icons.insights_outlined, label: 'Insights'),
-    (icon: Icons.call_split, label: 'Split'),
-    (icon: Icons.receipt_long_outlined, label: 'Activity'),
+  static const _tabs = <OTab>[
+    (icon: LucideIcons.house, label: 'Home'),
+    (icon: LucideIcons.chartNoAxesColumn, label: 'Insights'),
+    (icon: LucideIcons.split, label: 'Split'),
+    (icon: LucideIcons.receiptText, label: 'Activity'),
   ];
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    extendBody: true,
-    // Tabs keep their state but cross-fade with a slight zoom. Only the
-    // visible tab (and the one fading out) is laid out and painted.
-    body: Stack(
-      children: [
-        for (final (i, tab) in const [HomeTab(), InsightsTab(), SplitTab(), ActivityTab()].indexed)
-          Offstage(
-            key: ValueKey('tab-$i'),
-            offstage: i != _index && i != _leaving,
-            child: IgnorePointer(
-              ignoring: i != _index,
-              child: ExcludeSemantics(
-                excluding: i != _index,
-                child: AnimatedOpacity(
-                  opacity: i == _index ? 1 : 0,
-                  duration: Motion.of(context, Motion.medium),
-                  curve: Motion.enter,
-                  onEnd: () {
-                    if (i == _leaving && mounted) setState(() => _leaving = null);
-                  },
-                  child: AnimatedScale(
-                    scale: i == _index ? 1 : 0.985,
+  Widget build(BuildContext context) => Stack(
+    children: [
+      // Tabs keep their state but cross-fade with a slight zoom. Only the
+      // visible tab (and the one fading out) is laid out and painted.
+      Stack(
+        children: [
+          for (final (i, tab) in const [HomeTab(), InsightsTab(), SplitTab(), ActivityTab()].indexed)
+            Offstage(
+              key: ValueKey('tab-$i'),
+              offstage: i != _index && i != _leaving,
+              child: IgnorePointer(
+                ignoring: i != _index,
+                child: ExcludeSemantics(
+                  excluding: i != _index,
+                  child: AnimatedOpacity(
+                    opacity: i == _index ? 1 : 0,
                     duration: Motion.of(context, Motion.medium),
                     curve: Motion.enter,
-                    // Pause hidden tabs' own animations — but inside the
-                    // fade, or the fade-out itself would freeze half-way.
-                    child: TickerMode(
-                      enabled: i == _index,
-                      child: _visited.contains(i) ? tab : const SizedBox.shrink(),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
-    ),
-    bottomNavigationBar: SafeArea(
-      minimum: const EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, Space.md),
-      child: _NavPill(index: _index, onSelect: _select),
-    ),
-  );
-}
-
-class _NavPill extends StatelessWidget {
-  const _NavPill({required this.index, required this.onSelect});
-
-  final int index;
-  final ValueChanged<int> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final text = Theme.of(context).textTheme;
-    return Container(
-      height: 64,
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(Radii.pill),
-        gradient: LinearGradient(
-          colors: dark ? const [Color(0xFF2A2A2A), Color(0xFF3A3A3A)] : const [Color(0xFF5E5E5E), Color(0xFF8A8A8A)],
-        ),
-        boxShadow: Shadows.floating,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final (i, tab) in _AppShellState._tabs.indexed)
-            Expanded(
-              flex: i == index ? 5 : 3,
-              child: Semantics(
-                selected: i == index,
-                button: true,
-                label: tab.label,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => onSelect(i),
-                  child: AnimatedContainer(
-                    duration: Motion.of(context, Motion.medium),
-                    curve: Curves.easeOut,
-                    decoration: BoxDecoration(
-                      color: i == index ? Colors.white : Colors.transparent,
-                      borderRadius: BorderRadius.circular(Radii.pill),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(tab.icon, size: 22, color: i == index ? const Color(0xFF111111) : Colors.white),
-                        if (i == index) ...[
-                          const SizedBox(width: Space.sm),
-                          Flexible(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                tab.label,
-                                maxLines: 1,
-                                style: text.labelLarge?.copyWith(color: const Color(0xFF111111)),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
+                    onEnd: () {
+                      if (i == _leaving && mounted) setState(() => _leaving = null);
+                    },
+                    child: AnimatedScale(
+                      scale: i == _index ? 1 : 0.985,
+                      duration: Motion.of(context, Motion.medium),
+                      curve: Motion.enter,
+                      // Pause hidden tabs' own animations — but inside the
+                      // fade, or the fade-out itself would freeze half-way.
+                      child: TickerMode(
+                        enabled: i == _index,
+                        child: _visited.contains(i) ? tab : const SizedBox.shrink(),
+                      ),
                     ),
                   ),
                 ),
@@ -173,6 +103,16 @@ class _NavPill extends StatelessWidget {
             ),
         ],
       ),
-    );
-  }
+      Positioned(
+        left: 0,
+        right: 0,
+        bottom: 0,
+        child: SafeArea(
+          top: false,
+          minimum: const EdgeInsets.fromLTRB(OSpace.gutter, 0, OSpace.gutter, OSpace.md),
+          child: OTabBar(tabs: _tabs, index: _index, onSelect: _select),
+        ),
+      ),
+    ],
+  );
 }

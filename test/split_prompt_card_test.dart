@@ -1,7 +1,6 @@
 import 'package:auto_split/screens/widgets/split_prompt_card.dart';
-import 'package:auto_split/ui/theme.dart';
-import 'package:auto_split/ui/tokens.dart';
-import 'package:flutter/material.dart';
+import 'package:onyx/onyx.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Future<void> _pump(WidgetTester tester, Brightness brightness, SplitPromptCard card, {double textScale = 1}) async {
@@ -9,13 +8,12 @@ Future<void> _pump(WidgetTester tester, Brightness brightness, SplitPromptCard c
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
-    MaterialApp(
-      theme: buildTheme(brightness),
+    OApp(
+      title: 'test',
+      mode: brightness == Brightness.dark ? OThemeMode.dark : OThemeMode.light,
       home: MediaQuery(
         data: MediaQueryData(size: const Size(375, 812), textScaler: TextScaler.linear(textScale)),
-        child: Scaffold(
-          body: Padding(padding: const EdgeInsets.all(20), child: card),
-        ),
+        child: Padding(padding: const EdgeInsets.all(20), child: card),
       ),
     ),
   );
@@ -42,15 +40,21 @@ void main() {
       expect(find.text('₹450'), findsOneWidget);
       expect(find.textContaining('Opens Splitwise with this filled in'), findsOneWidget);
       // No picker, no extra controls.
-      expect(find.byType(FilledButton), findsNWidgets(2));
+      expect(find.byType(OButton), findsNWidgets(2));
 
-      final t = Theme.of(tester.element(find.byType(SplitPromptCard))).extension<AppTokens>()!;
-      final primary = tester.widget<FilledButton>(
-        find.ancestor(of: find.text('Split in Splitwise'), matching: find.byType(FilledButton)),
+      // An ink card: ink fill, header text in onInk, primary action inverse.
+      final t = OTheme.of(tester.element(find.byType(SplitPromptCard))).colors;
+      final card = tester.widget<OCard>(
+        find.descendant(of: find.byType(SplitPromptCard), matching: find.byType(OCard)),
       );
-      expect(primary.style!.backgroundColor!.resolve({}), t.accentDeep);
+      expect(card.color, t.ink);
+      expect(tester.widget<Text>(find.text('Split at Swiggy?')).style!.color, t.onInk);
+      final primary = tester.widget<OButton>(
+        find.ancestor(of: find.text('Split in Splitwise'), matching: find.byType(OButton)),
+      );
+      expect(primary.variant, OButtonVariant.inverse);
       for (final label in ['Skip', 'Split in Splitwise']) {
-        final button = find.ancestor(of: find.text(label), matching: find.byType(FilledButton));
+        final button = find.ancestor(of: find.text(label), matching: find.byType(OButton));
         expect(tester.getSize(button).height, greaterThanOrEqualTo(48), reason: label);
         expect(tester.getSize(find.text(label)).height, lessThan(30), reason: '$label on one line');
       }

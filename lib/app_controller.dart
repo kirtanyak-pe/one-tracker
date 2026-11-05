@@ -33,7 +33,6 @@ import 'storage/app_store.dart';
 import 'storage/backup.dart';
 import 'ui/payee_logo.dart';
 import 'ui/perf.dart';
-import 'ui/wallpaper_colors.dart';
 
 /// App-wide state. Stores facts + user choices; [ledger] and [month] are
 /// re-derived from them after every change.
@@ -97,9 +96,6 @@ class AppController extends ChangeNotifier {
 
   Appearance appearance = const Appearance();
 
-  /// Wallpaper colour from the system, when available.
-  Color? wallpaper;
-
   /// This phone looks low-end (low RAM).
   bool lowEndDevice = false;
 
@@ -109,9 +105,6 @@ class AppController extends ChangeNotifier {
         Effects.reduced => true,
         Effects.full => false,
       };
-
-  /// The seed the theme uses right now (null = brand palette).
-  Color? get themeSeed => appearance.wallpaperColors ? wallpaper : null;
 
   bool loading = true;
   bool scanning = false;
@@ -138,7 +131,6 @@ class AppController extends ChangeNotifier {
     await _readStore();
     lowEndDevice = await Perf.isLowEndDevice();
     Perf.lite = lite;
-    wallpaper = await wallpaperSeed();
     notifyListeners();
     await _store.migrateSplitwise();
     await _loadSplitState();

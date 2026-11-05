@@ -1,463 +1,22 @@
-import 'dart:math' as math;
-
-import 'package:flutter/material.dart';
-
-import 'motion.dart';
-import 'tokens.dart';
-
-/// Soft vertical canvas gradient behind every screen.
-class CanvasBackground extends StatelessWidget {
-  const CanvasBackground({super.key, required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [t.canvasTop, t.canvas],
-        ),
-      ),
-      child: child,
-    );
-  }
-}
-
-/// Back button · centred title · optional trailing, for pushed screens.
-class TopBar extends StatelessWidget {
-  const TopBar({super.key, required this.title, this.trailing});
-
-  final String title;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(Space.gutter, Space.sm, Space.gutter, Space.sm),
-        child: Row(
-          children: [
-            CircleIconButton(
-              icon: Icons.arrow_back,
-              tooltip: 'Back',
-              onPressed: () => Navigator.maybePop(context),
-            ),
-            Expanded(
-              child: Text(
-                title,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-            SizedBox(width: 48, child: trailing),
-          ],
-        ),
-      );
-}
-
-/// A nav tab: a fixed top bar (title · actions) over the tab's scroll view.
-/// A hairline fades in once content scrolls under the bar, and with
-/// [scrolledTitle] the title swaps to it after [swapAfter] px of scroll.
-class TabPage extends StatefulWidget {
-  const TabPage({
-    super.key,
-    required this.title,
-    required this.body,
-    this.actions = const [],
-    this.scrolledTitle,
-    this.swapAfter = 0,
-  });
-
-  final String title;
-  final Widget body;
-  final List<Widget> actions;
-  final Widget? scrolledTitle;
-  final double swapAfter;
-
-  @override
-  State<TabPage> createState() => _TabPageState();
-}
-
-class _TabPageState extends State<TabPage> {
-  var _under = false;
-  var _swapped = false;
-
-  bool _onScroll(ScrollNotification n) {
-    if (n.depth != 0 || n.metrics.axis != Axis.vertical) return false;
-    final px = n.metrics.pixels;
-    final under = px > 0;
-    final swapped = widget.scrolledTitle != null && px > widget.swapAfter;
-    // Two flags, not the offset, so scrolling doesn't rebuild every frame.
-    if (under != _under || swapped != _swapped) {
-      setState(() {
-        _under = under;
-        _swapped = swapped;
-      });
-    }
-    return false;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
-    final title = _swapped
-        ? KeyedSubtree(key: const ValueKey('scrolled'), child: widget.scrolledTitle!)
-        : Text(widget.title, key: const ValueKey('title'), maxLines: 1, style: text.titleLarge);
-    return CanvasBackground(
-      child: Column(
-        children: [
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(Space.gutter, Space.sm, Space.gutter, Space.sm),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: AnimatedSwitcher(
-                      duration: Motion.of(context, Motion.medium),
-                      switchInCurve: Motion.enter,
-                      layoutBuilder: (current, previous) =>
-                          Stack(alignment: Alignment.centerLeft, children: [...previous, ?current]),
-                      transitionBuilder: (child, anim) => FadeTransition(
-                        opacity: anim,
-                        child: SlideTransition(
-                          position: Tween(begin: const Offset(0, 0.25), end: Offset.zero).animate(anim),
-                          child: child,
-                        ),
-                      ),
-                      child: title,
-                    ),
-                  ),
-                  for (final (i, a) in widget.actions.indexed) ...[if (i > 0) const SizedBox(width: Space.sm), a],
-                ],
-              ),
-            ),
-          ),
-          AnimatedOpacity(
-            opacity: _under ? 1 : 0,
-            duration: Motion.of(context, Motion.fast),
-            child: Divider(height: 1, thickness: 1, color: t.trayDeep),
-          ),
-          Expanded(
-            child: NotificationListener<ScrollNotification>(onNotification: _onScroll, child: widget.body),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Darker inset area that holds white things.
-class Tray extends StatelessWidget {
-  const Tray({
-    super.key,
-    required this.child,
-    this.padding = const EdgeInsets.all(Space.xl),
-    this.radius = Radii.card,
-  });
-
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-  final double radius;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: padding,
-        decoration: BoxDecoration(
-          color: context.tokens.tray,
-          borderRadius: BorderRadius.circular(radius),
-        ),
-        child: child,
-      );
-}
-
-/// White object resting on the canvas or a tray.
-class SurfaceCard extends StatelessWidget {
-  const SurfaceCard({
-    super.key,
-    required this.child,
-    this.padding = const EdgeInsets.all(Space.xl),
-    this.radius = Radii.tile,
-    this.onTap,
-    this.selected = false,
-  });
-
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-  final double radius;
-  final VoidCallback? onTap;
-
-  /// Draws an ink outline — used for single/multi-select cards.
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(radius),
-      side: BorderSide(color: selected ? t.ink : Colors.transparent, width: 2),
-    );
-    final card = AnimatedContainer(
-      duration: Motion.of(context, Motion.fast),
-      decoration: ShapeDecoration(
-        color: t.card,
-        shape: shape,
-        shadows: Shadows.card(Theme.of(context).brightness),
-      ),
-      child: Material(
-        type: MaterialType.transparency,
-        shape: shape,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(padding: padding, child: child),
-        ),
-      ),
-    );
-    return onTap == null ? card : PressScale(child: card);
-  }
-}
-
-/// White (card-coloured) circle with an icon. 48×48 touch target.
-class CircleIconButton extends StatelessWidget {
-  const CircleIconButton({
-    super.key,
-    required this.icon,
-    required this.onPressed,
-    required this.tooltip,
-    this.size = 48,
-  });
-
-  final IconData icon;
-  final VoidCallback? onPressed;
-  final String tooltip;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: t.card,
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onPressed,
-          child: SizedBox.square(
-            dimension: size,
-            child: Icon(icon, size: 22, color: t.ink),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Grey tile with a white circle icon and a label underneath.
-class QuickAction extends StatelessWidget {
-  const QuickAction({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.highlight = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-
-  /// Orange dot on the icon, for "needs attention".
-  final bool highlight;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return PressScale(
-      child: Material(
-      color: t.tray,
-      borderRadius: BorderRadius.circular(Radii.pill),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(Space.sm, Space.md, Space.sm, Space.lg),
-          child: Column(
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(color: t.card, shape: BoxShape.circle),
-                    child: Icon(icon, color: t.ink, size: 22),
-                  ),
-                  if (highlight)
-                    Positioned(
-                      right: 2,
-                      top: 2,
-                      child: Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: t.accent,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: t.card, width: 2),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: Space.sm),
-              // Scales down rather than truncating at large system font sizes.
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: t.muted),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      ),
-    );
-  }
-}
-
-/// The one orange "tap me" button, with soft halo rings.
-class AccentOrb extends StatelessWidget {
-  const AccentOrb({
-    super.key,
-    required this.icon,
-    required this.onPressed,
-    required this.tooltip,
-    this.size = 52,
-  });
-
-  final IconData icon;
-  final VoidCallback? onPressed;
-  final String tooltip;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return Tooltip(
-      message: tooltip,
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: t.accent.withValues(alpha: 0.12),
-        ),
-        child: Material(
-          color: t.accent,
-          shape: const CircleBorder(),
-          clipBehavior: Clip.antiAlias,
-          elevation: 0,
-          child: InkWell(
-            onTap: onPressed,
-            child: Ink(
-              decoration: BoxDecoration(shape: BoxShape.circle, boxShadow: Shadows.glow(t.accent)),
-              child: SizedBox.square(
-                dimension: size,
-                child: Icon(icon, color: t.onAccent, size: 24),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Thin progress ring: grey track, ink (or accent) arc.
-class RingProgress extends StatelessWidget {
-  const RingProgress({
-    super.key,
-    required this.value,
-    this.size = 44,
-    this.stroke = 4,
-    this.accent = false,
-  });
-
-  final double value;
-  final double size;
-  final double stroke;
-  final bool accent;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return SizedBox.square(
-      dimension: size,
-      child: CustomPaint(
-        painter: _RingPainter(
-          value: value.clamp(0, 1),
-          stroke: stroke,
-          track: t.trayDeep,
-          arc: accent ? t.accent : t.ink,
-        ),
-      ),
-    );
-  }
-}
-
-class _RingPainter extends CustomPainter {
-  _RingPainter({required this.value, required this.stroke, required this.track, required this.arc});
-
-  final double value;
-  final double stroke;
-  final Color track;
-  final Color arc;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final r = rect.deflate(stroke / 2);
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(r, 0, math.pi * 2, false, paint..color = track);
-    if (value > 0) {
-      canvas.drawArc(r, -math.pi / 2, math.pi * 2 * value, false, paint..color = arc);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_RingPainter old) =>
-      old.value != value || old.arc != arc || old.track != track;
-}
+import 'package:flutter/widgets.dart';
+import 'package:onyx/onyx.dart';
 
 /// Label above a big value, optional caption and trailing visual.
 class StatTile extends StatelessWidget {
-  const StatTile({
-    super.key,
-    required this.label,
-    required this.value,
-    this.caption,
-    this.trailing,
-  });
+  const StatTile({super.key, required this.label, required this.value, this.caption, this.trailing, this.onTap});
 
   final String label;
   final String value;
   final String? caption;
   final Widget? trailing;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
-    return SurfaceCard(
+    final type = context.type;
+    return OCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(OSpace.lg),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -465,17 +24,14 @@ class StatTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: text.bodySmall?.copyWith(color: t.muted)),
-                const SizedBox(height: Space.sm),
+                Text(label, style: type.small),
+                const SizedBox(height: OSpace.sm),
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(value, style: text.headlineMedium?.copyWith(fontSize: 24)),
+                  child: Text(value, style: type.title1.copyWith(fontSize: 24).tabular),
                 ),
-                if (caption != null) ...[
-                  const SizedBox(height: Space.xs),
-                  Text(caption!, style: text.bodySmall?.copyWith(color: t.muted)),
-                ],
+                if (caption != null) ...[const SizedBox(height: OSpace.xs), Text(caption!, style: type.caption)],
               ],
             ),
           ),
@@ -486,87 +42,7 @@ class StatTile extends StatelessWidget {
   }
 }
 
-class SectionHeader extends StatelessWidget {
-  const SectionHeader(this.title, {super.key, this.trailing, this.top = Space.xxxl});
-
-  final String title;
-  final Widget? trailing;
-  final double top;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(top: top, bottom: Space.md),
-        child: Row(
-          children: [
-            Expanded(child: Text(title, style: Theme.of(context).textTheme.titleLarge)),
-            ?trailing,
-          ],
-        ),
-      );
-}
-
-/// Grey tray with a white pill on the selected option.
-class PillSegmented<T> extends StatelessWidget {
-  const PillSegmented({
-    super.key,
-    required this.options,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final Map<T, String> options;
-  final T value;
-  final ValueChanged<T> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.all(Space.xs + 2),
-      decoration: BoxDecoration(
-        color: t.tray,
-        borderRadius: BorderRadius.circular(Radii.pill),
-      ),
-      child: Row(
-        children: [
-          for (final entry in options.entries)
-            Expanded(
-              child: Semantics(
-                selected: entry.key == value,
-                button: true,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => onChanged(entry.key),
-                  child: AnimatedContainer(
-                    duration: Motion.of(context, Motion.medium),
-                    curve: Curves.easeOut,
-                    height: 44,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: entry.key == value ? t.card : Colors.transparent,
-                      borderRadius: BorderRadius.circular(Radii.pill),
-                      boxShadow: entry.key == value
-                          ? Shadows.card(Theme.of(context).brightness)
-                          : const [],
-                    ),
-                    child: Text(
-                      entry.value,
-                      style: text.labelLarge?.copyWith(
-                        color: entry.key == value ? t.ink : t.muted,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Initials in a grey circle.
+/// Initials in a raised circle.
 class Avatar extends StatelessWidget {
   const Avatar(this.name, {super.key, this.size = 40, this.ring});
 
@@ -586,23 +62,19 @@ class Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
+    final c = context.colors;
     return Container(
       width: size,
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: t.tray,
+        color: c.raised,
         shape: BoxShape.circle,
         border: ring == null ? null : Border.all(color: ring!, width: 2),
       ),
       child: Text(
         _initials,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontSize: size * 0.34,
-              fontWeight: FontWeight.w700,
-              color: t.ink,
-            ),
+        style: context.type.small.copyWith(fontSize: size * 0.36, fontWeight: FontWeight.w600, color: c.ink),
       ),
     );
   }
@@ -618,7 +90,7 @@ class AvatarStack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
+    final c = context.colors;
     final shown = names.take(max).toList();
     final extra = names.length - shown.length;
     final step = size * 0.7;
@@ -629,41 +101,16 @@ class AvatarStack extends StatelessWidget {
       child: Stack(
         children: [
           for (var i = 0; i < shown.length; i++)
-            Positioned(left: step * i, child: Avatar(shown[i], size: size, ring: t.card)),
+            Positioned(left: step * i, child: Avatar(shown[i], size: size, ring: c.surface)),
           if (extra > 0)
             Positioned(
               left: step * shown.length,
-              child: Avatar('+ $extra', size: size, ring: t.card),
+              child: Avatar('+ $extra', size: size, ring: c.surface),
             ),
         ],
       ),
     );
   }
-}
-
-/// Buttons that sit on an orange surface. Fixed white/ink in both themes —
-/// the orange doesn't change with dark mode, so neither do these.
-abstract final class OnAccentButtonStyle {
-  static const _ink = Color(0xFF111111);
-  static const _padding = EdgeInsets.symmetric(horizontal: Space.md);
-
-  static ButtonStyle solid(AppTokens t) => FilledButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: _ink,
-        disabledBackgroundColor: Colors.white.withValues(alpha: 0.5),
-        disabledForegroundColor: _ink.withValues(alpha: 0.5),
-        minimumSize: const Size(64, 52),
-        padding: _padding,
-        shape: const StadiumBorder(),
-      );
-
-  static ButtonStyle ghost(AppTokens t) => FilledButton.styleFrom(
-        backgroundColor: Colors.white.withValues(alpha: 0.14),
-        foregroundColor: t.onAccent,
-        minimumSize: const Size(64, 52),
-        padding: _padding,
-        shape: StadiumBorder(side: BorderSide(color: Colors.white.withValues(alpha: 0.45))),
-      );
 }
 
 /// Button label that shrinks instead of wrapping at large system font sizes.
@@ -675,33 +122,4 @@ class OneLineLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       FittedBox(fit: BoxFit.scaleDown, child: Text(text, maxLines: 1, softWrap: false));
-}
-
-/// Concentric arcs in a corner, as on the reference tip card.
-class ConcentricArcs extends StatelessWidget {
-  const ConcentricArcs({super.key, this.size = 140});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) => IgnorePointer(
-        child: SizedBox.square(dimension: size, child: CustomPaint(painter: _ArcsPainter())),
-      );
-}
-
-class _ArcsPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..color = Colors.white.withValues(alpha: 0.16);
-    final centre = Offset(size.width, 0);
-    for (var r = size.width * 0.35; r <= size.width; r += size.width * 0.16) {
-      canvas.drawCircle(centre, r, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_ArcsPainter old) => false;
 }

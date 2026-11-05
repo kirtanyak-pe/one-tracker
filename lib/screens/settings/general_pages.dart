@@ -1,13 +1,15 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 
 import '../../app_controller.dart';
 import '../../model/appearance.dart';
 import '../../sources/backup_bridge.dart';
 import '../../sources/widget_bridge.dart';
 import '../../storage/backup.dart';
-import '../../ui/components.dart';
 import '../../ui/format.dart';
-import '../../ui/tokens.dart';
+
+import 'package:onyx/onyx.dart';
+
 import 'settings_page.dart';
 
 class AppearancePage extends StatelessWidget {
@@ -17,62 +19,45 @@ class AppearancePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final a = app.appearance;
-    final text = Theme.of(context).textTheme;
-    final t = context.tokens;
+    final text = context.type;
+    final t = context.colors;
     return SettingsPage(
       title: 'Appearance',
       children: [
-        const SectionHeader('Theme', top: 0),
-        PillSegmented<ThemeMode>(
-          options: const {
-            ThemeMode.system: 'System',
-            ThemeMode.light: 'Light',
-            ThemeMode.dark: 'Dark',
+        const OSectionHeader('Theme', top: 0),
+        OSegmented<OThemeMode>(
+          values: OThemeMode.values,
+          selected: a.mode,
+          labelOf: (m) => switch (m) {
+            OThemeMode.system => 'System',
+            OThemeMode.light => 'Light',
+            OThemeMode.dark => 'Dark',
           },
-          value: a.mode,
           onChanged: (m) => app.setAppearance(a.copyWith(mode: m)),
         ),
-        const SizedBox(height: Space.sm),
-        Text(
-          'System follows your phone\'s light/dark setting.',
-          style: text.bodySmall?.copyWith(color: t.muted),
-        ),
-        const SectionHeader('Colours'),
-        PillSegmented<bool>(
-          options: const {true: 'Wallpaper', false: 'One Tracker'},
-          value: a.wallpaperColors,
-          onChanged: (w) => app.setAppearance(a.copyWith(wallpaperColors: w)),
-        ),
-        const SizedBox(height: Space.sm),
-        Text(
-          a.wallpaperColors
-              ? (app.wallpaper == null
-                    ? "Your phone doesn't share wallpaper colours, so One Tracker's orange is used."
-                    : 'Colours come from your wallpaper (Material You).')
-              : "One Tracker's own warm grey and orange.",
-          style: text.bodySmall?.copyWith(color: t.muted),
-        ),
-        const SectionHeader('Animations & effects'),
-        PillSegmented<Effects>(
-          options: const {
-            Effects.auto: 'Auto',
-            Effects.reduced: 'Reduced',
-            Effects.full: 'Full',
+        const SizedBox(height: OSpace.sm),
+        Text('System follows your phone\'s light/dark setting.', style: text.small.copyWith(color: t.inkSoft)),
+        const OSectionHeader('Animations & effects'),
+        OSegmented<Effects>(
+          values: Effects.values,
+          selected: a.effects,
+          labelOf: (e) => switch (e) {
+            Effects.auto => 'Auto',
+            Effects.reduced => 'Reduced',
+            Effects.full => 'Full',
           },
-          value: a.effects,
           onChanged: (e) => app.setAppearance(a.copyWith(effects: e)),
         ),
-        const SizedBox(height: Space.sm),
+        const SizedBox(height: OSpace.sm),
         Text(switch (a.effects) {
           Effects.auto =>
             app.lowEndDevice
                 ? 'This phone looks low on memory, so animations and soft shadows are off to keep it smooth.'
                 : 'Full effects on this phone; turned down automatically on low-memory phones.',
-          Effects.reduced =>
-            'No animations or soft shadows. Smoothest on slower phones.',
+          Effects.reduced => 'No animations or soft shadows. Smoothest on slower phones.',
           Effects.full => 'All animations and shadows, on any phone.',
-        }, style: text.bodySmall?.copyWith(color: t.muted)),
-        const SizedBox(height: Space.xl),
+        }, style: text.small.copyWith(color: t.inkSoft)),
+        const SizedBox(height: OSpace.xl),
         _Preview(),
       ],
     );
@@ -82,27 +67,33 @@ class AppearancePage extends StatelessWidget {
 class _Preview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
-    return Tray(
+    final t = context.colors;
+    final text = context.type;
+    return OInset(
+      padding: const EdgeInsets.all(OSpace.xl),
+      radius: ORadius.lg,
       child: Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Preview', style: text.titleMedium),
-                Text(
-                  'Cards, buttons and the accent',
-                  style: text.bodySmall?.copyWith(color: t.muted),
-                ),
-                const SizedBox(height: Space.md),
-                FilledButton(onPressed: () {}, child: const Text('Button')),
+                Text('Preview', style: text.title3),
+                Text('Cards, buttons and the accent', style: text.small.copyWith(color: t.inkSoft)),
+                const SizedBox(height: OSpace.md),
+                OButton(label: 'Button', size: OButtonSize.sm, onPressed: () {}),
               ],
             ),
           ),
-          const SizedBox(width: Space.md),
-          AccentOrb(icon: Icons.bolt, onPressed: () {}, tooltip: 'Accent'),
+          const SizedBox(width: OSpace.md),
+          OIconButton(
+            icon: LucideIcons.zap,
+            label: 'Accent',
+            onPressed: () {},
+            size: 44,
+            background: t.ink,
+            color: t.onInk,
+          ),
         ],
       ),
     );
@@ -117,9 +108,7 @@ class SelfTransfersPage extends StatefulWidget {
 }
 
 class _SelfTransfersPageState extends State<SelfTransfersPage> {
-  late final _name = TextEditingController(
-    text: AppScope.of(context).profile.name,
-  );
+  late final _name = TextEditingController(text: AppScope.of(context).profile.name);
 
   @override
   void dispose() {
@@ -130,54 +119,41 @@ class _SelfTransfersPageState extends State<SelfTransfersPage> {
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     final accounts = app.knownAccounts.toList()..sort();
     return SettingsPage(
       title: 'Self transfers',
       intro: "Money moving between your own accounts isn't spending. These help spot it.",
       children: [
-        const SectionHeader('Your name', top: 0),
-        Text(
-          'Money sent to this name counts as a self transfer.',
-          style: text.bodySmall?.copyWith(color: t.muted),
-        ),
-        const SizedBox(height: Space.md),
-        TextField(
+        const OSectionHeader('Your name', top: 0),
+        Text('Money sent to this name counts as a self transfer.', style: text.small.copyWith(color: t.inkSoft)),
+        const SizedBox(height: OSpace.md),
+        OField(
           controller: _name,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(hintText: 'As your bank prints it'),
+          placeholder: 'As your bank prints it',
           onChanged: app.setName,
         ),
-        const SectionHeader('Your accounts'),
+        const OSectionHeader('Your accounts'),
         Text(
           accounts.isEmpty
               ? 'Learned from your bank SMS after the first scan.'
               : "Learned from your bank SMS. Money between these is a self transfer. Tap one that isn't yours.",
-          style: text.bodySmall?.copyWith(color: t.muted),
+          style: text.small.copyWith(color: t.inkSoft),
         ),
         if (accounts.isNotEmpty) ...[
-          const SizedBox(height: Space.md),
+          const SizedBox(height: OSpace.md),
           Wrap(
-            spacing: Space.sm,
-            runSpacing: Space.sm,
+            spacing: OSpace.sm,
+            runSpacing: OSpace.sm,
             children: [
               for (final a in accounts)
-                FilterChip(
-                  label: Text('••$a'),
+                OChip(
+                  label: '••$a',
                   selected: !app.profile.ignoredAccounts.contains(a),
-                  showCheckmark: true,
-                  checkmarkColor: t.onInk,
-                  selectedColor: t.ink,
-                  backgroundColor: t.card,
-                  labelStyle: text.labelLarge?.copyWith(
-                    color: app.profile.ignoredAccounts.contains(a)
-                        ? t.muted
-                        : t.onInk,
-                  ),
-                  side: BorderSide.none,
-                  shape: const StadiumBorder(),
-                  onSelected: (_) => app.toggleAccount(a),
+                  icon: app.profile.ignoredAccounts.contains(a) ? null : LucideIcons.check,
+                  onTap: () => app.toggleAccount(a),
                 ),
             ],
           ),
@@ -197,14 +173,10 @@ class BigPaymentsPage extends StatelessWidget {
       title: 'Big payments',
       intro: 'Every payment counts as an expense. Ask me only about payments above:',
       children: [
-        PillSegmented<int>(
-          options: const {
-            200000: '₹2k',
-            500000: '₹5k',
-            1000000: '₹10k',
-            -1: 'Never',
-          },
-          value: app.profile.reviewAboveMinor ?? -1,
+        OSegmented<int>(
+          values: const [200000, 500000, 1000000, -1],
+          labelOf: (v) => const {200000: '₹2k', 500000: '₹5k', 1000000: '₹10k', -1: 'Never'}[v]!,
+          selected: app.profile.reviewAboveMinor ?? -1,
           onChanged: (v) => app.setReviewAbove(v == -1 ? null : v),
         ),
       ],
@@ -218,34 +190,32 @@ class SourcesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     Widget allow(bool granted, VoidCallback onGrant) => granted
         ? Padding(
-            padding: const EdgeInsets.all(Space.sm),
-            child: Icon(Icons.check_circle, color: t.success),
+            padding: const EdgeInsets.all(OSpace.sm),
+            child: Icon(LucideIcons.circleCheck, color: t.positive),
           )
-        : FilledButton(
-            onPressed: onGrant,
-            style: FilledButton.styleFrom(minimumSize: const Size(72, 44)),
-            child: const Text('Allow'),
-          );
+        : OButton(label: 'Allow', size: OButtonSize.sm, onPressed: onGrant);
     return SettingsPage(
       title: 'Sources',
       intro: 'Where One Tracker finds your payments. Everything is read on this phone.',
       children: [
         if (!app.isAndroid)
-          Tray(
+          OInset(
+            padding: const EdgeInsets.all(OSpace.xl),
+            radius: ORadius.lg,
             child: Text(
               'Reading SMS and notifications needs Android. This preview uses sample bank SMS.',
-              style: text.bodyMedium?.copyWith(color: t.muted),
+              style: text.body.copyWith(color: t.inkSoft),
             ),
           )
         else
           SettingsGroup(
             children: [
               SettingsRow(
-                icon: Icons.sms_outlined,
+                icon: LucideIcons.messageSquareText,
                 title: 'Bank SMS',
                 subtitle: app.lastScan == null
                     ? 'Reads bank alerts, instantly as they arrive'
@@ -253,13 +223,10 @@ class SourcesPage extends StatelessWidget {
                 trailing: allow(app.smsGranted, app.requestSms),
               ),
               SettingsRow(
-                icon: Icons.notifications_active_outlined,
+                icon: LucideIcons.bellRing,
                 title: 'Payment notifications',
                 subtitle: 'Also catches UPI app payments',
-                trailing: allow(
-                  app.notificationsGranted,
-                  app.requestNotifications,
-                ),
+                trailing: allow(app.notificationsGranted, app.requestNotifications),
               ),
             ],
           ),
@@ -276,25 +243,16 @@ class WidgetPage extends StatelessWidget {
     title: 'Home-screen widget',
     intro: "Today, this week or this month's spending at a glance, with a toggle on the widget itself.",
     children: [
-      SizedBox(
-        width: double.infinity,
-        child: FilledButton.icon(
-          onPressed: () async {
-            final messenger = ScaffoldMessenger.of(context);
-            final ok = await WidgetBridge.requestPin();
-            if (!ok) {
-              messenger.showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Long-press your home screen → Widgets → One Tracker',
-                  ),
-                ),
-              );
-            }
-          },
-          icon: const Icon(Icons.add),
-          label: const Text('Add to home screen'),
-        ),
+      OButton(
+        label: 'Add to home screen',
+        icon: LucideIcons.plus,
+        expand: true,
+        onPressed: () async {
+          final ok = await WidgetBridge.requestPin();
+          if (!ok && context.mounted) {
+            OToast.show(context, 'Long-press your home screen → Widgets → One Tracker');
+          }
+        },
       ),
     ],
   );
@@ -305,33 +263,19 @@ class DataPage extends StatelessWidget {
 
   Future<void> _clearAll(BuildContext context) async {
     final app = AppScope.of(context);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialog) => AlertDialog(
-        title: const Text('Clear all data?'),
-        content: const Text(
+    final ok = await showOConfirm(
+      context,
+      title: 'Clear all data?',
+      message:
           'Removes every transaction, rule, budget and setting from this phone, and disconnects Splitwise. '
           'Bank SMS can be scanned again afterwards.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialog, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialog, true),
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
+      confirm: 'Clear',
+      destructive: true,
     );
-    if (ok == true) await app.clearAll();
+    if (ok) await app.clearAll();
   }
 
-  void _say(BuildContext context, String message) =>
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(message)));
+  void _say(BuildContext context, String message) => OToast.show(context, message);
 
   Future<void> _backUp(BuildContext context) async {
     final app = AppScope.of(context);
@@ -361,28 +305,16 @@ class DataPage extends StatelessWidget {
     }
     if (!context.mounted) return;
     final when = backup.exportedAt;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialog) => AlertDialog(
-        title: const Text('Restore this backup?'),
-        content: Text(
+    final ok = await showOConfirm(
+      context,
+      title: 'Restore this backup?',
+      message:
           'Replace everything on this phone with the backup'
           '${when == null ? '' : ' from ${when.day} ${_months[when.month - 1]} ${when.year}'}? '
           '${backup.payments} ${backup.payments == 1 ? 'payment' : 'payments'}.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialog, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialog, true),
-            child: const Text('Restore'),
-          ),
-        ],
-      ),
+      confirm: 'Restore',
     );
-    if (ok != true) return;
+    if (!ok) return;
     try {
       await app.restoreBackup(backup);
       if (context.mounted) _say(context, 'Backup restored');
@@ -391,26 +323,13 @@ class DataPage extends StatelessWidget {
     }
   }
 
-  static const _months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
+  static const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     return SettingsPage(
       title: 'Data',
       children: [
@@ -418,45 +337,43 @@ class DataPage extends StatelessWidget {
           children: [
             if (app.isAndroid && app.smsGranted)
               SettingsRow(
-                icon: Icons.refresh,
+                icon: LucideIcons.refreshCw,
                 title: 'Re-read last 90 days of SMS',
                 onTap: () => app.scanSms(full: true),
               ),
             if (BackupBridge.isSupported) ...[
               SettingsRow(
-                icon: Icons.upload_file_outlined,
+                icon: LucideIcons.fileUp,
                 title: 'Back up data',
                 subtitle: 'Save everything to a file',
                 onTap: () => _backUp(context),
               ),
               SettingsRow(
-                icon: Icons.settings_backup_restore,
+                icon: LucideIcons.archiveRestore,
                 title: 'Restore from backup',
                 subtitle: 'Replaces what is on this phone',
                 onTap: () => _restore(context),
               ),
             ],
             SettingsRow(
-              icon: Icons.science_outlined,
-              title: app.hasSampleData
-                  ? 'Remove sample data'
-                  : 'Add sample data',
+              icon: LucideIcons.flaskConical,
+              title: app.hasSampleData ? 'Remove sample data' : 'Add sample data',
               onTap: app.hasSampleData ? app.removeSamples : app.loadSamples,
             ),
             SettingsRow(
-              icon: Icons.delete_outline,
+              icon: LucideIcons.trash2,
               title: 'Clear all data',
               destructive: true,
               onTap: () => _clearAll(context),
             ),
           ],
         ),
-        const SizedBox(height: Space.xxl),
+        const SizedBox(height: OSpace.xxl),
         Text(
           'Your transactions never leave this phone. The internet is used only to talk to Splitwise, '
           'and only when you split.',
           textAlign: TextAlign.center,
-          style: text.bodySmall?.copyWith(color: t.muted),
+          style: text.small.copyWith(color: t.inkSoft),
         ),
       ],
     );

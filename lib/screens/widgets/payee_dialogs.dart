@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 
 import '../../engine/enrich.dart';
-import '../../ui/tokens.dart';
+
+import 'package:onyx/onyx.dart';
 
 /// "to Maid ✎" with the bank's name underneath once it's been renamed.
 /// Tapping it (or the pencil) renames the payee for all its payments.
@@ -14,31 +16,26 @@ class PayeeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     return Column(
       children: [
         Semantics(
           button: onRename != null,
           label: 'Rename ${e.payee}',
-          child: InkWell(
+          child: OPressable(
             onTap: onRename,
-            borderRadius: BorderRadius.circular(Radii.tile),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.xs),
+              padding: const EdgeInsets.symmetric(horizontal: OSpace.md, vertical: OSpace.xs),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Flexible(
-                    child: Text(
-                      '$prefix ${e.payee}',
-                      textAlign: TextAlign.center,
-                      style: text.titleMedium,
-                    ),
+                    child: Text('$prefix ${e.payee}', textAlign: TextAlign.center, style: text.title3),
                   ),
                   if (onRename != null) ...[
-                    const SizedBox(width: Space.sm),
-                    Icon(Icons.edit_outlined, size: 16, color: t.muted),
+                    const SizedBox(width: OSpace.sm),
+                    Icon(LucideIcons.pencil, size: 16, color: t.inkSoft),
                   ],
                 ],
               ),
@@ -49,7 +46,7 @@ class PayeeHeader extends StatelessWidget {
           Text(
             'Bank name: ${e.originalPayee}',
             textAlign: TextAlign.center,
-            style: text.bodySmall?.copyWith(color: t.muted),
+            style: text.small.copyWith(color: t.inkSoft),
           ),
       ],
     );
@@ -67,18 +64,11 @@ class _Suggestions extends StatelessWidget {
   Widget build(BuildContext context) {
     if (items.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(top: Space.md),
+      padding: const EdgeInsets.only(top: OSpace.md),
       child: Wrap(
-        spacing: Space.sm,
-        runSpacing: Space.xs,
-        children: [
-          for (final s in items)
-            ActionChip(
-              label: Text(s),
-              visualDensity: VisualDensity.compact,
-              onPressed: () => onPick(s),
-            ),
-        ],
+        spacing: OSpace.sm,
+        runSpacing: OSpace.xs,
+        children: [for (final s in items) OChip(label: s, dense: true, onTap: () => onPick(s))],
       ),
     );
   }
@@ -111,54 +101,49 @@ class _RenameDialogState extends State<RenameDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     final name = _controller.text.trim();
-    return AlertDialog(
-      title: const Text('Rename'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _controller,
-              autofocus: true,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(hintText: 'e.g. Maid, Cook, Blinkit'),
-              onChanged: (_) => setState(() {}),
-              onSubmitted: (v) => Navigator.pop(context, v),
+    return ODialog(
+      title: 'Rename',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          OField(
+            controller: _controller,
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            placeholder: 'e.g. Maid, Cook, Blinkit',
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (v) => Navigator.pop(context, v),
+          ),
+          const SizedBox(height: OSpace.sm),
+          Text(
+            name.isEmpty || name == widget.original
+                ? 'All payments to ${widget.original} will show their bank name'
+                : 'All payments to ${widget.original} will show as $name',
+            style: text.small.copyWith(color: t.inkSoft),
+          ),
+          if (widget.current.isNotEmpty)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OTextButton(label: 'Use bank name', onPressed: () => Navigator.pop(context, '')),
             ),
-            const SizedBox(height: Space.sm),
-            Text(
-              name.isEmpty || name == widget.original
-                  ? 'All payments to ${widget.original} will show their bank name'
-                  : 'All payments to ${widget.original} will show as $name',
-              style: text.bodySmall?.copyWith(color: t.muted),
-            ),
-            // In the body, not the actions: three buttons don't fit one row
-            // and the dialog stacks them.
-            if (widget.current.isNotEmpty)
-              TextButton(
-                style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                onPressed: () => Navigator.pop(context, ''),
-                child: const Text('Use bank name'),
-              ),
-            _Suggestions(
-              items: widget.suggestions,
-              onPick: (s) => setState(() {
-                _controller.value = TextEditingValue(
-                  text: s,
-                  selection: TextSelection.collapsed(offset: s.length),
-                );
-              }),
-            ),
-          ],
-        ),
+          _Suggestions(
+            items: widget.suggestions,
+            onPick: (s) => setState(() {
+              _controller.value = TextEditingValue(
+                text: s,
+                selection: TextSelection.collapsed(offset: s.length),
+              );
+            }),
+          ),
+        ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.pop(context, _controller.text), child: const Text('Save')),
+        OButton(label: 'Save', expand: true, onPressed: () => Navigator.pop(context, _controller.text)),
+        OButton.ghost(label: 'Cancel', expand: true, onPressed: () => Navigator.pop(context)),
       ],
     );
   }
@@ -192,52 +177,42 @@ class _AddTagDialogState extends State<AddTagDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
-    return AlertDialog(
-      title: const Text('Add tag'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _controller,
-              autofocus: true,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(hintText: 'e.g. Goa trip, Office'),
-              onSubmitted: _submit,
+    return ODialog(
+      title: 'Add tag',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          OField(
+            controller: _controller,
+            autofocus: true,
+            textCapitalization: TextCapitalization.sentences,
+            placeholder: 'e.g. Goa trip, Office',
+            onSubmitted: _submit,
+          ),
+          _Suggestions(
+            items: widget.suggestions,
+            onPick: (s) => setState(() {
+              _controller.value = TextEditingValue(
+                text: s,
+                selection: TextSelection.collapsed(offset: s.length),
+              );
+            }),
+          ),
+          if (widget.canRemember) ...[
+            const SizedBox(height: OSpace.md),
+            OCheckRow(
+              value: _forPayee,
+              onChanged: (v) => setState(() => _forPayee = v),
+              title: 'All payments to ${widget.payee}',
+              subtitle: _forPayee ? 'Past and future ones too' : 'Only this payment',
             ),
-            _Suggestions(
-              items: widget.suggestions,
-              onPick: (s) => setState(() {
-                _controller.value = TextEditingValue(
-                  text: s,
-                  selection: TextSelection.collapsed(offset: s.length),
-                );
-              }),
-            ),
-            if (widget.canRemember) ...[
-              const SizedBox(height: Space.md),
-              CheckboxListTile(
-                value: _forPayee,
-                onChanged: (v) => setState(() => _forPayee = v ?? true),
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                dense: true,
-                title: Text('All payments to ${widget.payee}', style: text.bodyMedium),
-                subtitle: Text(
-                  _forPayee ? 'Past and future ones too' : 'Only this payment',
-                  style: text.bodySmall?.copyWith(color: t.muted),
-                ),
-              ),
-            ],
           ],
-        ),
+        ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(onPressed: () => _submit(_controller.text), child: const Text('Add')),
+        OButton(label: 'Add', expand: true, onPressed: () => _submit(_controller.text)),
+        OButton.ghost(label: 'Cancel', expand: true, onPressed: () => Navigator.pop(context)),
       ],
     );
   }

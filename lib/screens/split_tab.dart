@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
 import '../app_controller.dart';
 import '../engine/enrich.dart';
@@ -8,7 +8,9 @@ import '../ui/components.dart';
 import '../ui/format.dart';
 import '../ui/motion.dart';
 import '../ui/payee_logo.dart';
-import '../ui/tokens.dart';
+
+import 'package:onyx/onyx.dart';
+
 import 'home_screen.dart' show push;
 import 'settings/split_settings_page.dart';
 import 'shell.dart';
@@ -21,24 +23,26 @@ class SplitTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     final todo = app.splitTodo;
     final history = app.splitRecords.values.toList()..sort((a, b) => b.at.compareTo(a.at));
     final month = app.splitThisMonth;
     final todoTotal = todo.fold(0, (sum, e) => sum + e.txn.amountMinor);
 
-    return TabPage(
+    return OTabPage(
       title: 'Split',
       actions: [
-        CircleIconButton(
-          icon: Icons.tune,
-          tooltip: 'Splitwise settings',
+        OIconButton(
+          icon: LucideIcons.slidersHorizontal,
+          label: 'Splitwise settings',
+          filled: true,
+          size: 44,
           onPressed: () => push(context, const SplitSettingsPage()),
         ),
       ],
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(Space.gutter, Space.md, Space.gutter, navClearance),
+        padding: const EdgeInsets.fromLTRB(OSpace.gutter, OSpace.md, OSpace.gutter, navClearance),
         children: staggered([
           IntrinsicHeight(
             child: Row(
@@ -51,7 +55,7 @@ class SplitTab extends StatelessWidget {
                     caption: '${month.count} payment${month.count == 1 ? '' : 's'}',
                   ),
                 ),
-                const SizedBox(width: Space.md),
+                const SizedBox(width: OSpace.md),
                 Expanded(
                   child: StatTile(
                     label: 'Waiting to split',
@@ -62,27 +66,29 @@ class SplitTab extends StatelessWidget {
               ],
             ),
           ),
-          SectionHeader('To split', trailing: todo.isEmpty ? null : Text('${todo.length}', style: text.titleMedium)),
+          OSectionHeader('To split', trailing: todo.isEmpty ? null : Text('${todo.length}', style: text.title3)),
           if (todo.isEmpty)
-            Tray(
+            OInset(
+              padding: const EdgeInsets.all(OSpace.xl),
+              radius: ORadius.lg,
               child: Text(
                 'All caught up. New payments show up here.',
                 textAlign: TextAlign.center,
-                style: text.bodyMedium?.copyWith(color: t.muted),
+                style: text.body.copyWith(color: t.inkSoft),
               ),
             )
           else
             _ToSplit(items: todo),
           if (history.isNotEmpty) ...[
-            const SectionHeader('Sent to Splitwise'),
+            const OSectionHeader('Sent to Splitwise'),
             _History(records: history.take(10).toList()),
             Padding(
-              padding: const EdgeInsets.only(top: Space.sm),
+              padding: const EdgeInsets.only(top: OSpace.sm),
               child: Text(
                 // Without the API the app only sees the tap that opened
                 // Splitwise, never the saved expense or its group.
                 "You opened these in Splitwise. One Tracker can't see if you saved them or which group you picked.",
-                style: text.bodySmall?.copyWith(color: t.muted),
+                style: text.small.copyWith(color: t.inkSoft),
               ),
             ),
           ],
@@ -112,30 +118,29 @@ class _ToSplitState extends State<_ToSplit> {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
     final shown = widget.items.take(_limit).toList();
     final expanded = _limit > _preview;
     final hidden = widget.items.length - shown.length;
     return Column(
       children: [
-        SurfaceCard(
+        OCard(
           padding: EdgeInsets.zero,
           child: Column(
             children: [
               for (final (i, e) in shown.indexed) ...[
-                if (i > 0) Divider(height: 1, indent: 62, color: t.tray),
+                if (i > 0) const ODivider(indent: 62),
                 _ToSplitRow(key: ValueKey('split-${e.txn.id}'), e: e),
               ],
             ],
           ),
         ),
         if (hidden > 0)
-          TextButton(
+          OTextButton(
             onPressed: () => setState(() => _limit += _page),
-            child: Text(hidden <= _page ? 'Show all $hidden more' : 'Show $_page more of $hidden'),
+            label: hidden <= _page ? 'Show all $hidden more' : 'Show $_page more of $hidden',
           )
         else if (expanded)
-          TextButton(onPressed: () => setState(() => _limit = _preview), child: const Text('Show fewer')),
+          OTextButton(onPressed: () => setState(() => _limit = _preview), label: 'Show fewer'),
       ],
     );
   }
@@ -157,60 +162,53 @@ class _ToSplitRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
-    return InkWell(
+    final t = context.colors;
+    final text = context.type;
+    return OPressable(
       onTap: () => push(context, TransactionScreen(id: e.txn.id)),
+      pressedScale: 1,
+      pressedOpacity: 0.6,
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 68),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(Space.lg, Space.xs, Space.xs, Space.xs),
+          padding: const EdgeInsets.fromLTRB(OSpace.lg, OSpace.xs, OSpace.xs, OSpace.xs),
           child: Row(
             children: [
               PayeeAvatar(e, size: 36),
-              const SizedBox(width: Space.sm + 2),
+              const SizedBox(width: OSpace.sm + 2),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(e.payee, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.titleMedium),
+                    Text(e.payee, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.title3),
                     Text(
                       _when(e.txn.at),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: text.bodySmall?.copyWith(color: t.muted),
+                      style: text.small.copyWith(color: t.inkSoft),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: Space.sm),
-              Text(
-                formatMoney(e.txn.amountMinor, appCurrency),
-                maxLines: 1,
-                style: text.titleMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
-              ),
-              const SizedBox(width: Space.sm),
+              const SizedBox(width: OSpace.sm),
+              Text(formatMoney(e.txn.amountMinor, appCurrency), maxLines: 1, style: text.title3.tabular),
+              const SizedBox(width: OSpace.sm),
               _SplitPill(onPressed: () => app.openInSplitwise(e.txn.id)),
-              Tooltip(
-                message: 'Skip',
-                child: InkResponse(
-                  radius: 24,
-                  onTap: () {
-                    app.skipSplit(e.txn.id);
-                    ScaffoldMessenger.of(context)
-                      ..hideCurrentSnackBar()
-                      ..showSnackBar(
-                        SnackBar(
-                          content: Text('Skipped ${e.payee}'),
-                          action: SnackBarAction(label: 'Undo', onPressed: () => app.undoSplit(e.txn.id)),
-                        ),
-                      );
-                  },
-                  child: SizedBox.square(
-                    dimension: 40,
-                    child: Icon(Icons.close, size: 20, color: t.muted, semanticLabel: 'Skip'),
-                  ),
-                ),
+              OIconButton(
+                icon: LucideIcons.x,
+                label: 'Skip',
+                size: 40,
+                color: t.inkSoft,
+                onPressed: () {
+                  app.skipSplit(e.txn.id);
+                  OToast.hide();
+                  OToast.show(
+                    context,
+                    'Skipped ${e.payee}',
+                    actionLabel: 'Undo',
+                    onAction: () => app.undoSplit(e.txn.id),
+                  );
+                },
               ),
             ],
           ),
@@ -220,46 +218,14 @@ class _ToSplitRow extends StatelessWidget {
   }
 }
 
-/// Small tonal accent pill; the tap area is 48dp tall around a 34dp pill.
+/// Small secondary pill; the tap area stays 48dp tall around it.
 class _SplitPill extends StatelessWidget {
   const _SplitPill({required this.onPressed});
 
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final fg = dark ? t.accent : t.accentDeep;
-    return Semantics(
-      button: true,
-      label: 'Split',
-      excludeSemantics: true,
-      child: InkWell(
-        onTap: onPressed,
-        customBorder: const StadiumBorder(),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          child: Center(
-            child: DecoratedBox(
-              decoration: ShapeDecoration(
-                color: fg.withValues(alpha: dark ? 0.18 : 0.12),
-                shape: const StadiumBorder(),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                child: Text(
-                  'Split',
-                  maxLines: 1,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(color: fg, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => OButton.secondary(label: 'Split', size: OButtonSize.sm, onPressed: onPressed);
 }
 
 class _History extends StatelessWidget {
@@ -270,47 +236,46 @@ class _History extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
-    return Tray(
-      padding: const EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.xs),
-      radius: Radii.tile,
+    final t = context.colors;
+    final text = context.type;
+    return OInset(
+      padding: const EdgeInsets.symmetric(horizontal: OSpace.lg, vertical: OSpace.xs),
+      radius: ORadius.lg,
       child: Column(
         children: [
           for (final (i, r) in records.indexed) ...[
-            if (i > 0) Divider(height: 1, color: t.trayDeep),
-            InkWell(
+            if (i > 0) const ODivider(),
+            OPressable(
               onTap: () => push(context, TransactionScreen(id: r.txnId)),
+              pressedScale: 1,
+              pressedOpacity: 0.6,
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: Space.sm),
+                padding: const EdgeInsets.symmetric(vertical: OSpace.sm),
                 child: Row(
                   children: [
                     Container(
                       width: 32,
                       height: 32,
-                      decoration: BoxDecoration(color: t.card, shape: BoxShape.circle),
-                      child: Icon(Icons.check, size: 18, color: t.success),
+                      decoration: BoxDecoration(color: t.surface, shape: BoxShape.circle),
+                      child: Icon(LucideIcons.check, size: 18, color: t.positive),
                     ),
-                    const SizedBox(width: Space.md),
+                    const SizedBox(width: OSpace.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(r.description, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.bodyMedium),
+                          Text(r.description, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.body),
                           Text(
                             'Opened ${friendlyTime(r.at)}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: text.bodySmall?.copyWith(color: t.muted),
+                            style: text.small.copyWith(color: t.inkSoft),
                           ),
                         ],
                       ),
                     ),
-                    Text(
-                      formatMoney(r.amountMinor, appCurrency),
-                      style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    TextButton(onPressed: () => app.undoSplit(r.txnId), child: const Text('Undo')),
+                    Text(formatMoney(r.amountMinor, appCurrency), style: text.body.tabular.semibold),
+                    OTextButton(onPressed: () => app.undoSplit(r.txnId), label: 'Undo'),
                   ],
                 ),
               ),

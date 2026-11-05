@@ -1,10 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
 import '../app_controller.dart';
 import '../money.dart';
-import '../ui/components.dart';
 import '../ui/motion.dart';
-import '../ui/tokens.dart';
+
+import 'package:onyx/onyx.dart';
+
 import 'transactions_screen.dart';
 import 'widgets/month_switcher.dart';
 
@@ -15,75 +16,57 @@ class CategoriesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     final m = app.month;
     final budgets = app.budgets.byCategory;
 
-    return Scaffold(
-      body: CanvasBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              const TopBar(title: 'Where it went'),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(Space.gutter, Space.sm, Space.gutter, Space.xxxl),
-                  children: [
-                    const Center(child: MonthSwitcher()),
-                    const SizedBox(height: Space.xl),
-                    AnimatedMoney(
-                      m.spentMinor,
-                      round: true,
-                      textAlign: TextAlign.center,
-                      style: text.displaySmall,
-                    ),
-                    Text(
-                      '${m.spendCount} payment${m.spendCount == 1 ? '' : 's'} across ${m.byCategory.length} categories',
-                      textAlign: TextAlign.center,
-                      style: text.bodySmall?.copyWith(color: t.muted),
-                    ),
-                    const SizedBox(height: Space.xl),
-                    if (m.byCategory.isEmpty)
-                      Tray(
-                        child: Text(
-                          'No spending this month yet.',
-                          textAlign: TextAlign.center,
-                          style: text.bodyMedium?.copyWith(color: t.muted),
-                        ),
-                      )
-                    else
-                      SurfaceCard(
-                        padding: const EdgeInsets.symmetric(vertical: Space.sm),
-                        child: Column(
-                          children: [
-                            for (final (i, c) in m.byCategory.indexed)
-                              FadeSlideIn(
-                                index: i,
-                                child: _CategoryRow(
-                                highlight: i == 0,
-                                icon: c.category.icon,
-                                label: c.category.label,
-                                amount: c.amountMinor,
-                                count: c.count,
-                                share: m.spentMinor == 0 ? 0 : c.amountMinor / m.spentMinor,
-                                top: m.byCategory.first.amountMinor,
-                                budget: budgets[c.category],
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => TransactionsScreen.category(c.category)),
-                                ),
-                              ),
-                              ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
+    return OScreen(
+      title: 'Where it went',
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(OSpace.gutter, OSpace.sm, OSpace.gutter, OSpace.xxxl),
+        children: [
+          const Center(child: MonthSwitcher()),
+          const SizedBox(height: OSpace.xl),
+          AnimatedMoney(m.spentMinor, round: true, textAlign: TextAlign.center, style: text.display.tabular),
+          Text(
+            '${m.spendCount} payment${m.spendCount == 1 ? '' : 's'} across ${m.byCategory.length} categories',
+            textAlign: TextAlign.center,
+            style: text.small.copyWith(color: t.inkSoft),
           ),
-        ),
+          const SizedBox(height: OSpace.xl),
+          if (m.byCategory.isEmpty)
+            OInset(
+              child: Text(
+                'No spending this month yet.',
+                textAlign: TextAlign.center,
+                style: text.body.copyWith(color: t.inkSoft),
+              ),
+            )
+          else
+            OCard(
+              padding: const EdgeInsets.symmetric(vertical: OSpace.sm),
+              child: Column(
+                children: [
+                  for (final (i, c) in m.byCategory.indexed)
+                    FadeSlideIn(
+                      index: i,
+                      child: _CategoryRow(
+                        highlight: i == 0,
+                        icon: c.category.icon,
+                        label: c.category.label,
+                        amount: c.amountMinor,
+                        count: c.count,
+                        share: m.spentMinor == 0 ? 0 : c.amountMinor / m.spentMinor,
+                        top: m.byCategory.first.amountMinor,
+                        budget: budgets[c.category],
+                        onTap: () => pushScreen(context, TransactionsScreen.category(c.category)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -114,50 +97,51 @@ class _CategoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     final over = budget != null && amount >= budget!;
-    return InkWell(
+    return OPressable(
       onTap: onTap,
+      pressedScale: 0.99,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.md),
+        padding: const EdgeInsets.symmetric(horizontal: OSpace.lg, vertical: OSpace.md),
         child: Row(
           children: [
             Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(color: t.tray, shape: BoxShape.circle),
+              decoration: BoxDecoration(color: t.raised, shape: BoxShape.circle),
               child: Icon(icon, size: 20, color: t.ink),
             ),
-            const SizedBox(width: Space.md),
+            const SizedBox(width: OSpace.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Expanded(child: Text(label, style: text.bodyMedium)),
+                      Expanded(child: Text(label, style: text.body)),
                       Text(
                         [
                           formatMoney(amount, appCurrency, round: true),
                           if (budget != null) formatCompact(budget!),
                         ].join(' / '),
-                        style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                        style: text.body.copyWith(fontWeight: FontWeight.w600).tabular,
                       ),
                     ],
                   ),
-                  const SizedBox(height: Space.sm),
+                  const SizedBox(height: OSpace.sm),
                   AnimatedMeter(
                     // Against its budget when there is one, else vs the top category.
                     value: budget != null ? amount / budget! : amount / top,
-                    background: t.tray,
-                    color: over ? Theme.of(context).colorScheme.error : highlight ? t.accent : t.ink,
+                    background: t.raised,
+                    color: over ? t.negative : t.ink,
                   ),
-                  const SizedBox(height: Space.xs),
+                  const SizedBox(height: OSpace.xs),
                   Text(
                     '${(share * 100).round()}% · $count payment${count == 1 ? '' : 's'}'
                     '${over ? ' · over budget' : ''}',
-                    style: text.bodySmall?.copyWith(color: t.muted),
+                    style: text.small.copyWith(color: t.inkSoft),
                   ),
                 ],
               ),

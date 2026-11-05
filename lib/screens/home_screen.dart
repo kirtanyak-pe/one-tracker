@@ -1,14 +1,15 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
 
 import '../app_controller.dart';
 import '../engine/recurring.dart';
 import '../engine/summary.dart';
 import '../money.dart';
-import '../ui/components.dart';
 import '../ui/format.dart';
 import '../ui/motion.dart';
-import '../ui/tokens.dart';
+
+import 'package:onyx/onyx.dart';
+
 import 'activity_screen.dart';
 import 'add_expense_screen.dart';
 import 'settings_screen.dart';
@@ -19,7 +20,7 @@ import 'widgets/month_switcher.dart';
 import 'widgets/review_card.dart';
 import 'widgets/txn_list.dart';
 
-void push(BuildContext context, Widget screen) => Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+void push(BuildContext context, Widget screen) => pushScreen(context, screen);
 
 class HomeTab extends StatelessWidget {
   const HomeTab({super.key});
@@ -27,14 +28,14 @@ class HomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     final m = app.month;
     final review = app.toReview;
     final needsSetup = app.isAndroid && (!app.smsGranted || !app.notificationsGranted);
     final upcoming = app.isCurrentMonth ? app.upcoming() : const <Recurring>[];
 
-    return TabPage(
+    return OTabPage(
       title: 'One Tracker',
       // Once the big number scrolls away, the bar keeps it in view.
       swapAfter: 64,
@@ -44,65 +45,73 @@ class HomeTab extends StatelessWidget {
             TextSpan(text: formatMoney(m.spentMinor, appCurrency, round: true)),
             TextSpan(
               text: '  ${DateFormat('MMM').format(m.month)}',
-              style: text.titleMedium?.copyWith(color: t.muted),
+              style: text.title3.copyWith(color: t.inkSoft),
             ),
           ],
         ),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: text.titleLarge?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+        style: text.title2.tabular,
       ),
       actions: [
         if (app.scanning)
           Padding(
-            padding: const EdgeInsets.only(right: Space.xs),
-            child: SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2, color: t.muted)),
+            padding: const EdgeInsets.only(right: OSpace.xs),
+            child: OSpinner(size: 16, color: t.inkSoft),
           ),
-        CircleIconButton(
-          icon: Icons.search,
-          tooltip: 'Search',
+        OIconButton(
+          icon: LucideIcons.search,
+          label: 'Search',
+          filled: true,
+          size: 44,
           onPressed: () {
             AppShell.switchTo(context, AppShell.activity);
             ActivityTab.focusSearch();
           },
         ),
-        CircleIconButton(
-          icon: Icons.add,
-          tooltip: 'Add expense',
+        OIconButton(
+          icon: LucideIcons.plus,
+          label: 'Add expense',
+          filled: true,
+          size: 44,
           onPressed: () => push(context, const AddExpenseScreen()),
         ),
-        CircleIconButton(icon: Icons.tune, tooltip: 'Settings', onPressed: () => push(context, const SettingsScreen())),
+        OIconButton(
+          icon: LucideIcons.slidersHorizontal,
+          label: 'Settings',
+          filled: true,
+          size: 44,
+          onPressed: () => push(context, const SettingsScreen()),
+        ),
       ],
-      body: RefreshIndicator(
-        color: t.ink,
+      body: ORefresh(
         onRefresh: () => app.scanSms(),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(Space.gutter, Space.xl, Space.gutter, navClearance),
+          padding: const EdgeInsets.fromLTRB(OSpace.gutter, OSpace.xl, OSpace.gutter, navClearance),
           children: staggered([
             _Headline(app: app),
-            const SizedBox(height: Space.xxl),
-            if (app.monthNudge case final nudge?) ...[MonthNudgeCard(nudge: nudge), const SizedBox(height: Space.xl)],
+            const SizedBox(height: OSpace.xxl),
+            if (app.monthNudge case final nudge?) ...[MonthNudgeCard(nudge: nudge), const SizedBox(height: OSpace.xl)],
             if (review.isNotEmpty) ...[
               ReviewCard(queue: review, currency: appCurrency),
-              const SizedBox(height: Space.xl),
+              const SizedBox(height: OSpace.xl),
             ],
-            if (needsSetup) ...[_SetupTray(app: app), const SizedBox(height: Space.xl)],
-            const SectionHeader('Recent', top: 0),
+            if (needsSetup) ...[_SetupTray(app: app), const SizedBox(height: OSpace.xl)],
+            const OSectionHeader('Recent', top: 0),
             if (m.items.isEmpty)
               _Empty(app: app)
             else ...[
               TxnDayList(items: m.items.take(6).toList(), currency: appCurrency),
               Center(
-                child: TextButton.icon(
+                child: OTextButton(
+                  label: 'View all activity',
+                  icon: LucideIcons.arrowRight,
                   onPressed: () => AppShell.switchTo(context, AppShell.activity),
-                  iconAlignment: IconAlignment.end,
-                  icon: const Icon(Icons.arrow_forward, size: 18),
-                  label: const Text('View all activity'),
                 ),
               ),
             ],
-            if (upcoming.isNotEmpty) ...[const SectionHeader('Coming up'), _Upcoming(items: upcoming)],
-            if (m.byCategory.isNotEmpty) ...[const SizedBox(height: Space.xxxl), _CategoriesLink(summary: m)],
+            if (upcoming.isNotEmpty) ...[const OSectionHeader('Coming up'), _Upcoming(items: upcoming)],
+            if (m.byCategory.isNotEmpty) ...[const SizedBox(height: OSpace.xxxl), _CategoriesLink(summary: m)],
           ]),
         ),
       ),
@@ -120,8 +129,8 @@ class _Headline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     final m = app.month;
     final use = app.budgetUse;
     final limit = app.budgets.monthlyMinor;
@@ -141,35 +150,35 @@ class _Headline extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                AnimatedMoney(m.spentMinor, round: true, style: text.displaySmall?.copyWith(fontSize: 56)),
-                if (change != null) ...[const SizedBox(width: Space.sm), _ChangePill(change: change)],
+                AnimatedMoney(m.spentMinor, round: true, style: text.hero.tabular),
+                if (change != null) ...[const SizedBox(width: OSpace.sm), _ChangePill(change: change)],
               ],
             ),
           ),
-          const SizedBox(height: Space.md),
+          const SizedBox(height: OSpace.md),
           const MonthSwitcher(),
           if (use != null && limit != null) ...[
-            const SizedBox(height: Space.xl),
+            const SizedBox(height: OSpace.xl),
             Semantics(
               label: '${(use * 100).round()} percent of monthly budget used',
               child: AnimatedMeter(
                 value: use,
                 height: 6,
-                background: t.trayDeep,
+                background: t.lineStrong,
                 // Meter colour carries severity: ink → accent at 80% → error over.
                 color: use >= 1
-                    ? Theme.of(context).colorScheme.error
+                    ? t.negative
                     : use >= 0.8
                     ? t.accent
                     : t.ink,
               ),
             ),
-            const SizedBox(height: Space.sm),
+            const SizedBox(height: OSpace.sm),
             Text(
               use >= 1
                   ? '${formatMoney(m.spentMinor - limit, appCurrency, round: true)} over your ${formatCompact(limit)} budget'
                   : '${formatMoney(limit - m.spentMinor, appCurrency, round: true)} left of ${formatCompact(limit)}',
-              style: text.bodySmall?.copyWith(color: t.muted),
+              style: text.small.copyWith(color: t.inkSoft),
             ),
           ],
         ],
@@ -203,52 +212,31 @@ class _ChangePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final t = context.colors;
     final p = change.percent;
-    // Not the accent: it follows the wallpaper, so it can't mean "more".
+    // Up means spending more, so it's negative; down is positive.
     final fg = p > 0
-        ? Theme.of(context).colorScheme.error
+        ? t.negative
         : p < 0
-        ? t.success
-        : t.muted;
+        ? t.positive
+        : t.inkSoft;
     final more = change.diffMinor >= 0;
     final detail =
         '${formatMoney(change.diffMinor.abs(), appCurrency, round: true)} ${more ? 'more' : 'less'} than ${change.against}';
-    return Tooltip(
+    return OTooltip(
       message: detail,
-      triggerMode: TooltipTriggerMode.tap,
+      tapToShow: true,
       child: Semantics(
         label: detail,
         excludeSemantics: true,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(6, 4, 8, 4),
-          decoration: BoxDecoration(
-            color: fg.withValues(alpha: dark ? 0.18 : 0.12),
-            borderRadius: BorderRadius.circular(Radii.pill),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                p > 0
-                    ? Icons.arrow_drop_up
-                    : p < 0
-                    ? Icons.arrow_drop_down
-                    : Icons.remove,
-                size: 18,
-                color: fg,
-              ),
-              Text(
-                p.abs() > 999 ? '999+%' : '${p.abs()}%',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: fg,
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-            ],
-          ),
+        child: OBadge(
+          label: p.abs() > 999 ? '999+%' : '${p.abs()}%',
+          color: fg,
+          icon: p > 0
+              ? LucideIcons.chevronUp
+              : p < 0
+              ? LucideIcons.chevronDown
+              : LucideIcons.minus,
         ),
       ),
     );
@@ -262,31 +250,36 @@ class _SetupTray extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     final smsFirst = !app.smsGranted;
-    return Tray(
+    return OInset(
+      padding: const EdgeInsets.all(OSpace.xl),
+      radius: ORadius.lg,
       child: Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(smsFirst ? 'Read your bank SMS' : 'Catch payments instantly', style: text.titleMedium),
-                const SizedBox(height: Space.xs),
+                Text(smsFirst ? 'Read your bank SMS' : 'Catch payments instantly', style: text.title3),
+                const SizedBox(height: OSpace.xs),
                 Text(
                   smsFirst
                       ? 'Finds the last 90 days of spending. Nothing leaves your phone.'
                       : 'Notification access picks up UPI app payments as they happen.',
-                  style: text.bodySmall?.copyWith(color: t.muted),
+                  style: text.small.copyWith(color: t.inkSoft),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: Space.md),
-          AccentOrb(
-            icon: smsFirst ? Icons.sms_outlined : Icons.notifications_active_outlined,
-            tooltip: smsFirst ? 'Allow SMS access' : 'Allow notification access',
+          const SizedBox(width: OSpace.md),
+          OIconButton(
+            icon: smsFirst ? LucideIcons.messageSquareText : LucideIcons.bellRing,
+            label: smsFirst ? 'Allow SMS access' : 'Allow notification access',
+            size: 44,
+            background: t.ink,
+            color: t.onInk,
             onPressed: smsFirst ? app.requestSms : app.requestNotifications,
           ),
         ],
@@ -311,38 +304,38 @@ class _Upcoming extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     return SizedBox(
       height: 124,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         clipBehavior: Clip.none,
         itemCount: items.length,
-        separatorBuilder: (_, _) => const SizedBox(width: Space.md),
+        separatorBuilder: (_, _) => const SizedBox(width: OSpace.md),
         itemBuilder: (_, i) {
           final r = items[i];
           return SizedBox(
             width: 160,
-            child: SurfaceCard(
-              padding: const EdgeInsets.all(Space.lg),
+            child: OCard(
+              padding: const EdgeInsets.all(OSpace.lg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Icon(r.category.icon, size: 18, color: t.muted),
+                      Icon(r.category.icon, size: 18, color: t.inkSoft),
                       const Spacer(),
-                      Text(due(r.nextDue), style: text.bodySmall?.copyWith(color: t.muted)),
+                      Text(due(r.nextDue), style: text.small.copyWith(color: t.inkSoft)),
                     ],
                   ),
                   const Spacer(),
-                  Text(r.payee, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.titleMedium),
+                  Text(r.payee, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.title3),
                   Text(
                     '${formatMoney(r.amountMinor, appCurrency)} · ${r.cadence.label.toLowerCase()}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: text.bodySmall?.copyWith(color: t.muted),
+                    style: text.small.copyWith(color: t.inkSoft),
                   ),
                 ],
               ),
@@ -363,37 +356,37 @@ class _CategoriesLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     final cats = summary.byCategory;
     final total = summary.spentMinor;
     final top = cats.take(3).toList();
     final rest = total - top.fold(0, (sum, c) => sum + c.amountMinor);
-    // One hue, ranked: biggest in the accent, the rest in fading ink.
-    final shades = [t.accent, t.ink, t.ink.withValues(alpha: 0.55), t.ink.withValues(alpha: 0.25)];
+    // One hue, ranked: biggest in ink, the rest in fading ink.
+    final shades = [t.ink, t.ink.withValues(alpha: 0.7), t.ink.withValues(alpha: 0.4), t.ink.withValues(alpha: 0.15)];
     final segments = [
       for (final (i, c) in top.indexed) (value: c.amountMinor, color: shades[i]),
       if (rest > 0) (value: rest, color: shades[3]),
     ];
 
-    return SurfaceCard(
+    return OCard(
       onTap: () => push(context, const CategoriesScreen()),
-      padding: const EdgeInsets.fromLTRB(Space.lg, Space.lg, Space.md, Space.lg),
+      padding: const EdgeInsets.fromLTRB(OSpace.lg, OSpace.lg, OSpace.md, OSpace.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(child: Text('Where it went', style: text.titleMedium)),
-              Text('${cats.length} categories', style: text.bodySmall?.copyWith(color: t.muted)),
-              Icon(Icons.chevron_right, color: t.muted),
+              Expanded(child: Text('Where it went', style: text.title3)),
+              Text('${cats.length} categories', style: text.small.copyWith(color: t.inkSoft)),
+              Icon(LucideIcons.chevronRight, size: 20, color: t.inkSoft),
             ],
           ),
-          const SizedBox(height: Space.md),
+          const SizedBox(height: OSpace.md),
           Padding(
-            padding: const EdgeInsets.only(right: Space.sm),
+            padding: const EdgeInsets.only(right: OSpace.sm),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(Radii.pill),
+              borderRadius: BorderRadius.circular(ORadius.pill),
               child: SizedBox(
                 height: 10,
                 child: Row(
@@ -402,7 +395,7 @@ class _CategoriesLink extends StatelessWidget {
                   children: [
                     for (final (i, seg) in segments.indexed) ...[
                       // 2px surface gap between segments.
-                      if (i > 0) SizedBox(width: 2, child: ColoredBox(color: t.card)),
+                      if (i > 0) SizedBox(width: 2, child: ColoredBox(color: t.surface)),
                       Expanded(
                         flex: (seg.value / total * 1000).round().clamp(1, 1000),
                         child: ColoredBox(color: seg.color),
@@ -413,10 +406,10 @@ class _CategoriesLink extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: Space.md),
+          const SizedBox(height: OSpace.md),
           Wrap(
-            spacing: Space.md,
-            runSpacing: Space.xs,
+            spacing: OSpace.md,
+            runSpacing: OSpace.xs,
             children: [
               for (final (i, c) in top.indexed)
                 Row(
@@ -427,10 +420,10 @@ class _CategoriesLink extends StatelessWidget {
                       height: 8,
                       decoration: BoxDecoration(color: shades[i], shape: BoxShape.circle),
                     ),
-                    const SizedBox(width: Space.xs),
+                    const SizedBox(width: OSpace.xs),
                     Text(
                       '${c.category.label} ${formatCompact(c.amountMinor)}',
-                      style: text.bodySmall?.copyWith(color: t.muted),
+                      style: text.small.copyWith(color: t.inkSoft),
                     ),
                   ],
                 ),
@@ -449,21 +442,23 @@ class _Empty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
-    return Tray(
+    final t = context.colors;
+    final text = context.type;
+    return OInset(
+      padding: const EdgeInsets.all(OSpace.xl),
+      radius: ORadius.lg,
       child: Column(
         children: [
-          Icon(Icons.receipt_long_outlined, size: 40, color: t.muted),
-          const SizedBox(height: Space.md),
-          Text('No transactions yet', style: text.titleMedium),
-          const SizedBox(height: Space.xs),
+          Icon(LucideIcons.receiptText, size: 36, color: t.inkSoft),
+          const SizedBox(height: OSpace.md),
+          Text('No transactions yet', style: text.title3),
+          const SizedBox(height: OSpace.xs),
           Text(
             app.isAndroid
                 ? 'Allow SMS access and your bank alerts will show up here.'
                 : 'Tap Samples to see how it works with example bank SMS.',
             textAlign: TextAlign.center,
-            style: text.bodySmall?.copyWith(color: t.muted),
+            style: text.small.copyWith(color: t.inkSoft),
           ),
         ],
       ),

@@ -1,12 +1,13 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
 import '../../app_controller.dart';
 import '../../engine/enrich.dart';
 import '../../money.dart';
-import '../../ui/components.dart';
 import '../../ui/format.dart';
 import '../../ui/payee_logo.dart';
-import '../../ui/tokens.dart';
+
+import 'package:onyx/onyx.dart';
+
 import 'prompt_card_parts.dart';
 
 /// "Split ₹450 at Swiggy?" — the in-app split prompt. No picker: the
@@ -68,46 +69,50 @@ class _SplitPromptCardState extends State<SplitPromptCard> {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     return PromptSurface(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PromptHeader(
-            icon: Icons.call_split,
+            icon: LucideIcons.split,
             leading: widget.payment == null ? null : PayeeAvatar(widget.payment!, size: 44),
             title: 'Split at ${widget.payee}?',
             amount: formatMoney(widget.amountMinor, widget.currency),
           ),
-          const SizedBox(height: Space.sm),
+          const SizedBox(height: OSpace.sm),
           Text(
             '${friendlyTime(widget.at)} · Opens Splitwise with this filled in',
-            style: text.bodySmall?.copyWith(color: t.muted),
+            style: text.small.copyWith(color: promptMuted(t)),
           ),
-          const SizedBox(height: Space.lg),
+          const SizedBox(height: OSpace.lg),
           Row(
             children: [
               Expanded(
                 flex: 2,
-                child: FilledButton(
-                  style: PromptButtons.secondary(t),
+                child: OButton(
+                  label: 'Skip',
+                  variant: OButtonVariant.inverseSoft,
+                  size: OButtonSize.lg,
+                  expand: true,
                   onPressed: _busy
                       ? null
                       : () => _run(widget.onSkip ?? () => AppScope.of(context).skipSplit(widget.txnId)),
-                  child: const OneLineLabel('Skip'),
                 ),
               ),
-              const SizedBox(width: Space.sm),
+              const SizedBox(width: OSpace.sm),
               Expanded(
                 flex: 3,
-                child: FilledButton(
-                  style: PromptButtons.primary(t),
+                child: OButton(
+                  label: 'Split in Splitwise',
+                  variant: OButtonVariant.inverse,
+                  size: OButtonSize.lg,
+                  expand: true,
                   onPressed: _busy
                       ? null
                       : () => _run(widget.onSplit ?? () => AppScope.of(context).openInSplitwise(widget.txnId)),
-                  child: const OneLineLabel('Split in Splitwise'),
                 ),
               ),
             ],
@@ -121,18 +126,16 @@ class _SplitPromptCardState extends State<SplitPromptCard> {
 /// Shows the prompt as a bottom sheet over the app (a payment just arrived).
 Future<void> showSplitPromptSheet(BuildContext context, Enriched payment) {
   final app = AppScope.of(context);
-  return showModalBottomSheet<void>(
-    context: context,
-    builder: (sheet) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(Space.md),
-        child: SplitPromptCard.of(
-          payment,
-          currency: appCurrency,
-          onSplit: () => app.openInSplitwise(payment.txn.id),
-          onSkip: () => app.skipSplit(payment.txn.id),
-          onDone: () => Navigator.pop(sheet),
-        ),
+  return showOSheet<void>(
+    context,
+    builder: (sheet) => Padding(
+      padding: const EdgeInsets.fromLTRB(OSpace.md, 0, OSpace.md, OSpace.md),
+      child: SplitPromptCard.of(
+        payment,
+        currency: appCurrency,
+        onSplit: () => app.openInSplitwise(payment.txn.id),
+        onSkip: () => app.skipSplit(payment.txn.id),
+        onDone: () => Navigator.pop(sheet),
       ),
     ),
   );

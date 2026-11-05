@@ -2,9 +2,8 @@ import 'package:auto_split/engine/enrich.dart';
 import 'package:auto_split/engine/ingest.dart';
 import 'package:auto_split/model/transaction.dart';
 import 'package:auto_split/screens/widgets/review_card.dart';
-import 'package:auto_split/ui/theme.dart';
-import 'package:auto_split/ui/tokens.dart';
-import 'package:flutter/material.dart';
+import 'package:onyx/onyx.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -27,15 +26,14 @@ void main() {
       expect(queue, hasLength(1));
 
       await tester.pumpWidget(
-        MaterialApp(
-          theme: buildTheme(brightness),
+        OApp(
+          title: 'test',
+          mode: brightness == Brightness.dark ? OThemeMode.dark : OThemeMode.light,
           home: MediaQuery(
             data: const MediaQueryData(size: Size(375, 812), textScaler: TextScaler.linear(1.3)),
-            child: Scaffold(
-              body: Padding(
-                padding: const EdgeInsets.all(20),
-                child: ReviewCard(queue: queue, currency: 'INR'),
-              ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: ReviewCard(queue: queue, currency: 'INR'),
             ),
           ),
         ),
@@ -46,16 +44,17 @@ void main() {
         expect(tester.getSize(find.text(label)).height, lessThan(30), reason: label);
       }
 
-      // Primary is the accent action with white text; secondary is a quiet tray pill.
-      final t = Theme.of(tester.element(find.byType(ReviewCard))).extension<AppTokens>()!;
-      final primary = tester.widget<FilledButton>(
-        find.ancestor(of: find.text('Expense'), matching: find.byType(FilledButton)),
-      );
-      expect(primary.style!.backgroundColor!.resolve({}), t.accentDeep);
-      expect(primary.style!.foregroundColor!.resolve({}), t.onAccent);
+      // An ink card; primary is the inverse (canvas-filled) action, secondary a soft one.
+      final t = OTheme.of(tester.element(find.byType(ReviewCard))).colors;
+      final card = tester.widget<OCard>(find.descendant(of: find.byType(ReviewCard), matching: find.byType(OCard)));
+      expect(card.color, t.ink);
+      OButton button(String label) =>
+          tester.widget<OButton>(find.ancestor(of: find.text(label), matching: find.byType(OButton)));
+      expect(button('Expense').variant, OButtonVariant.inverse);
+      expect(button('Not expense').variant, OButtonVariant.inverseSoft);
       for (final label in ['Not expense', 'Expense']) {
-        final button = find.ancestor(of: find.text(label), matching: find.byType(FilledButton));
-        expect(tester.getSize(button).height, greaterThanOrEqualTo(48), reason: label);
+        final b = find.ancestor(of: find.text(label), matching: find.byType(OButton));
+        expect(tester.getSize(b).height, greaterThanOrEqualTo(48), reason: label);
       }
       // Payee and amount sit in the header row.
       expect(find.text('ramesh.kumar@oksbi'), findsNothing);

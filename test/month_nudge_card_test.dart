@@ -5,9 +5,9 @@ import 'package:auto_split/engine/month_nudge.dart';
 import 'package:auto_split/model/transaction.dart';
 import 'package:auto_split/screens/widgets/month_nudge_card.dart';
 import 'package:auto_split/storage/app_store.dart';
-import 'package:auto_split/ui/theme.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onyx/onyx.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
@@ -20,27 +20,31 @@ void main() {
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.reset);
 
-      final ledger = enrich(ingest(const [], [
-        for (final (i, day) in [28, 29, 31].indexed)
-          RawMessage(
-            source: Source.sms,
-            sourceId: '$i',
-            sender: 'VM-HDFCBK',
-            body: 'Rs.${1000 * (i + 1)} debited from A/c XX4821 to VPA bill$i@icici',
-            at: DateTime(2026, 10, day, 10),
-          ),
-      ]).txns);
+      final ledger = enrich(
+        ingest(const [], [
+          for (final (i, day) in [28, 29, 31].indexed)
+            RawMessage(
+              source: Source.sms,
+              sourceId: '$i',
+              sender: 'VM-HDFCBK',
+              body: 'Rs.${1000 * (i + 1)} debited from A/c XX4821 to VPA bill$i@icici',
+              at: DateTime(2026, 10, day, 10),
+            ),
+        ]).txns,
+      );
       final nudge = buildMonthNudge(ledger, {}, now: DateTime(2026, 11, 2))!;
 
       await tester.pumpWidget(
         AppScope(
           controller: AppController(AppStore()),
-          child: MaterialApp(
-            theme: buildTheme(brightness),
+          child: OApp(
+            title: 'test',
+            mode: brightness == Brightness.dark ? OThemeMode.dark : OThemeMode.light,
             home: MediaQuery(
               data: const MediaQueryData(size: Size(375, 812), textScaler: TextScaler.linear(1.3)),
-              child: Scaffold(
-                body: Padding(padding: const EdgeInsets.all(20), child: MonthNudgeCard(nudge: nudge)),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: MonthNudgeCard(nudge: nudge),
               ),
             ),
           ),
@@ -56,9 +60,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Count in November'), findsOneWidget);
       expect(find.text('Count 3 in November'), findsOneWidget);
-      expect(find.byType(Checkbox), findsNWidgets(3));
+      expect(find.byType(OCheckbox), findsNWidgets(3));
 
-      await tester.tap(find.byType(Checkbox).first, warnIfMissed: false);
+      await tester.tap(find.byType(OCheckbox).first, warnIfMissed: false);
       await tester.pump();
       expect(find.text('Count 2 in November'), findsOneWidget);
       expect(tester.takeException(), isNull);

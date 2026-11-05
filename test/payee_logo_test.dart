@@ -6,9 +6,9 @@ import 'package:auto_split/engine/ingest.dart';
 import 'package:auto_split/model/transaction.dart';
 import 'package:auto_split/ui/components.dart';
 import 'package:auto_split/ui/payee_logo.dart';
-import 'package:auto_split/ui/theme.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onyx/onyx.dart';
 
 /// A real 1x1 PNG.
 final _png = Uint8List.fromList([
@@ -60,7 +60,15 @@ void main() {
     });
 
     test('people and unknown shops get nothing', () {
-      for (final text in ['Ramesh Kumar', 'Lola Montez', 'Olaf', 'Kuber Stores', 'Navi Mumbai Traders', '', 'Rahul S']) {
+      for (final text in [
+        'Ramesh Kumar',
+        'Lola Montez',
+        'Olaf',
+        'Kuber Stores',
+        'Navi Mumbai Traders',
+        '',
+        'Rahul S',
+      ]) {
         expect(PayeeBrands.forText(text), isEmpty, reason: text);
       }
     });
@@ -84,8 +92,11 @@ void main() {
       final sms = _pay('Rs.250 debited from A/c XX4821 to VPA zomato@icici');
       expect(PayeeBrands.paymentApp(sms.txn), isNull);
 
-      final smsApp = _pay('Rs.250 debited from A/c XX4821 to VPA zomato@icici',
-          source: Source.notification, sender: 'com.google.android.apps.messaging');
+      final smsApp = _pay(
+        'Rs.250 debited from A/c XX4821 to VPA zomato@icici',
+        source: Source.notification,
+        sender: 'com.google.android.apps.messaging',
+      );
       expect(PayeeBrands.paymentApp(smsApp.txn), isNull);
     });
   });
@@ -99,8 +110,12 @@ void main() {
 
   group('PayeeAvatar', () {
     Future<void> pump(WidgetTester tester, Widget child) => tester.pumpWidget(
-          MaterialApp(theme: buildTheme(Brightness.light), home: Scaffold(body: Center(child: child))),
-        );
+      OApp(
+        title: 'test',
+        mode: OThemeMode.light,
+        home: Center(child: child),
+      ),
+    );
 
     tearDown(() {
       PayeeLogos.enabled = true;

@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 /// Lite mode for low-end phones: no animations (via MediaQuery
 /// disableAnimations, which Motion honours) and no blurred shadows.
 abstract final class Perf {
-  /// Read by [Shadows]; set by AppController from the device + setting.
+  /// Set by AppController from the device + setting.
   static bool lite = false;
 
   static const _channel = MethodChannel('auto_spend/sms');

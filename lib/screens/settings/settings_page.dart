@@ -1,8 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:onyx/onyx.dart';
 
-import '../../ui/components.dart';
 import '../../ui/motion.dart';
-import '../../ui/tokens.dart';
 
 /// Shell for an L2 settings page: back + title, then content.
 class SettingsPage extends StatelessWidget {
@@ -14,36 +13,25 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
-    return Scaffold(
-      body: CanvasBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              TopBar(title: title),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(Space.gutter, Space.sm, Space.gutter, Space.xxxl),
-                  children: staggered([
-                    if (intro != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: Space.lg),
-                        child: Text(intro!, style: text.bodyMedium?.copyWith(color: t.muted)),
-                      ),
-                    ...children,
-                  ]),
-                ),
-              ),
-            ],
-          ),
-        ),
+    final text = context.type;
+    return OScreen(
+      title: title,
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(OSpace.gutter, OSpace.sm, OSpace.gutter, OSpace.xxxl),
+        children: staggered([
+          if (intro != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: OSpace.lg),
+              child: Text(intro!, style: text.body.copyWith(color: context.colors.inkSoft)),
+            ),
+          ...children,
+        ]),
       ),
     );
   }
 }
 
-/// Icon + title + subtitle + trailing, inside a white card group.
+/// Icon + title + subtitle + trailing, inside a card group.
 class SettingsRow extends StatelessWidget {
   const SettingsRow({
     super.key,
@@ -63,64 +51,23 @@ class SettingsRow extends StatelessWidget {
   final bool destructive;
 
   @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
-    final color = destructive ? Theme.of(context).colorScheme.error : t.ink;
-    return InkWell(
-      onTap: onTap,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 64),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(Space.lg, Space.md, Space.md, Space.md),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(color: t.tray, shape: BoxShape.circle),
-                child: Icon(icon, size: 20, color: color),
-              ),
-              const SizedBox(width: Space.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: text.titleMedium?.copyWith(color: color)),
-                    if (subtitle != null)
-                      Text(subtitle!, style: text.bodySmall?.copyWith(color: t.muted)),
-                  ],
-                ),
-              ),
-              ?trailing,
-              if (trailing == null && onTap != null) Icon(Icons.chevron_right, color: t.muted),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => ORow(
+    leading: Icon(icon),
+    title: Text(title),
+    subtitle: subtitle == null ? null : Text(subtitle!),
+    trailing: trailing,
+    chevron: trailing == null && onTap != null,
+    onTap: onTap,
+    destructive: destructive,
+  );
 }
 
-/// White card holding [SettingsRow]s with hairline dividers.
+/// Card holding [SettingsRow]s with hairline dividers.
 class SettingsGroup extends StatelessWidget {
   const SettingsGroup({super.key, required this.children});
 
   final List<Widget> children;
 
   @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return SurfaceCard(
-      padding: EdgeInsets.zero,
-      child: Column(
-        children: [
-          for (final (i, c) in children.indexed) ...[
-            if (i > 0) Divider(height: 1, indent: 68, color: t.tray),
-            c,
-          ],
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => OGroup(dividerIndent: OSpace.lg + 20 + OSpace.md + 2, children: children);
 }

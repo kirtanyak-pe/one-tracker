@@ -1,13 +1,16 @@
 import 'package:auto_split/ui/motion.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onyx/onyx.dart';
 
-Widget _app(Widget child, {bool reduce = false}) => MaterialApp(
-      home: MediaQuery(
-        data: MediaQueryData(disableAnimations: reduce),
-        child: Scaffold(body: child),
-      ),
-    );
+Widget _app(Widget child, {bool reduce = false}) => OApp(
+  title: 'test',
+  mode: OThemeMode.light,
+  home: MediaQuery(
+    data: MediaQueryData(disableAnimations: reduce),
+    child: child,
+  ),
+);
 
 void main() {
   testWidgets('money counts up to the final value', (tester) async {

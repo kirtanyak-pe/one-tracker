@@ -1,11 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:onyx/onyx.dart';
 
-import '../../ui/tokens.dart';
+/// Shared pieces of the "decide this payment" cards (review, split, month
+/// nudge), so they read as one family: ink card, header row, one muted line,
+/// actions.
 
-/// Shared pieces of the two "decide this payment" cards (review + split), so
-/// they read as one family: white card, header row, one muted line, actions.
-
-/// The card surface: same card colour, radius and shadow as the day cards.
+/// The card surface: an ink card, light text on dark, no border or shadow.
 class PromptSurface extends StatelessWidget {
   const PromptSurface({super.key, required this.child});
 
@@ -13,20 +13,15 @@ class PromptSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    return Container(
-      padding: const EdgeInsets.all(Space.lg),
-      decoration: BoxDecoration(
-        color: t.card,
-        borderRadius: BorderRadius.circular(Radii.tile),
-        boxShadow: Shadows.card(Theme.of(context).brightness),
-      ),
-      child: child,
-    );
+    final t = context.colors;
+    return OCard(color: t.ink, border: false, padding: const EdgeInsets.all(OSpace.lg), child: child);
   }
 }
 
-/// Icon in a tray circle · title and muted subtitle · optional amount on the right.
+/// Muted text on an ink card.
+Color promptMuted(OColors t) => t.onInk.withValues(alpha: 0.7);
+
+/// Icon in a soft circle · title and muted subtitle · optional amount on the right.
 class PromptHeader extends StatelessWidget {
   const PromptHeader({super.key, required this.icon, required this.title, this.amount, this.subtitle, this.leading});
 
@@ -40,73 +35,43 @@ class PromptHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
+    final t = context.colors;
+    final text = context.type;
     return Row(
       children: [
         leading ??
             Container(
               width: 44,
               height: 44,
-              decoration: BoxDecoration(color: t.tray, shape: BoxShape.circle),
-              child: Icon(icon, size: 22, color: t.ink),
+              decoration: BoxDecoration(color: t.onInk.withValues(alpha: 0.14), shape: BoxShape.circle),
+              child: Icon(icon, size: 20, color: t.onInk),
             ),
-        const SizedBox(width: Space.md),
+        const SizedBox(width: OSpace.md),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.titleMedium),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: text.title3.copyWith(color: t.onInk),
+              ),
               if (subtitle != null)
                 Text(
                   subtitle!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: text.bodySmall?.copyWith(color: t.muted),
+                  style: text.small.copyWith(color: promptMuted(t)),
                 ),
             ],
           ),
         ),
         if (amount != null) ...[
-          const SizedBox(width: Space.md),
-          Text(
-            amount!,
-            maxLines: 1,
-            style: text.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.3,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
+          const SizedBox(width: OSpace.md),
+          Text(amount!, maxLines: 1, style: text.title2.semibold.tabular.copyWith(color: t.onInk, letterSpacing: -0.3)),
         ],
       ],
     );
   }
-}
-
-/// Buttons for the action row: one accent primary, one quiet tray secondary.
-/// Both 48dp tall pills.
-abstract final class PromptButtons {
-  static const height = 48.0;
-
-  /// The one primary action. [AppTokens.accentDeep] so white text passes AA.
-  static ButtonStyle primary(AppTokens t) => FilledButton.styleFrom(
-    backgroundColor: t.accentDeep,
-    foregroundColor: t.onAccent,
-    disabledBackgroundColor: t.trayDeep,
-    disabledForegroundColor: t.muted,
-    minimumSize: const Size(64, height),
-    padding: const EdgeInsets.symmetric(horizontal: Space.lg),
-    shape: const StadiumBorder(),
-  );
-
-  static ButtonStyle secondary(AppTokens t) => FilledButton.styleFrom(
-    backgroundColor: t.tray,
-    foregroundColor: t.ink,
-    disabledBackgroundColor: t.tray,
-    disabledForegroundColor: t.muted,
-    minimumSize: const Size(64, height),
-    padding: const EdgeInsets.symmetric(horizontal: Space.lg),
-    shape: const StadiumBorder(),
-  );
 }

@@ -73,14 +73,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.19.1"
-  cupertino_ui:
-    dependency: transitive
-    description:
-      name: cupertino_ui
-      sha256: ea0b8170b40a86262b2fc21ac0625303f52df209dbf6fccc2b98b27eff44f6ce
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.1.2"
   dbus:
     dependency: transitive
     description:
@@ -89,14 +81,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.15"
-  dynamic_color:
-    dependency: "direct main"
-    description:
-      name: dynamic_color
-      sha256: "869b3bce0100eb519768ecd71c0111f0b5ea679f5f62e1f59c49d80067e730c5"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.1.0"
   fake_async:
     dependency: transitive
     description:
@@ -182,11 +166,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.1"
-  flutter_localizations:
-    dependency: transitive
-    description: flutter
-    source: sdk
-    version: "0.0.0"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -269,6 +248,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.1.0"
+  lucide_icons_flutter:
+    dependency: transitive
+    description:
+      name: lucide_icons_flutter
+      sha256: d350446fb7a7ab3ef8550e3cb5aab72f4e9da54d54111244ab09489bb8a2a1ff
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.1.25"
   matcher:
     dependency: transitive
     description:
@@ -285,14 +272,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.13.0"
-  material_ui:
-    dependency: transitive
-    description:
-      name: material_ui
-      sha256: "98ab9eda579ecae623e4b376c603035c5def78ce706f735f30bd632af5814695"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.6.0"
   meta:
     dependency: transitive
     description:
@@ -309,6 +288,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.0"
+  onyx:
+    dependency: "direct main"
+    description:
+      path: "packages/onyx"
+      relative: true
+    source: path
+    version: "0.1.0"
   path:
     dependency: transitive
     description:
@@ -596,4 +582,4 @@ packages:
     version: "3.1.4"
 sdks:
   dart: ">=3.13.5 <4.0.0"
-  flutter: ">=3.47.0"
+  flutter: ">=3.44.0"
