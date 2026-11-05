@@ -228,6 +228,12 @@ class SourcesPage extends StatelessWidget {
                 subtitle: 'Also catches UPI app payments',
                 trailing: allow(app.notificationsGranted, app.requestNotifications),
               ),
+              SettingsRow(
+                icon: LucideIcons.contactRound,
+                title: 'Contact photos',
+                subtitle: 'Faces on payments to people you know',
+                trailing: allow(app.contactsGranted, app.requestContacts),
+              ),
             ],
           ),
       ],

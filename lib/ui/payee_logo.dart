@@ -1,12 +1,14 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 
 import '../engine/enrich.dart';
+import '../model/category.dart';
 import '../model/transaction.dart';
 import 'components.dart';
+
 import 'package:onyx/onyx.dart';
 
 /// Real logos without bundling or downloading any: the launcher icon of the
@@ -149,10 +151,7 @@ const paymentAppPackages = <String>{
 };
 
 /// Every package the app may ask for.
-final Set<String> allLogoPackages = {
-  for (final b in _brands) ...b.packages,
-  ...paymentAppPackages,
-};
+final Set<String> allLogoPackages = {for (final b in _brands) ...b.packages, ...paymentAppPackages};
 
 /// Payee text -> app packages (pure).
 abstract final class PayeeBrands {
@@ -274,10 +273,7 @@ class PayeeLogos extends ChangeNotifier {
   }
 
   static Future<Map<String, Uint8List>> _fromAndroid(List<String> packages) async {
-    final raw = await _channel.invokeMethod<Map<Object?, Object?>>(
-      'appIcons',
-      {'packages': packages, 'size': _pixels},
-    );
+    final raw = await _channel.invokeMethod<Map<Object?, Object?>>('appIcons', {'packages': packages, 'size': _pixels});
     return {
       for (final e in (raw ?? const {}).entries)
         if (e.key is String && e.value is Uint8List) e.key! as String: e.value! as Uint8List,
@@ -293,26 +289,101 @@ class PayeeLogos extends ChangeNotifier {
   }
 }
 
+/// Photos of people you pay, from the phone's contacts: matched by the
+/// number in a UPI id ("9876543210@ybl"), or for People payments by a
+/// contact with exactly the payee's name. Brands never get one.
+class ContactPhotos extends ChangeNotifier {
+  static final instance = ContactPhotos();
+
+  static bool enabled = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  static const _channel = MethodChannel('auto_spend/sms');
+  static final _number = RegExp(r'(?<!\d)(?:91)?([6-9]\d{9})(?!\d)');
+
+  final _loaded = <String, Uint8List>{};
+  final _asked = <String>{};
+  final _pending = <String>{};
+  bool _scheduled = false;
+
+  /// Lookup keys for a payment, best first; empty for merchants.
+  static List<String> keysFor(Enriched e) {
+    if (PayeeBrands.forEnriched(e).isNotEmpty) return const [];
+    final vpa = e.txn.vpa;
+    final phone = vpa == null ? null : _number.firstMatch(vpa.split('@').first)?.group(1);
+    return [
+      if (phone != null) 'phone:$phone',
+      if (e.category == Category.people && e.payee.trim().isNotEmpty) 'name:${e.payee.trim()}',
+    ];
+  }
+
+  /// Keys for a name alone (top payees); empty for merchants.
+  static List<String> keysForName(String name) =>
+      PayeeBrands.forText(name).isEmpty && name.trim().isNotEmpty ? ['name:${name.trim()}'] : const [];
+
+  Uint8List? firstLoaded(Iterable<String> keys) {
+    for (final k in keys) {
+      final b = _loaded[k];
+      if (b != null) return b;
+    }
+    return null;
+  }
+
+  void request(Iterable<String> keys) {
+    if (!enabled) return;
+    for (final k in keys) {
+      if (_asked.add(k)) _pending.add(k);
+    }
+    if (_pending.isNotEmpty && !_scheduled) {
+      _scheduled = true;
+      scheduleMicrotask(_flush);
+    }
+  }
+
+  /// Contacts access just arrived: ask again for everything on screen.
+  void retry() {
+    _asked.clear();
+    notifyListeners();
+  }
+
+  Future<void> _flush() async {
+    _scheduled = false;
+    final batch = _pending.toList();
+    _pending.clear();
+    if (batch.isEmpty) return;
+    try {
+      final raw = await _channel.invokeMethod<Map<Object?, Object?>>('contactPhotos', {'keys': batch});
+      final got = {
+        for (final e in (raw ?? const {}).entries)
+          if (e.key is String && e.value is Uint8List) e.key! as String: e.value! as Uint8List,
+      };
+      if (got.isNotEmpty) {
+        _loaded.addAll(got);
+        notifyListeners();
+      }
+    } on MissingPluginException {
+      // No native side (tests, web).
+    } on PlatformException {
+      _asked.removeAll(batch);
+    }
+  }
+}
+
 /// A payee's avatar: the real logo when its app is installed — full colour, on
 /// white, in a circle with a hairline edge — otherwise the quiet fallback
-/// (category icon for payments, initials for [PayeeAvatar.name]).
+/// (category icon for payments, initials for [PayeeAvatar.name]). People
+/// get their contact photo when the phone has one ([ContactPhotos]).
 ///
 /// For payments announced by a payment-app notification, that app's icon sits
 /// on the avatar's corner as a badge (the logo itself stays the payee's).
 class PayeeAvatar extends StatelessWidget {
-  const PayeeAvatar(
-    Enriched this.payment, {
-    super.key,
-    this.size = 44,
-    this.background,
-    this.muted = false,
-  }) : name = null;
+  const PayeeAvatar(Enriched this.payment, {super.key, this.size = 44, this.background, this.muted = false})
+    : name = null;
 
   /// By name only (e.g. top payees): initials fallback, no badge.
   const PayeeAvatar.name(String this.name, {super.key, this.size = 40})
-      : payment = null,
-        background = null,
-        muted = false;
+    : payment = null,
+      background = null,
+      muted = false;
 
   final Enriched? payment;
   final String? name;
@@ -331,11 +402,19 @@ class PayeeAvatar extends StatelessWidget {
     final candidates = e != null ? PayeeBrands.forEnriched(e) : PayeeBrands.forText(name!);
     final app = e != null ? PayeeBrands.paymentApp(e.txn) : null;
     if (candidates.isNotEmpty || app != null) logos.request([...candidates, ?app]);
-    if (!PayeeLogos.enabled || (candidates.isEmpty && app == null)) return _fallback(context);
+    final photos = ContactPhotos.instance;
+    final people = !ContactPhotos.enabled
+        ? const <String>[]
+        : e != null
+        ? ContactPhotos.keysFor(e)
+        : ContactPhotos.keysForName(name!);
+    if (!PayeeLogos.enabled || (candidates.isEmpty && app == null && people.isEmpty)) return _fallback(context);
     return ListenableBuilder(
-      listenable: logos,
+      listenable: Listenable.merge([logos, photos]),
       builder: (context, _) {
-        final logo = logos.firstLoaded(candidates);
+        // Asked here so a retry (contacts just allowed) asks again.
+        if (people.isNotEmpty) photos.request(people);
+        final logo = logos.firstLoaded(candidates) ?? photos.firstLoaded(people);
         final badge = app == null ? null : logos.bytes(app);
         if (logo == null && badge == null) return _fallback(context);
         final avatar = logo != null ? _LogoDisc(logo, size) : _fallback(context);
@@ -354,10 +433,7 @@ class PayeeAvatar extends StatelessWidget {
                 bottom: -badgeSize * 0.12,
                 child: DecoratedBox(
                   decoration: BoxDecoration(color: context.colors.surface, shape: BoxShape.circle),
-                  child: Padding(
-                    padding: const EdgeInsets.all(1.5),
-                    child: _LogoDisc(badge, badgeSize - 3),
-                  ),
+                  child: Padding(padding: const EdgeInsets.all(1.5), child: _LogoDisc(badge, badgeSize - 3)),
                 ),
               ),
             ],

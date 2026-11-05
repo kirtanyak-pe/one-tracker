@@ -1,6 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
         <!-- Reads bank transaction SMS to track spending -->
     <uses-permission android:name="android.permission.READ_SMS" />
+    <!-- Photos of people you pay, matched by UPI number or exact name. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- App lock: the system fingerprint / screen-lock sheet. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <!-- Instant: hear about bank SMS as they arrive, even if the app is closed -->
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <!-- Budget alerts and "split it?" suggestions -->

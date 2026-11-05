@@ -90,6 +90,10 @@ class MainActivity : FlutterActivity() {
                         packageManager.getPackageInfo(packageName, 0).versionName ?: "",
                     )
                     "backupSave", "backupPick" -> backup.handle(call, result)
+                    "lockAvailable" -> result.success(
+                        (getSystemService(KEYGUARD_SERVICE) as android.app.KeyguardManager).isDeviceSecure,
+                    )
+                    "unlock" -> unlock(result)
                     "widget" -> {
                         SpendWidgetProvider.update(this, call.argument<String>("json") ?: "{}")
                         result.success(null)
@@ -97,6 +101,47 @@ class MainActivity : FlutterActivity() {
                     else -> if (!SplitChannel.handle(this, call, result)) result.notImplemented()
                 }
             }
+    }
+
+    /**
+     * The system's own unlock sheet: fingerprint (or face), with the phone's
+     * PIN / pattern / password as the fallback. True once it succeeds.
+     */
+    private fun unlock(result: MethodChannel.Result) {
+        val sdk = android.os.Build.VERSION.SDK_INT
+        if (sdk < android.os.Build.VERSION_CODES.R) {
+            result.success(true) // App lock needs Android 11+; older phones open as before.
+            return
+        }
+        var replied = false
+        fun reply(ok: Boolean) {
+            if (!replied) {
+                replied = true
+                result.success(ok)
+            }
+        }
+        val auth = android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_STRONG or
+            android.hardware.biometrics.BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        val prompt = android.hardware.biometrics.BiometricPrompt.Builder(this)
+            .setTitle("Unlock One Tracker")
+            .setAllowedAuthenticators(auth)
+            .build()
+        try {
+            prompt.authenticate(
+                android.os.CancellationSignal(),
+                mainExecutor,
+                object : android.hardware.biometrics.BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationSucceeded(r: android.hardware.biometrics.BiometricPrompt.AuthenticationResult?) =
+                        reply(true)
+
+                    override fun onAuthenticationError(code: Int, msg: CharSequence?) = reply(false)
+                },
+            )
+        } catch (e: Exception) {
+            // The system can't show the sheet at all: open rather than lock
+            // you out of your own data.
+            reply(true)
+        }
     }
 
     /** SMS from alphanumeric senders (banks, "VM-HDFCBK") newer than [since]. */

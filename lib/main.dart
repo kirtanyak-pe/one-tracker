@@ -8,6 +8,7 @@ import 'app_controller.dart';
 import 'screens/shell.dart';
 import 'sources/live_sms.dart';
 import 'storage/app_store.dart';
+import 'ui/app_lock.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,19 +42,22 @@ class OneTrackerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AppScope(
-        controller: controller,
-        // Rebuilds when the theme choice or lite mode changes.
-        child: ListenableBuilder(
-          listenable: controller,
-          builder: (context, _) => OApp(
-            title: 'One Tracker',
-            mode: controller.appearance.mode,
-            // Lite mode: every Motion animation becomes instant.
-            builder: (context, child) => controller.lite
-                ? MediaQuery(data: MediaQuery.of(context).copyWith(disableAnimations: true), child: child!)
-                : child!,
-            home: const AppShell(),
-          ),
+    controller: controller,
+    // Rebuilds when the theme choice or lite mode changes.
+    child: ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) => OApp(
+        title: 'One Tracker',
+        mode: controller.appearance.mode,
+        // Lite mode: every Motion animation becomes instant.
+        builder: (context, child) => AppLock(
+          controller: controller,
+          child: controller.lite
+              ? MediaQuery(data: MediaQuery.of(context).copyWith(disableAnimations: true), child: child!)
+              : child!,
         ),
-      );
+        home: const AppShell(),
+      ),
+    ),
+  );
 }

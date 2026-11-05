@@ -31,6 +31,7 @@ import 'split/split_models.dart';
 import 'split/suggest.dart';
 import 'storage/app_store.dart';
 import 'storage/backup.dart';
+import 'ui/app_lock.dart';
 import 'ui/payee_logo.dart';
 import 'ui/perf.dart';
 
@@ -66,6 +67,7 @@ class AppController extends ChangeNotifier {
     _calendarMonth = current;
     return true;
   }
+
   late MonthSummary month = summarize(ledger, _month);
   late Insights insights = buildInsights(ledger, _month);
   List<Recurring> recurring = [];
@@ -84,15 +86,16 @@ class AppController extends ChangeNotifier {
     final mine = splitRecords.values.where((r) => r.at.year == now.year && r.at.month == now.month);
     return (totalMinor: mine.fold(0, (sum, r) => sum + r.amountMinor), count: mine.length);
   }
+
   Set<String> get _splitHandled => {...splitRecords.keys, ...splitSkipped};
 
   /// Last 30 days of payments not yet split or skipped.
   List<Enriched> get splitTodo => splitCandidates(
-        ledger.items,
-        handled: _splitHandled,
-        settings: splitSettings,
-        since: DateTime.now().subtract(const Duration(days: 30)),
-      );
+    ledger.items,
+    handled: _splitHandled,
+    settings: splitSettings,
+    since: DateTime.now().subtract(const Duration(days: 30)),
+  );
 
   Appearance appearance = const Appearance();
 
@@ -101,12 +104,15 @@ class AppController extends ChangeNotifier {
 
   /// Animations and blurred shadows off.
   bool get lite => switch (appearance.effects) {
-        Effects.auto => lowEndDevice,
-        Effects.reduced => true,
-        Effects.full => false,
-      };
+    Effects.auto => lowEndDevice,
+    Effects.reduced => true,
+    Effects.full => false,
+  };
 
   bool loading = true;
+
+  /// Settings are read (long before [loading] ends, which waits for a scan).
+  bool settingsRead = false;
   bool scanning = false;
   bool smsGranted = false;
   bool notificationsGranted = false;
@@ -118,8 +124,7 @@ class AppController extends ChangeNotifier {
   static const _backfill = Duration(days: 90);
 
   bool get isAndroid => SmsSource.isSupported;
-  bool get isCurrentMonth =>
-      _month.year == DateTime.now().year && _month.month == DateTime.now().month;
+  bool get isCurrentMonth => _month.year == DateTime.now().year && _month.month == DateTime.now().month;
   List<Enriched> get toReview => month.items.where((e) => e.needsReview).toList();
   bool get hasSampleData => _txns.any((t) => t.source == Source.sample);
 
@@ -129,6 +134,7 @@ class AppController extends ChangeNotifier {
   Future<void> init() async {
     _lifecycle; // start listening for resume
     await _readStore();
+    settingsRead = true;
     lowEndDevice = await Perf.isLowEndDevice();
     Perf.lite = lite;
     notifyListeners();
@@ -147,6 +153,7 @@ class AppController extends ChangeNotifier {
     }
     loading = false;
     notifyListeners();
+    await _maybeAskContacts();
     await _pushWidget();
   }
 
@@ -243,8 +250,29 @@ class AppController extends ChangeNotifier {
     smsGranted = await SmsSource.hasPermission();
     notificationsGranted = await NotificationSource.hasPermission();
     postNotificationsGranted = !isAndroid || await Permission.notification.isGranted;
+    contactsGranted = isAndroid && await Permission.contacts.isGranted;
     if (notificationsGranted) _notifications.start();
     notifyListeners();
+  }
+
+  /// Contacts access, for people's photos on their payments.
+  bool contactsGranted = false;
+
+  Future<void> requestContacts() async {
+    await _store.writeContactsAsked();
+    final was = contactsGranted;
+    if (await Permission.contacts.request().isPermanentlyDenied) await openAppSettings();
+    await refreshPermissions();
+    if (contactsGranted && !was) ContactPhotos.instance.retry();
+  }
+
+  /// Asks for Contacts once, the first time there are People payments to
+  /// put faces on.
+  Future<void> _maybeAskContacts() async {
+    if (!isAndroid || contactsGranted || await _store.readContactsAsked()) return;
+    if (!ledger.items.any((e) => e.category == Category.people)) return;
+    await AppLock.whenOpen(); // never on top of the unlock sheet
+    await requestContacts();
   }
 
   Future<void> requestSms() async {
@@ -326,8 +354,7 @@ class AppController extends ChangeNotifier {
     await _save();
   }
 
-  Future<void> setKind(Txn txn, TxnKind kind) =>
-      _update(txn.id, (t) => t.copyWith(kindOverride: kind, reviewed: true));
+  Future<void> setKind(Txn txn, TxnKind kind) => _update(txn.id, (t) => t.copyWith(kindOverride: kind, reviewed: true));
 
   Future<void> setCategory(Txn txn, Category category) =>
       _update(txn.id, (t) => t.copyWith(categoryOverride: category, reviewed: true));
@@ -342,8 +369,7 @@ class AppController extends ChangeNotifier {
   Future<void> moveManyToNextMonth(Iterable<String> ids) =>
       _setCountMonth(ids, (t) => t.copyWith(countMonth: t.nextMonth));
 
-  Future<void> moveManyBack(Iterable<String> ids) =>
-      _setCountMonth(ids, (t) => t.copyWith(clearCountMonth: true));
+  Future<void> moveManyBack(Iterable<String> ids) => _setCountMonth(ids, (t) => t.copyWith(clearCountMonth: true));
 
   Future<void> _setCountMonth(Iterable<String> ids, Txn Function(Txn t) change) async {
     final wanted = ids.toSet();
@@ -415,8 +441,10 @@ class AppController extends ChangeNotifier {
   bool canRename(Txn txn) => payeeKey(txn).isNotEmpty;
 
   /// Names the user has given to payees, for suggestions.
-  List<String> get knownNames =>
-      ({for (final r in rules.values) if (r.name != null) r.name!}.toList()..sort());
+  List<String> get knownNames => ({
+    for (final r in rules.values)
+      if (r.name != null) r.name!,
+  }.toList()..sort());
 
   /// Every tag the user has used (payee-wide or per payment), most used first.
   List<String> get knownTags {
@@ -484,14 +512,16 @@ class AppController extends ChangeNotifier {
     final key = payeeKey(e.txn);
     if (key.isEmpty) return;
     final rule = rules[key] ?? PayeeRule(key: key, label: e.originalPayee);
-    await _putRule(PayeeRule(
-      key: key,
-      label: rule.label,
-      category: e.category == Category.income ? null : e.category,
-      kind: e.kind == TxnKind.expense || e.kind == TxnKind.income ? null : e.kind,
-      name: rule.name,
-      tags: rule.tags,
-    ));
+    await _putRule(
+      PayeeRule(
+        key: key,
+        label: rule.label,
+        category: e.category == Category.income ? null : e.category,
+        kind: e.kind == TxnKind.expense || e.kind == TxnKind.income ? null : e.kind,
+        name: rule.name,
+        tags: rule.tags,
+      ),
+    );
   }
 
   /// Turns "Same for all" off: forgets the payee's category and type but
@@ -665,13 +695,15 @@ class AppController extends ChangeNotifier {
   Future<void> openInSplitwise(String txnId) async {
     final e = find(txnId);
     if (e == null) return;
-    splitRecords = await _store.addSplitRecord(SplitRecord(
-      txnId: txnId,
-      label: splitSettings.groupName ?? 'Splitwise',
-      amountMinor: e.txn.amountMinor,
-      description: e.payee,
-      at: DateTime.now(),
-    ));
+    splitRecords = await _store.addSplitRecord(
+      SplitRecord(
+        txnId: txnId,
+        label: splitSettings.groupName ?? 'Splitwise',
+        amountMinor: e.txn.amountMinor,
+        description: e.payee,
+        at: DateTime.now(),
+      ),
+    );
     if (splitSkipped.remove(txnId)) await _store.writeSplitSkipped(splitSkipped);
     notifyListeners();
     await SplitwiseBridge.open(amountMinor: e.txn.amountMinor, payee: e.payee, groupId: splitSettings.groupId);
@@ -755,11 +787,9 @@ const testHookVpa = 'autospend.test@ybl';
 
 /// Makes the [AppController] available to the widget tree.
 class AppScope extends InheritedNotifier<AppController> {
-  const AppScope({super.key, required AppController controller, required super.child})
-      : super(notifier: controller);
+  const AppScope({super.key, required AppController controller, required super.child}) : super(notifier: controller);
 
-  static AppController of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<AppScope>()!.notifier!;
+  static AppController of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<AppScope>()!.notifier!;
 }
 
 DateTime currentMonthOf(DateTime now) => DateTime(now.year, now.month);

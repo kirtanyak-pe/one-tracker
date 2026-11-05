@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../app_controller.dart';
 import '../money.dart';
+import '../sources/lock_bridge.dart';
 
 import 'package:onyx/onyx.dart';
 
@@ -40,6 +41,7 @@ class SettingsScreen extends StatelessWidget {
                   }}${app.lite ? ', lite' : ''}',
               onTap: () => pushScreen(context, const AppearancePage()),
             ),
+            if (app.isAndroid) const _AppLockRow(),
             if (app.isAndroid)
               SettingsRow(
                 icon: LucideIcons.layoutGrid,
@@ -115,6 +117,36 @@ class SettingsScreen extends StatelessWidget {
         const SizedBox(height: OSpace.xxl),
         Text('Your transactions never leave this phone.', textAlign: TextAlign.center, style: text.small),
       ],
+    );
+  }
+}
+
+/// App lock on/off. Turning it on asks for the fingerprint first, so it
+/// can't lock you out of a phone without a working screen lock.
+class _AppLockRow extends StatelessWidget {
+  const _AppLockRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final app = AppScope.of(context);
+    final a = app.appearance;
+    Future<void> set(bool on) async {
+      if (on) {
+        if (!await LockBridge.available()) {
+          if (context.mounted) OToast.show(context, 'Set a screen lock in Android settings first');
+          return;
+        }
+        if (!await LockBridge.unlock()) return;
+      }
+      await app.setAppearance(a.copyWith(lock: on));
+    }
+
+    return SettingsRow(
+      icon: LucideIcons.fingerprint,
+      title: 'App lock',
+      subtitle: 'Fingerprint or screen lock to open',
+      trailing: OToggle(value: a.lock, onChanged: set),
+      onTap: () => set(!a.lock),
     );
   }
 }
