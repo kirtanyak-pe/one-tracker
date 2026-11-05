@@ -24,7 +24,7 @@ object SplitChannel {
             "openSplitwise" -> result.success(SplitwiseLauncher.open(context, amount(), payee(), group()))
             "takePendingSplitActions" -> result.success(SplitPending.take(context))
             "appIcons" -> AppIcons.handle(context, call, result)
-            "contactPhotos" -> ContactPhotos.handle(context, call, result)
+            "contactIndex", "contactPhotos" -> ContactPhotos.handle(context, call, result)
             else -> return false
         }
         return true

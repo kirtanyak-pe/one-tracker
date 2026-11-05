@@ -289,60 +289,166 @@ class PayeeLogos extends ChangeNotifier {
   }
 }
 
-/// Photos of people you pay, from the phone's contacts: matched by the
-/// number in a UPI id ("9876543210@ybl"), or for People payments by a
-/// contact with exactly the payee's name. Brands never get one.
+/// One phone contact that has a photo.
+typedef PhoneContact = ({int id, String name, List<String> phones});
+
+/// What a payment says about who was paid: 10-digit numbers (from the UPI id
+/// or the counterparty) and names as the bank wrote them. [loose] allows a
+/// one-word name to match (People payments and names picked by hand).
+typedef ContactQuery = ({List<String> phones, List<String> names, bool loose});
+
+/// Matches payees to contacts — pure, so it is unit-tested.
+///
+/// A number matches exactly. A name matches when every word the bank wrote is
+/// in the contact's name, allowing for banks cutting words short ("RAHUL KUMA")
+/// and initials ("R KUMAR"); order, case and punctuation don't matter. A name
+/// that fits more than one contact matches none — a wrong face is worse
+/// than no face.
+abstract final class ContactMatcher {
+  static final _number = RegExp(r'(?<!\d)(?:91)?([6-9]\d{9})(?!\d)');
+  static final _word = RegExp(r'[a-z]+');
+
+  /// Honorifics and bank filler that are never part of a contact's name.
+  static const _filler = {'mr', 'mrs', 'ms', 'miss', 'dr', 'shri', 'smt', 'sri', 'to', 'by', 'upi', 'vpa', 'from'};
+
+  static String? phoneIn(String? text) => text == null ? null : _number.firstMatch(text)?.group(1);
+
+  static List<String> words(String name) => [
+    for (final m in _word.allMatches(name.toLowerCase()))
+      if (!_filler.contains(m[0])) m[0]!,
+  ];
+
+  static int? match(ContactQuery q, List<PhoneContact> contacts) {
+    for (final phone in q.phones) {
+      final hits = {
+        for (final c in contacts)
+          if (c.phones.contains(phone)) c.id,
+      };
+      if (hits.length == 1) return hits.first;
+    }
+    for (final name in q.names) {
+      final want = words(name);
+      final full = want.where((w) => w.length > 1).toList();
+      if (full.isEmpty || (!q.loose && want.length < 2)) continue;
+      int? found;
+      var count = 0;
+      for (final c in contacts) {
+        if (_fits(want, words(c.name))) {
+          found = c.id;
+          if (++count > 1) break;
+        }
+      }
+      if (count == 1) return found;
+    }
+    return null;
+  }
+
+  /// Every wanted word is used by a different word of the contact's name:
+  /// equal, its start (cut short, 3+ letters) or its initial.
+  static bool _fits(List<String> want, List<String> have) {
+    if (have.isEmpty) return false;
+    final free = [...have];
+    // Full words first, so an initial can't take the word a full one needs.
+    for (final w in [...want]..sort((a, b) => b.length.compareTo(a.length))) {
+      final i = free.indexWhere(
+        (h) => h == w || (w.length >= 3 && h.startsWith(w)) || (w.length == 1 && h.startsWith(w)),
+      );
+      if (i < 0) return false;
+      free.removeAt(i);
+    }
+    return true;
+  }
+}
+
+/// Photos of people you pay, from the phone's contacts (read on the phone,
+/// never sent anywhere). The contact list is read once; payees are matched
+/// here ([ContactMatcher]) and only matched photos are loaded. Brands never
+/// get one.
 class ContactPhotos extends ChangeNotifier {
   static final instance = ContactPhotos();
 
   static bool enabled = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   static const _channel = MethodChannel('auto_spend/sms');
-  static final _number = RegExp(r'(?<!\d)(?:91)?([6-9]\d{9})(?!\d)');
 
-  final _loaded = <String, Uint8List>{};
-  final _asked = <String>{};
-  final _pending = <String>{};
+  List<PhoneContact>? _contacts;
+  bool _indexing = false;
+  final _ids = <String, int?>{};
+  final _photos = <int, Uint8List>{};
+  final _asked = <int>{};
+  final _pending = <int>{};
   bool _scheduled = false;
 
-  /// Lookup keys for a payment, best first; empty for merchants.
-  static List<String> keysFor(Enriched e) {
-    if (PayeeBrands.forEnriched(e).isNotEmpty) return const [];
-    final vpa = e.txn.vpa;
-    final phone = vpa == null ? null : _number.firstMatch(vpa.split('@').first)?.group(1);
-    return [
-      if (phone != null) 'phone:$phone',
-      if (e.category == Category.people && e.payee.trim().isNotEmpty) 'name:${e.payee.trim()}',
-    ];
+  /// What to look up for a payment; null for merchants.
+  static ContactQuery? queryFor(Enriched e) {
+    if (PayeeBrands.forEnriched(e).isNotEmpty) return null;
+    final t = e.txn;
+    final phones = {?ContactMatcher.phoneIn(t.vpa?.split('@').first), ?ContactMatcher.phoneIn(t.counterparty)}.toList();
+    final names = {
+      for (final n in [e.payee, t.counterparty])
+        if (n != null && n.trim().isNotEmpty && ContactMatcher.phoneIn(n) == null) n.trim(),
+    }.toList();
+    if (phones.isEmpty && names.isEmpty) return null;
+    return (phones: phones, names: names, loose: e.category == Category.people);
   }
 
-  /// Keys for a name alone (top payees); empty for merchants.
-  static List<String> keysForName(String name) =>
-      PayeeBrands.forText(name).isEmpty && name.trim().isNotEmpty ? ['name:${name.trim()}'] : const [];
+  /// What to look up for a name alone (top payees); null for merchants.
+  static ContactQuery? queryForName(String name) => PayeeBrands.forText(name).isEmpty && name.trim().isNotEmpty
+      ? (phones: const [], names: [name.trim()], loose: false)
+      : null;
 
-  Uint8List? firstLoaded(Iterable<String> keys) {
-    for (final k in keys) {
-      final b = _loaded[k];
-      if (b != null) return b;
+  /// The photo for [q], once the contacts are read and it matched one.
+  Uint8List? photoFor(ContactQuery q) {
+    if (!enabled) return null;
+    final contacts = _contacts;
+    if (contacts == null) {
+      _readIndex();
+      return null;
     }
-    return null;
+    final key = '${q.phones.join(',')}|${q.names.join('|')}|${q.loose}';
+    final id = _ids.putIfAbsent(key, () => ContactMatcher.match(q, contacts));
+    if (id == null) return null;
+    final photo = _photos[id];
+    if (photo == null) _request(id);
+    return photo;
   }
 
-  void request(Iterable<String> keys) {
-    if (!enabled) return;
-    for (final k in keys) {
-      if (_asked.add(k)) _pending.add(k);
+  /// Contacts access just arrived: read them again for everything on screen.
+  void retry() {
+    _contacts = null;
+    _ids.clear();
+    _asked.clear();
+    notifyListeners();
+  }
+
+  Future<void> _readIndex() async {
+    if (_indexing) return;
+    _indexing = true;
+    try {
+      final raw = await _channel.invokeMethod<List<Object?>>('contactIndex');
+      _contacts = [
+        for (final c in raw ?? const [])
+          if (c case {'id': final int id, 'name': final String name, 'phones': final List<Object?> phones})
+            (id: id, name: name, phones: phones.whereType<String>().toList()),
+      ];
+      _ids.clear();
+      if (_contacts!.isNotEmpty) notifyListeners();
+    } on MissingPluginException {
+      _contacts = const []; // No native side (tests, web).
+    } on PlatformException {
+      // Left unread: the next avatar asks again.
+    } finally {
+      _indexing = false;
     }
-    if (_pending.isNotEmpty && !_scheduled) {
+  }
+
+  void _request(int id) {
+    if (!_asked.add(id)) return;
+    _pending.add(id);
+    if (!_scheduled) {
       _scheduled = true;
       scheduleMicrotask(_flush);
     }
-  }
-
-  /// Contacts access just arrived: ask again for everything on screen.
-  void retry() {
-    _asked.clear();
-    notifyListeners();
   }
 
   Future<void> _flush() async {
@@ -351,13 +457,13 @@ class ContactPhotos extends ChangeNotifier {
     _pending.clear();
     if (batch.isEmpty) return;
     try {
-      final raw = await _channel.invokeMethod<Map<Object?, Object?>>('contactPhotos', {'keys': batch});
+      final raw = await _channel.invokeMethod<Map<Object?, Object?>>('contactPhotos', {'ids': batch});
       final got = {
         for (final e in (raw ?? const {}).entries)
-          if (e.key is String && e.value is Uint8List) e.key! as String: e.value! as Uint8List,
+          if (e.key is int && e.value is Uint8List) e.key! as int: e.value! as Uint8List,
       };
       if (got.isNotEmpty) {
-        _loaded.addAll(got);
+        _photos.addAll(got);
         notifyListeners();
       }
     } on MissingPluginException {
@@ -404,17 +510,16 @@ class PayeeAvatar extends StatelessWidget {
     if (candidates.isNotEmpty || app != null) logos.request([...candidates, ?app]);
     final photos = ContactPhotos.instance;
     final people = !ContactPhotos.enabled
-        ? const <String>[]
+        ? null
         : e != null
-        ? ContactPhotos.keysFor(e)
-        : ContactPhotos.keysForName(name!);
-    if (!PayeeLogos.enabled || (candidates.isEmpty && app == null && people.isEmpty)) return _fallback(context);
+        ? ContactPhotos.queryFor(e)
+        : ContactPhotos.queryForName(name!);
+    if (!PayeeLogos.enabled || (candidates.isEmpty && app == null && people == null)) return _fallback(context);
     return ListenableBuilder(
       listenable: Listenable.merge([logos, photos]),
       builder: (context, _) {
-        // Asked here so a retry (contacts just allowed) asks again.
-        if (people.isNotEmpty) photos.request(people);
-        final logo = logos.firstLoaded(candidates) ?? photos.firstLoaded(people);
+        // Looked up here so a retry (contacts just allowed) looks again.
+        final logo = logos.firstLoaded(candidates) ?? (people == null ? null : photos.photoFor(people));
         final badge = app == null ? null : logos.bytes(app);
         if (logo == null && badge == null) return _fallback(context);
         final avatar = logo != null ? _LogoDisc(logo, size) : _fallback(context);
