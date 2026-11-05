@@ -11,7 +11,7 @@ Read the component sources in `packages/onyx/lib/src/` when a parameter is uncle
 - Monochrome: ink on canvas. Surfaces are white (dark: near-black) with a
   hairline border, **no shadows** (only floating layers — tab bar, toasts,
   dialogs — lift).
-- `accent` (indigo) is for focus/selection/rare emphasis only — never decoration.
+- `accent` (blue) is for focus/selection/rare emphasis only — never decoration.
 - `positive` / `negative` / `warning` only ever mean status or money direction.
 - Former orange "hero" cards become **ink cards**: `OCard(color: c.ink, border: false)`,
   text in `c.onInk`, buttons `OButtonVariant.inverse` (main) / `inverseSoft` (secondary).

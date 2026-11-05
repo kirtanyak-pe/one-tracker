@@ -269,8 +269,8 @@ class _ToastState extends State<_Toast> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     // Always dark, in both themes: it floats over anything.
-    const bg = Color(0xFF1C1C1F);
-    const fg = Color(0xFFF4F4F5);
+    const bg = Color(0xFF1A1E25);
+    const fg = Color(0xFFF2F5F9);
     final type = context.type;
     final pad = MediaQuery.paddingOf(context).bottom + MediaQuery.viewInsetsOf(context).bottom;
     final a = CurvedAnimation(parent: _c, curve: OMotion.emphasized, reverseCurve: OMotion.exit);

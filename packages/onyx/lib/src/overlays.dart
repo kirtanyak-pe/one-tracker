@@ -389,11 +389,11 @@ class _OTooltipState extends State<OTooltip> with SingleTickerProviderStateMixin
                       constraints: const BoxConstraints(maxWidth: 260),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: ShapeDecoration(color: const Color(0xFF1C1C1F), shape: ORadius.smooth(ORadius.sm)),
+                        decoration: ShapeDecoration(color: const Color(0xFF1A1E25), shape: ORadius.smooth(ORadius.sm)),
                         child: Text(
                           widget.message,
                           textAlign: TextAlign.center,
-                          style: theme.type.caption.tint(const Color(0xFFF4F4F5)),
+                          style: theme.type.caption.tint(const Color(0xFFF2F5F9)),
                         ),
                       ),
                     ),

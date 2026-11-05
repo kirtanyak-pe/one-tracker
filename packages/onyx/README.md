@@ -1,7 +1,7 @@
 # Onyx
 
-A small, Material-free design system for Flutter. Monochrome ink on a warm
-canvas, one indigo accent, Inter type, Lucide icons, superellipse corners.
+A small, Material-free design system for Flutter. Monochrome ink on a cool
+canvas, one blue accent, Inter type, Lucide icons, superellipse corners.
 Built on `package:flutter/widgets.dart` only, so apps using it ship without
 Material's theme, ripples or icon font.
 
@@ -21,7 +21,7 @@ void main() => runApp(const OApp(title: 'My app', home: HomeScreen()));
 
 1. **Ink first.** Primary buttons, selected chips, toggles and the tab bar's
    current tab are ink. Colour is a signal, not decoration.
-2. **One accent.** Indigo marks focus (the cursor, a focused field) and rare
+2. **One accent.** Blue marks focus (the cursor, a focused field) and rare
    emphasis. Never two accents on one screen.
 3. **Status colours mean status.** `positive`, `negative`, `warning` only for
    money direction, errors and alerts.

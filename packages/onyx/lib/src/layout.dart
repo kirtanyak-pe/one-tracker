@@ -241,7 +241,6 @@ class OTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final d = OMotion.of(context, OMotion.base);
     return Container(
       height: height,
       padding: const EdgeInsets.all(6),
@@ -250,46 +249,89 @@ class OTabBar extends StatelessWidget {
         shape: StadiumBorder(side: BorderSide(color: c.line)),
         shadows: OShadow.floating(context.onyx.brightness),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final (i, tab) in tabs.indexed)
-            Expanded(
-              flex: i == index ? 5 : 3,
-              child: Semantics(
-                selected: i == index,
-                label: tab.label,
-                child: OPressable(
-                  onTap: () => onSelect(i),
-                  pressedScale: 0.94,
-                  semanticLabel: tab.label,
-                  child: AnimatedContainer(
-                    duration: d,
-                    curve: OMotion.emphasized,
-                    decoration: ShapeDecoration(
-                      color: i == index ? c.ink : const Color(0x00000000),
-                      shape: const StadiumBorder(),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(tab.icon, size: 20, color: i == index ? c.onInk : c.inkSoft),
-                        if (i == index) ...[
-                          const SizedBox(width: OSpace.sm),
-                          Flexible(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(tab.label, maxLines: 1, style: context.type.smallStrong.tint(c.onInk)),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+      // One position drives everything: the pill slides from tab to tab while
+      // the tab it leaves narrows and the one it reaches widens and shows its
+      // label, so the change reads as a single movement.
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(end: index.toDouble()),
+        duration: OMotion.of(context, OMotion.slow),
+        curve: OMotion.emphasized,
+        builder: (context, t, _) => LayoutBuilder(
+          builder: (context, box) {
+            final n = tabs.length;
+            final unit = box.maxWidth / (3 * n + 2);
+            // How selected each tab is right now, 0–1; they sum to 1.
+            final sel = [for (var i = 0; i < n; i++) (1 - (t - i).abs()).clamp(0.0, 1.0)];
+            final widths = [for (final s in sel) unit * (3 + 2 * s)];
+            final lefts = [0.0];
+            for (var i = 0; i < n - 1; i++) {
+              lefts.add(lefts[i] + widths[i]);
+            }
+            final lo = t.floor().clamp(0, n - 1), hi = t.ceil().clamp(0, n - 1);
+            final f = t - lo;
+            final pillLeft = lefts[lo] + (lefts[hi] - lefts[lo]) * f;
+            final pillWidth = widths[lo] + (widths[hi] - widths[lo]) * f;
+            return Stack(
+              children: [
+                Positioned(
+                  left: pillLeft,
+                  width: pillWidth,
+                  top: 0,
+                  bottom: 0,
+                  child: DecoratedBox(
+                    decoration: ShapeDecoration(color: c.ink, shape: const StadiumBorder()),
                   ),
                 ),
-              ),
-            ),
-        ],
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final (i, tab) in tabs.indexed)
+                      SizedBox(
+                        width: widths[i],
+                        child: Semantics(
+                          selected: i == index,
+                          label: tab.label,
+                          child: OPressable(
+                            onTap: () => onSelect(i),
+                            pressedScale: 0.94,
+                            semanticLabel: tab.label,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(tab.icon, size: 20, color: Color.lerp(c.inkSoft, c.onInk, sel[i])),
+                                if (sel[i] > 0.01)
+                                  Flexible(
+                                    child: ClipRect(
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        widthFactor: sel[i],
+                                        child: Opacity(
+                                          opacity: sel[i],
+                                          child: Padding(
+                                            padding: const EdgeInsets.only(left: OSpace.sm),
+                                            child: Text(
+                                              tab.label,
+                                              maxLines: 1,
+                                              softWrap: false,
+                                              overflow: TextOverflow.fade,
+                                              style: context.type.smallStrong.tint(c.onInk),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

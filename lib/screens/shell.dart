@@ -3,7 +3,6 @@ import 'package:onyx/onyx.dart';
 
 import '../ui/motion.dart';
 
-
 import 'activity_screen.dart';
 import 'home_screen.dart';
 import 'widgets/split_prompt_card.dart';
@@ -102,6 +101,21 @@ class _AppShellState extends State<AppShell> {
               ),
             ),
         ],
+      ),
+      // A swipe up from the bottom edge is the system's home / app-switch
+      // gesture: the strip from the screen edge to a little above the bar
+      // swallows drags so the list underneath doesn't scroll with it.
+      Positioned(
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: MediaQuery.paddingOf(context).bottom + OSpace.md + OTabBar.height + OSpace.lg,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onVerticalDragStart: (_) {},
+          onVerticalDragUpdate: (_) {},
+          excludeFromSemantics: true,
+        ),
       ),
       Positioned(
         left: 0,

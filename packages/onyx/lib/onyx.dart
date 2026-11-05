@@ -1,5 +1,5 @@
 /// Onyx — a small, Material-free design system for Flutter apps: monochrome
-/// ink on a warm canvas, one accent, Inter type and Lucide icons.
+/// ink on a cool canvas, one accent, Inter type and Lucide icons.
 library;
 
 export 'package:lucide_icons_flutter/lucide_icons.dart' show LucideIcons;

@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-/// Onyx colour roles. Monochrome first: ink on canvas, a single accent kept
+/// Onyx colour roles. Cool monochrome first: blue-grey ink on a cool canvas, a single accent kept
 /// for focus and selection, and three status colours that only ever mean
 /// status (never decoration).
 @immutable
@@ -66,37 +66,37 @@ class OColors {
   Color soft(Color c) => c.withValues(alpha: 0.12);
 
   static const light = OColors(
-    canvas: Color(0xFFF7F7F5),
+    canvas: Color(0xFFF5F7FA),
     surface: Color(0xFFFFFFFF),
-    raised: Color(0xFFEFEFEC),
-    line: Color(0xFFE7E7E3),
-    lineStrong: Color(0xFFCFCFCA),
-    ink: Color(0xFF0D0D0F),
-    inkSoft: Color(0xFF5F5F66),
-    inkFaint: Color(0xFF9D9DA4),
+    raised: Color(0xFFECEFF3),
+    line: Color(0xFFE3E7ED),
+    lineStrong: Color(0xFFC9CFD8),
+    ink: Color(0xFF0A0D14),
+    inkSoft: Color(0xFF5A6272),
+    inkFaint: Color(0xFF99A1AE),
     onInk: Color(0xFFFFFFFF),
-    accent: Color(0xFF5B5BD6),
+    accent: Color(0xFF3E63DD),
     onAccent: Color(0xFFFFFFFF),
-    positive: Color(0xFF16955A),
-    negative: Color(0xFFDC3E42),
-    warning: Color(0xFFC77D0A),
-    scrim: Color(0x66000000),
+    positive: Color(0xFF12925E),
+    negative: Color(0xFFDC3E4A),
+    warning: Color(0xFFC27A0A),
+    scrim: Color(0x660A0D14),
   );
 
   static const dark = OColors(
-    canvas: Color(0xFF09090B),
-    surface: Color(0xFF151517),
-    raised: Color(0xFF1D1D20),
-    line: Color(0xFF242428),
-    lineStrong: Color(0xFF34343A),
-    ink: Color(0xFFF4F4F5),
-    inkSoft: Color(0xFFA1A1AA),
-    inkFaint: Color(0xFF68686F),
-    onInk: Color(0xFF0D0D0F),
-    accent: Color(0xFF8587F2),
-    onAccent: Color(0xFF0D0D0F),
-    positive: Color(0xFF3DD68C),
-    negative: Color(0xFFFF6369),
+    canvas: Color(0xFF07090C),
+    surface: Color(0xFF12151A),
+    raised: Color(0xFF1A1E24),
+    line: Color(0xFF222730),
+    lineStrong: Color(0xFF333A45),
+    ink: Color(0xFFF2F5F9),
+    inkSoft: Color(0xFF9EA6B4),
+    inkFaint: Color(0xFF646C7A),
+    onInk: Color(0xFF0A0D14),
+    accent: Color(0xFF7C9CFF),
+    onAccent: Color(0xFF0A0D14),
+    positive: Color(0xFF34D399),
+    negative: Color(0xFFFF6370),
     warning: Color(0xFFF5B544),
     scrim: Color(0x99000000),
   );

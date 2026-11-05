@@ -282,7 +282,7 @@ class OTextMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) return const SizedBox.shrink();
-    const fg = Color(0xFFF4F4F5);
+    const fg = Color(0xFFF2F5F9);
     final pad = MediaQuery.paddingOf(context);
     final above = anchors.primaryAnchor - const Offset(0, 10);
     final below = (anchors.secondaryAnchor ?? anchors.primaryAnchor) + const Offset(0, 28);
@@ -298,7 +298,7 @@ class OTextMenu extends StatelessWidget {
           height: 40,
           padding: const EdgeInsets.symmetric(horizontal: 4),
           decoration: ShapeDecoration(
-            color: const Color(0xFF1C1C1F),
+            color: const Color(0xFF1A1E25),
             shape: const StadiumBorder(),
             shadows: OShadow.floating(Brightness.light),
           ),
