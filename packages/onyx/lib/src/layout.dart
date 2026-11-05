@@ -97,6 +97,8 @@ class OTopBar extends StatelessWidget {
 /// A top-level tab: a large left-aligned title with actions, fixed above
 /// the tab's scroll view. A hairline appears once content scrolls under it,
 /// and [scrolledTitle] can take the title's place past [swapAfter].
+/// [glow] lays a soft accent light behind the top of the page — for a
+/// screen led by one hero number, not for every tab.
 class OTabPage extends StatefulWidget {
   const OTabPage({
     super.key,
@@ -105,6 +107,7 @@ class OTabPage extends StatefulWidget {
     this.actions = const [],
     this.scrolledTitle,
     this.swapAfter = 80,
+    this.glow = false,
   });
 
   final String title;
@@ -112,6 +115,7 @@ class OTabPage extends StatefulWidget {
   final List<Widget> actions;
   final Widget? scrolledTitle;
   final double swapAfter;
+  final bool glow;
 
   @override
   State<OTabPage> createState() => _OTabPageState();
@@ -138,63 +142,84 @@ class _OTabPageState extends State<OTabPage> {
   Widget build(BuildContext context) {
     final t = context.type;
     final d = OMotion.of(context, OMotion.base);
-    return ColoredBox(
-      color: context.colors.canvas,
-      child: Column(
-        children: [
-          SafeArea(
-            bottom: false,
-            child: SizedBox(
-              height: 60,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(OSpace.gutter, 0, OSpace.md, 0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: AnimatedSwitcher(
-                        duration: d,
-                        switchInCurve: OMotion.emphasized,
-                        switchOutCurve: OMotion.exit,
-                        layoutBuilder: (cur, prev) => Stack(alignment: Alignment.centerLeft, children: [...prev, ?cur]),
-                        transitionBuilder: (child, a) => FadeTransition(
-                          opacity: a,
-                          child: SlideTransition(
-                            position: Tween(begin: const Offset(0, 0.35), end: Offset.zero).animate(a),
-                            child: child,
-                          ),
+    final c = context.colors;
+    final bar = Column(
+      children: [
+        SafeArea(
+          bottom: false,
+          child: SizedBox(
+            height: 60,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: OSpace.gutter),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: d,
+                      switchInCurve: OMotion.emphasized,
+                      switchOutCurve: OMotion.exit,
+                      layoutBuilder: (cur, prev) => Stack(alignment: Alignment.centerLeft, children: [...prev, ?cur]),
+                      transitionBuilder: (child, a) => FadeTransition(
+                        opacity: a,
+                        child: SlideTransition(
+                          position: Tween(begin: const Offset(0, 0.35), end: Offset.zero).animate(a),
+                          child: child,
                         ),
-                        child: _swapped
-                            ? KeyedSubtree(
-                                key: const ValueKey('swapped'),
-                                child: DefaultTextStyle.merge(style: t.title2, child: widget.scrolledTitle!),
-                              )
-                            : Semantics(
-                                key: const ValueKey('title'),
-                                header: true,
-                                child: Text(
-                                  widget.title,
-                                  style: t.title1,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
                       ),
+                      child: _swapped
+                          ? KeyedSubtree(
+                              key: const ValueKey('swapped'),
+                              child: DefaultTextStyle.merge(style: t.title2, child: widget.scrolledTitle!),
+                            )
+                          : Semantics(
+                              key: const ValueKey('title'),
+                              header: true,
+                              child: Text(widget.title, style: t.title2, maxLines: 1, overflow: TextOverflow.ellipsis),
+                            ),
                     ),
-                    for (final a in widget.actions) a,
-                  ],
-                ),
+                  ),
+                  for (final (i, a) in widget.actions.indexed) ...[if (i > 0) const SizedBox(width: OSpace.sm), a],
+                ],
               ),
             ),
           ),
-          AnimatedOpacity(opacity: _under ? 1 : 0, duration: d, child: const ODivider()),
-          Expanded(
-            child: NotificationListener<ScrollNotification>(
-              onNotification: _onScroll,
-              child: MediaQuery.removePadding(context: context, removeTop: true, child: widget.body),
-            ),
+        ),
+        AnimatedOpacity(opacity: _under ? 1 : 0, duration: d, child: const ODivider()),
+        Expanded(
+          child: NotificationListener<ScrollNotification>(
+            onNotification: _onScroll,
+            child: MediaQuery.removePadding(context: context, removeTop: true, child: widget.body),
           ),
-        ],
-      ),
+        ),
+      ],
+    );
+    return ColoredBox(
+      color: c.canvas,
+      child: widget.glow
+          ? Stack(
+              children: [
+                Positioned(
+                  top: -160,
+                  left: -120,
+                  right: -120,
+                  height: 560,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          colors: [
+                            c.accent.withValues(alpha: context.onyx.isDark ? 0.26 : 0.12),
+                            c.accent.withValues(alpha: 0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                bar,
+              ],
+            )
+          : bar,
     );
   }
 }

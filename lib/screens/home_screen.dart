@@ -37,6 +37,7 @@ class HomeTab extends StatelessWidget {
 
     return OTabPage(
       title: 'One Tracker',
+      glow: true,
       // Once the big number scrolls away, the bar keeps it in view.
       swapAfter: 64,
       scrolledTitle: Text.rich(
@@ -145,17 +146,14 @@ class _Headline extends StatelessWidget {
       },
       child: Column(
         children: [
+          Text(app.isCurrentMonth ? 'Spent this month' : 'Spent in ${monthName(m.month)}', style: text.small),
+          const SizedBox(height: OSpace.xs),
           FittedBox(
             fit: BoxFit.scaleDown,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AnimatedMoney(m.spentMinor, round: true, style: text.hero.tabular),
-                if (change != null) ...[const SizedBox(width: OSpace.sm), _ChangePill(change: change)],
-              ],
-            ),
+            child: AnimatedMoney(m.spentMinor, round: true, style: text.hero.tabular),
           ),
-          const SizedBox(height: OSpace.md),
+          if (change != null) ...[const SizedBox(height: OSpace.sm), _ChangeLine(change: change)],
+          const SizedBox(height: OSpace.xl),
           const MonthSwitcher(),
           if (use != null && limit != null) ...[
             const SizedBox(height: OSpace.xl),
@@ -203,40 +201,48 @@ class _Headline extends StatelessWidget {
 
 typedef _Change = ({int percent, int diffMinor, String against});
 
-/// ▲ 12% the way a stock quote shows it, except up means spending more, so
-/// it's red and down is green. Tap for the amount behind the percentage.
-class _ChangePill extends StatelessWidget {
-  const _ChangePill({required this.change});
+/// The move against last month under the big number, the way a portfolio
+/// shows its day: ↗ ₹6,706 (12%). Up means spending more, so it's red and
+/// down is green.
+class _ChangeLine extends StatelessWidget {
+  const _ChangeLine({required this.change});
 
   final _Change change;
 
   @override
   Widget build(BuildContext context) {
     final t = context.colors;
+    final text = context.type;
     final p = change.percent;
-    // Up means spending more, so it's negative; down is positive.
     final fg = p > 0
         ? t.negative
         : p < 0
         ? t.positive
         : t.inkSoft;
     final more = change.diffMinor >= 0;
-    final detail =
-        '${formatMoney(change.diffMinor.abs(), appCurrency, round: true)} ${more ? 'more' : 'less'} than ${change.against}';
-    return OTooltip(
-      message: detail,
-      tapToShow: true,
-      child: Semantics(
-        label: detail,
-        excludeSemantics: true,
-        child: OBadge(
-          label: p.abs() > 999 ? '999+%' : '${p.abs()}%',
-          color: fg,
-          icon: p > 0
-              ? LucideIcons.chevronUp
-              : p < 0
-              ? LucideIcons.chevronDown
-              : LucideIcons.minus,
+    final amount = formatMoney(change.diffMinor.abs(), appCurrency, round: true);
+    final percent = p.abs() > 999 ? '999+%' : '${p.abs()}%';
+    return Semantics(
+      label: '$amount ${more ? 'more' : 'less'} than ${change.against}',
+      excludeSemantics: true,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              p > 0
+                  ? LucideIcons.trendingUp
+                  : p < 0
+                  ? LucideIcons.trendingDown
+                  : LucideIcons.minus,
+              size: 18,
+              color: fg,
+            ),
+            const SizedBox(width: OSpace.xs + OSpace.xxs),
+            Text('$amount ($percent)', style: text.bodyStrong.tabular.tint(fg)),
+            Text('  vs ${change.against}', style: text.small),
+          ],
         ),
       ),
     );
