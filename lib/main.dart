@@ -49,6 +49,7 @@ class OneTrackerApp extends StatelessWidget {
       builder: (context, _) => OApp(
         title: 'One Tracker',
         mode: controller.appearance.mode,
+        finish: controller.appearance.finish,
         // Lite mode: every Motion animation becomes instant.
         builder: (context, child) => AppLock(
           controller: controller,

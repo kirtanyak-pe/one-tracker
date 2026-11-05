@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import 'finish.dart';
 import 'theme.dart';
 import 'tokens.dart';
 
@@ -12,6 +13,7 @@ class OApp extends StatelessWidget {
     required this.title,
     required this.home,
     this.mode = OThemeMode.system,
+    this.finish,
     this.light,
     this.dark,
     this.builder,
@@ -21,6 +23,9 @@ class OApp extends StatelessWidget {
   final String title;
   final Widget home;
   final OThemeMode mode;
+
+  /// How pressable things look; default [OFinish.raised].
+  final OFinish? finish;
 
   /// Overrides for an app that tunes the palette (say, its own accent).
   final OThemeData? light;
@@ -43,7 +48,8 @@ class OApp extends StatelessWidget {
         OThemeMode.dark => Brightness.dark,
         OThemeMode.system => MediaQuery.platformBrightnessOf(context),
       };
-      final data = b == Brightness.dark ? (dark ?? OThemeData.dark()) : (light ?? OThemeData.light());
+      var data = b == Brightness.dark ? (dark ?? OThemeData.dark()) : (light ?? OThemeData.light());
+      if (finish case final f?) data = data.withFinish(f);
       final c = data.colors;
       final inner = builder?.call(context, child) ?? child!;
       return OTheme(

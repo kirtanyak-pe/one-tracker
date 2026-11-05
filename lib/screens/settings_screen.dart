@@ -38,7 +38,7 @@ class SettingsScreen extends StatelessWidget {
                     OThemeMode.system => 'System',
                     OThemeMode.light => 'Light',
                     OThemeMode.dark => 'Dark',
-                  }}${app.lite ? ', lite' : ''}',
+                  }}, ${a.finish.name[0].toUpperCase()}${a.finish.name.substring(1)}${app.lite ? ', lite' : ''}',
               onTap: () => pushScreen(context, const AppearancePage()),
             ),
             if (app.isAndroid) const _AppLockRow(),

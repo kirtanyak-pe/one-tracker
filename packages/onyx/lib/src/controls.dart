@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'finish.dart';
 import 'pressable.dart';
 import 'theme.dart';
 import 'tokens.dart';
@@ -172,21 +173,21 @@ class OChip extends StatelessWidget {
       child: OPressable(
         onTap: onTap,
         pressedScale: 0.95,
-        child: AnimatedContainer(
-          duration: OMotion.of(context, OMotion.fast),
-          height: dense ? 30 : 36,
-          padding: EdgeInsets.symmetric(horizontal: dense ? 10 : 14),
-          decoration: ShapeDecoration(
-            color: selected ? c.ink : c.surface,
-            shape: StadiumBorder(side: BorderSide(color: selected ? c.ink : c.line)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[Icon(icon, size: dense ? 14 : 16, color: fg), const SizedBox(width: 6)],
-              Text(label, style: (dense ? context.type.caption : context.type.smallStrong).tint(fg).medium),
-              if (trailingIcon != null) ...[const SizedBox(width: 4), Icon(trailingIcon, size: 14, color: fg)],
-            ],
+        child: OFinishBox(
+          color: selected ? c.ink : c.surface,
+          depth: selected ? ODepth.strong : ODepth.soft,
+          shape: StadiumBorder(side: selected ? BorderSide.none : BorderSide(color: c.line)),
+          child: Container(
+            height: dense ? 30 : 36,
+            padding: EdgeInsets.symmetric(horizontal: dense ? 10 : 14),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[Icon(icon, size: dense ? 14 : 16, color: fg), const SizedBox(width: 6)],
+                Text(label, style: (dense ? context.type.caption : context.type.smallStrong).tint(fg).medium),
+                if (trailingIcon != null) ...[const SizedBox(width: 4), Icon(trailingIcon, size: 14, color: fg)],
+              ],
+            ),
           ),
         ),
       ),
@@ -230,13 +231,7 @@ class OSegmented<T> extends StatelessWidget {
               child: FractionallySizedBox(
                 widthFactor: 1 / n,
                 heightFactor: 1,
-                child: DecoratedBox(
-                  decoration: ShapeDecoration(
-                    color: c.surface,
-                    shape: const StadiumBorder(),
-                    shadows: OShadow.subtle(context.onyx.brightness),
-                  ),
-                ),
+                child: OFinishBox(color: c.surface, depth: ODepth.soft),
               ),
             ),
           Row(

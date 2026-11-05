@@ -1,7 +1,10 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/widgets.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'button.dart';
+import 'finish.dart';
 import 'pressable.dart';
 import 'surface.dart';
 import 'theme.dart';
@@ -241,14 +244,9 @@ class OTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Container(
-      height: height,
+    final finish = context.onyx.finish;
+    final bar = Padding(
       padding: const EdgeInsets.all(6),
-      decoration: ShapeDecoration(
-        color: c.surface,
-        shape: StadiumBorder(side: BorderSide(color: c.line)),
-        shadows: OShadow.floating(context.onyx.brightness),
-      ),
       // One position drives everything: the pill slides from tab to tab while
       // the tab it leaves narrows and the one it reaches widens and shows its
       // label, so the change reads as a single movement.
@@ -278,9 +276,7 @@ class OTabBar extends StatelessWidget {
                   width: pillWidth,
                   top: 0,
                   bottom: 0,
-                  child: DecoratedBox(
-                    decoration: ShapeDecoration(color: c.ink, shape: const StadiumBorder()),
-                  ),
+                  child: OFinishBox(color: c.ink),
                 ),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -334,5 +330,35 @@ class OTabBar extends StatelessWidget {
         ),
       ),
     );
+    return switch (finish) {
+      OFinish.pillow => SizedBox(
+        height: height,
+        child: OFinishBox(color: c.surface, depth: ODepth.soft, child: bar),
+      ),
+      // Frosted: what scrolls underneath shows through, blurred (not in lite
+      // mode, where the blur would cost frames).
+      OFinish.glass => Container(
+        height: height,
+        decoration: ShapeDecoration(shape: const StadiumBorder(), shadows: OShadow.floating(context.onyx.brightness)),
+        child: ClipPath(
+          clipper: const ShapeBorderClipper(shape: StadiumBorder()),
+          child: (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
+              ? OFinishBox(color: c.surface, depth: ODepth.soft, finish: OFinish.flat, child: bar)
+              : BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                  child: OFinishBox(color: c.surface, depth: ODepth.soft, child: bar),
+                ),
+        ),
+      ),
+      _ => Container(
+        height: height,
+        decoration: ShapeDecoration(
+          color: c.surface,
+          shape: StadiumBorder(side: BorderSide(color: c.line)),
+          shadows: OShadow.floating(context.onyx.brightness),
+        ),
+        child: bar,
+      ),
+    };
   }
 }

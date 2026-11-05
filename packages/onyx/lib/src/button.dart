@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import 'feedback.dart';
+import 'finish.dart';
 import 'pressable.dart';
 import 'theme.dart';
 import 'tokens.dart';
@@ -117,10 +118,10 @@ class OButton extends StatelessWidget {
         ],
       ],
     );
-    final body = Container(
+    final ghost = variant == OButtonVariant.ghost;
+    final box = Container(
       height: size.height,
-      padding: EdgeInsets.symmetric(horizontal: variant == OButtonVariant.ghost ? size.padding - 6 : size.padding),
-      decoration: ShapeDecoration(color: bg, shape: const StadiumBorder()),
+      padding: EdgeInsets.symmetric(horizontal: ghost ? size.padding - 6 : size.padding),
       alignment: Alignment.center,
       child: loading
           ? Stack(
@@ -132,6 +133,12 @@ class OButton extends StatelessWidget {
             )
           : content,
     );
+    // Loading and disabled buttons stay flat; ghosts have nothing to finish.
+    final depth = switch (variant) {
+      OButtonVariant.secondary || OButtonVariant.inverseSoft => ODepth.soft,
+      _ => ODepth.strong,
+    };
+    final body = ghost ? box : OFinishBox(color: bg, depth: depth, finish: enabled ? null : OFinish.flat, child: box);
     return OPressable(
       onTap: enabled ? onPressed : null,
       semanticLabel: label,
@@ -180,18 +187,22 @@ class OIconButton extends StatelessWidget {
         child: SizedBox.square(
           dimension: size < 44 && bg == null ? 44 : size,
           child: Center(
-            child: Container(
-              width: size,
-              height: size,
-              decoration: bg == null
-                  ? null
-                  : BoxDecoration(
+            child: SizedBox.square(
+              dimension: size,
+              child: bg == null
+                  ? Center(
+                      child: Icon(icon, size: iconSize, color: color ?? c.ink),
+                    )
+                  : OFinishBox(
                       color: bg,
-                      shape: BoxShape.circle,
-                      border: filled && background == null ? Border.all(color: c.line) : null,
+                      depth: background == null ? ODepth.soft : ODepth.strong,
+                      shape: CircleBorder(
+                        side: filled && background == null ? BorderSide(color: c.line) : BorderSide.none,
+                      ),
+                      child: Center(
+                        child: Icon(icon, size: iconSize, color: color ?? c.ink),
+                      ),
                     ),
-              alignment: Alignment.center,
-              child: Icon(icon, size: iconSize, color: color ?? c.ink),
             ),
           ),
         ),

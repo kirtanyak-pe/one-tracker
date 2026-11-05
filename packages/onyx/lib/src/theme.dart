@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import 'finish.dart';
 import 'tokens.dart';
 
 const _font = 'Inter';
@@ -97,7 +98,7 @@ enum OThemeMode { system, light, dark }
 
 @immutable
 class OThemeData {
-  OThemeData({required this.brightness, required this.colors}) : type = OType.of(colors);
+  OThemeData({required this.brightness, required this.colors, this.finish = OFinish.raised}) : type = OType.of(colors);
 
   factory OThemeData.light() => OThemeData(brightness: Brightness.light, colors: OColors.light);
   factory OThemeData.dark() => OThemeData(brightness: Brightness.dark, colors: OColors.dark);
@@ -105,6 +106,12 @@ class OThemeData {
   final Brightness brightness;
   final OColors colors;
   final OType type;
+
+  /// How pressable things look; see [OFinish].
+  final OFinish finish;
+
+  OThemeData withFinish(OFinish f) =>
+      f == finish ? this : OThemeData(brightness: brightness, colors: colors, finish: f);
 
   bool get isDark => brightness == Brightness.dark;
 }
@@ -121,7 +128,8 @@ class OTheme extends InheritedWidget {
   }
 
   @override
-  bool updateShouldNotify(OTheme old) => old.data.brightness != data.brightness || old.data.colors != data.colors;
+  bool updateShouldNotify(OTheme old) =>
+      old.data.brightness != data.brightness || old.data.colors != data.colors || old.data.finish != data.finish;
 }
 
 extension OContext on BuildContext {

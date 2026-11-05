@@ -5,7 +5,12 @@ import 'package:onyx/onyx.dart';
 enum Effects { auto, reduced, full }
 
 class Appearance {
-  const Appearance({this.mode = OThemeMode.system, this.effects = Effects.auto, this.lock = true});
+  const Appearance({
+    this.mode = OThemeMode.system,
+    this.effects = Effects.auto,
+    this.lock = true,
+    this.finish = OFinish.raised,
+  });
 
   final OThemeMode mode;
 
@@ -16,14 +21,22 @@ class Appearance {
   /// lock. On by default where the phone has a screen lock.
   final bool lock;
 
-  Appearance copyWith({OThemeMode? mode, Effects? effects, bool? lock}) =>
-      Appearance(mode: mode ?? this.mode, effects: effects ?? this.effects, lock: lock ?? this.lock);
+  /// How buttons, chips and the tab bar look (Raised, Glass, …).
+  final OFinish finish;
+
+  Appearance copyWith({OThemeMode? mode, Effects? effects, bool? lock, OFinish? finish}) => Appearance(
+    mode: mode ?? this.mode,
+    effects: effects ?? this.effects,
+    lock: lock ?? this.lock,
+    finish: finish ?? this.finish,
+  );
 
   factory Appearance.fromJson(Map<String, dynamic> j) => Appearance(
     mode: OThemeMode.values.byName((j['mode'] as String?) ?? 'system'),
     effects: Effects.values.byName((j['effects'] as String?) ?? 'auto'),
     lock: (j['lock'] as bool?) ?? true,
+    finish: OFinish.values.asNameMap()[j['finish']] ?? OFinish.raised,
   );
 
-  Map<String, dynamic> toJson() => {'mode': mode.name, 'effects': effects.name, 'lock': lock};
+  Map<String, dynamic> toJson() => {'mode': mode.name, 'effects': effects.name, 'lock': lock, 'finish': finish.name};
 }

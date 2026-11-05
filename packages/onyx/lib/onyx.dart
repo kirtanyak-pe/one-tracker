@@ -10,6 +10,7 @@ export 'src/calendar.dart';
 export 'src/controls.dart';
 export 'src/feedback.dart';
 export 'src/field.dart';
+export 'src/finish.dart';
 export 'src/layout.dart';
 export 'src/overlays.dart';
 export 'src/pressable.dart';

@@ -26,7 +26,8 @@ void main() => runApp(const OApp(title: 'My app', home: HomeScreen()));
 3. **Status colours mean status.** `positive`, `negative`, `warning` only for
    money direction, errors and alerts.
 4. **Borders, not shadows.** Cards are surface + a hairline. Only things that
-   float (tab bar, toasts, dialogs) cast a shadow.
+   float (tab bar, toasts, dialogs) cast a shadow — and pressable things get
+   the app's finish (below).
 5. **Quiet motion.** Ease-out, 140–380 ms, no bounce except a released drag.
    Everything respects the system's reduce-motion setting.
 6. **Type does the hierarchy.** Inter 400/500/600; Inter Display for large
@@ -41,7 +42,8 @@ void main() => runApp(const OApp(title: 'My app', home: HomeScreen()));
 | Space | `OSpace` — 2, 4, 8, 12, 16, 20, 24, 32, 48; gutter 20 |
 | Radius | `ORadius` — 8, 12, 16, 22, 28, pill; `ORadius.smooth(r)` |
 | Motion | `OMotion` — fast 140, base 240, slow 380; standard / emphasized / exit |
-| Theme | `OApp(mode: OThemeMode.system, light: ..., dark: ...)`; pass your own `OThemeData(colors: OColors(...))` to rebrand |
+| Finish | `OApp(finish: OFinish.raised)` — flat, raised (Lemonnade's: sheen, light top / dark bottom edge, small drop), pillow (soft two-sided shadows), glass (see-through, gloss, rim; the tab bar blurs), glow (coloured glow; ink takes the accent). Buttons, filled icon buttons, chips, the segmented thumb and the tab bar pill use it, `strong` for solid fills and `soft` for light ones; pressed, they push in. Your own: `OFinishBox(color:, depth:, shape:)` inside an `OPressable` |
+| Theme | `OApp(mode: OThemeMode.system, finish: ..., light: ..., dark: ...)`; pass your own `OThemeData(colors: OColors(...))` to rebrand |
 
 ## Components
 
@@ -50,7 +52,7 @@ void main() => runApp(const OApp(title: 'My app', home: HomeScreen()));
 | App | `OApp`, `OPageRoute`, `pushScreen`, `OScrollBehavior` |
 | Layout | `OScreen`, `OTopBar`, `OTabPage`, `OTabBar` |
 | Surfaces | `OCard`, `OInset`, `ODivider`, `OSectionHeader`, `ORow`, `OGroup` |
-| Actions | `OPressable`, `OButton` (primary/secondary/ghost/danger/accent/inverse/inverseSoft · sm/md/lg), `OIconButton`, `OTextButton` |
+| Actions | `OPressable`, `OFinishBox`, `OButton` (primary/secondary/ghost/danger/accent/inverse/inverseSoft · sm/md/lg), `OIconButton`, `OTextButton` |
 | Inputs | `OField` (own selection handles + copy/paste menu), `OToggle`, `OCheckbox`, `OCheckRow`, `OChip`, `OSegmented`, `showODatePicker` |
 | Feedback | `OSpinner`, `OProgressBar`, `OBadge`, `OToast`, `OTooltip`, `ORefresh` |
 | Overlays | `showOSheet` + `OSheetBody`, `showODialog` + `ODialog`, `showOConfirm` |

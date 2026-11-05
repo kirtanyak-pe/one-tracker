@@ -37,6 +37,13 @@ class AppearancePage extends StatelessWidget {
         ),
         const SizedBox(height: OSpace.sm),
         Text('System follows your phone\'s light/dark setting.', style: text.small.copyWith(color: t.inkSoft)),
+        const OSectionHeader('Style'),
+        _FinishPicker(
+          selected: a.finish,
+          onChanged: (f) => app.setAppearance(a.copyWith(finish: f)),
+        ),
+        const SizedBox(height: OSpace.sm),
+        Text(_finishNote(a.finish), style: text.small.copyWith(color: t.inkSoft)),
         const OSectionHeader('Animations & effects'),
         OSegmented<Effects>(
           values: Effects.values,
@@ -60,6 +67,88 @@ class AppearancePage extends StatelessWidget {
         const SizedBox(height: OSpace.xl),
         _Preview(),
       ],
+    );
+  }
+}
+
+String _finishName(OFinish f) => switch (f) {
+  OFinish.flat => 'Flat',
+  OFinish.raised => 'Raised',
+  OFinish.pillow => 'Pillow',
+  OFinish.glass => 'Glass',
+  OFinish.glow => 'Glow',
+};
+
+String _finishNote(OFinish f) => switch (f) {
+  OFinish.flat => 'Plain fills, no depth.',
+  OFinish.raised => 'Lit from above with a soft edge, like Lemonn. Presses push in.',
+  OFinish.pillow => 'Soft and puffy: buttons and the tab bar rise out of the page.',
+  OFinish.glass => 'Frosted: a gloss and bright rim; the tab bar blurs what\'s behind it.',
+  OFinish.glow => 'Buttons glow in their colour; black and white ones glow blue.',
+};
+
+/// One tile per finish, each showing a button and a chip in that finish.
+class _FinishPicker extends StatelessWidget {
+  const _FinishPicker({required this.selected, required this.onChanged});
+
+  final OFinish selected;
+  final ValueChanged<OFinish> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.colors;
+    final text = context.type;
+    return Row(
+      children: [
+        for (final (i, f) in OFinish.values.indexed) ...[
+          if (i > 0) const SizedBox(width: OSpace.sm),
+          Expanded(child: _tile(context, f, t, text)),
+        ],
+      ],
+    );
+  }
+
+  Widget _tile(BuildContext context, OFinish f, OColors t, OType text) {
+    final on = f == selected;
+    return Semantics(
+      selected: on,
+      child: OPressable(
+        onTap: () => onChanged(f),
+        semanticLabel: _finishName(f),
+        child: AnimatedContainer(
+          duration: OMotion.of(context, OMotion.fast),
+          height: 104,
+          padding: const EdgeInsets.fromLTRB(OSpace.sm, OSpace.lg, OSpace.sm, OSpace.sm + 2),
+          decoration: ShapeDecoration(
+            color: t.canvas,
+            shape: ORadius.smooth(
+              ORadius.md,
+              side: BorderSide(color: on ? t.ink : t.line, width: on ? 2 : 1),
+            ),
+          ),
+          child: Column(
+            children: [
+              SizedBox(
+                height: 28,
+                width: double.infinity,
+                child: OFinishBox(
+                  color: t.ink,
+                  finish: f,
+                  child: Center(child: Icon(LucideIcons.plus, size: 14, color: t.onInk)),
+                ),
+              ),
+              const SizedBox(height: OSpace.sm),
+              SizedBox(
+                height: 12,
+                width: 32,
+                child: OFinishBox(color: t.surface, depth: ODepth.soft, finish: f),
+              ),
+              const Spacer(),
+              Text(_finishName(f), style: text.caption.tint(on ? t.ink : t.inkSoft).medium, maxLines: 1),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

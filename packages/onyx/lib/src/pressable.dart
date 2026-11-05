@@ -29,8 +29,21 @@ class OPressable extends StatefulWidget {
   final String? semanticLabel;
   final HitTestBehavior behavior;
 
+  /// Whether the nearest pressable above [context] is held (a finished
+  /// surface draws itself pushed in).
+  static bool isPressed(BuildContext context) => context.dependOnInheritedWidgetOfExactType<_Pressed>()?.down ?? false;
+
   @override
   State<OPressable> createState() => _OPressableState();
+}
+
+class _Pressed extends InheritedWidget {
+  const _Pressed({required this.down, required super.child});
+
+  final bool down;
+
+  @override
+  bool updateShouldNotify(_Pressed old) => old.down != down;
 }
 
 class _OPressableState extends State<OPressable> {
@@ -71,7 +84,11 @@ class _OPressableState extends State<OPressable> {
           scale: _down ? widget.pressedScale : 1,
           duration: d,
           curve: OMotion.standard,
-          child: AnimatedOpacity(opacity: _down ? widget.pressedOpacity : 1, duration: d, child: widget.child),
+          child: AnimatedOpacity(
+            opacity: _down ? widget.pressedOpacity : 1,
+            duration: d,
+            child: _Pressed(down: _down, child: widget.child),
+          ),
         ),
       ),
     );
