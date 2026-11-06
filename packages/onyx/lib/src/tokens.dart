@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 
-/// Onyx colour roles. Cool monochrome first: blue-grey ink on a cool canvas, a single accent kept
+import 'tokens.g.dart';
+
+/// Onyx colour roles. The values live in tokens/onyx.tokens.json (generated into tokens.g.dart). Cool monochrome first: blue-grey ink on a cool canvas, a single accent kept
 /// for focus and selection, and three status colours that only ever mean
 /// status (never decoration).
 @immutable
@@ -66,81 +68,84 @@ class OColors {
   Color soft(Color c) => c.withValues(alpha: 0.12);
 
   static const light = OColors(
-    canvas: Color(0xFFF5F7FA),
-    surface: Color(0xFFFFFFFF),
-    raised: Color(0xFFECEFF3),
-    line: Color(0xFFE3E7ED),
-    lineStrong: Color(0xFFC9CFD8),
-    ink: Color(0xFF0A0D14),
-    inkSoft: Color(0xFF5A6272),
-    inkFaint: Color(0xFF99A1AE),
-    onInk: Color(0xFFFFFFFF),
-    accent: Color(0xFF3E63DD),
-    onAccent: Color(0xFFFFFFFF),
-    positive: Color(0xFF12925E),
-    negative: Color(0xFFDC3E4A),
-    warning: Color(0xFFC27A0A),
-    scrim: Color(0x660A0D14),
+    canvas: OTokenLight.canvas,
+    surface: OTokenLight.surface,
+    raised: OTokenLight.raised,
+    line: OTokenLight.line,
+    lineStrong: OTokenLight.lineStrong,
+    ink: OTokenLight.ink,
+    inkSoft: OTokenLight.inkSoft,
+    inkFaint: OTokenLight.inkFaint,
+    onInk: OTokenLight.onInk,
+    accent: OTokenLight.accent,
+    onAccent: OTokenLight.onAccent,
+    positive: OTokenLight.positive,
+    negative: OTokenLight.negative,
+    warning: OTokenLight.warning,
+    scrim: OTokenLight.scrim,
   );
 
   static const dark = OColors(
-    canvas: Color(0xFF07090C),
-    surface: Color(0xFF12151A),
-    raised: Color(0xFF1A1E24),
-    line: Color(0xFF222730),
-    lineStrong: Color(0xFF333A45),
-    ink: Color(0xFFF2F5F9),
-    inkSoft: Color(0xFF9EA6B4),
-    inkFaint: Color(0xFF646C7A),
-    onInk: Color(0xFF0A0D14),
-    accent: Color(0xFF7C9CFF),
-    onAccent: Color(0xFF0A0D14),
-    positive: Color(0xFF34D399),
-    negative: Color(0xFFFF6370),
-    warning: Color(0xFFF5B544),
-    scrim: Color(0x99000000),
+    canvas: OTokenDark.canvas,
+    surface: OTokenDark.surface,
+    raised: OTokenDark.raised,
+    line: OTokenDark.line,
+    lineStrong: OTokenDark.lineStrong,
+    ink: OTokenDark.ink,
+    inkSoft: OTokenDark.inkSoft,
+    inkFaint: OTokenDark.inkFaint,
+    onInk: OTokenDark.onInk,
+    accent: OTokenDark.accent,
+    onAccent: OTokenDark.onAccent,
+    positive: OTokenDark.positive,
+    negative: OTokenDark.negative,
+    warning: OTokenDark.warning,
+    scrim: OTokenDark.scrim,
   );
 }
 
 /// 4-pt spacing scale.
 abstract final class OSpace {
-  static const xxs = 2.0;
-  static const xs = 4.0;
-  static const sm = 8.0;
-  static const md = 12.0;
-  static const lg = 16.0;
-  static const xl = 20.0;
-  static const xxl = 24.0;
-  static const xxxl = 32.0;
-  static const huge = 48.0;
+  static const xxs = OTokenSpace.xxs;
+  static const xs = OTokenSpace.xs;
+  static const sm = OTokenSpace.sm;
+  static const md = OTokenSpace.md;
+  static const lg = OTokenSpace.lg;
+  static const xl = OTokenSpace.xl;
+  static const xxl = OTokenSpace.xxl;
+  static const xxxl = OTokenSpace.xxxl;
+  static const huge = OTokenSpace.huge;
 
   /// Horizontal page gutter.
-  static const gutter = 20.0;
+  static const gutter = OTokenSpace.gutter;
 }
 
 /// Corner radii. Cards and sheets use the smooth (superellipse) shape.
 abstract final class ORadius {
-  static const xs = 8.0;
-  static const sm = 12.0;
-  static const md = 16.0;
-  static const lg = 22.0;
-  static const xl = 28.0;
-  static const pill = 999.0;
+  static const xs = OTokenRadius.xs;
+  static const sm = OTokenRadius.sm;
+  static const md = OTokenRadius.md;
+  static const lg = OTokenRadius.lg;
+  static const xl = OTokenRadius.xl;
+  static const pill = OTokenRadius.pill;
 
   static ShapeBorder smooth(double r, {BorderSide side = BorderSide.none}) =>
-      RoundedSuperellipseBorder(borderRadius: BorderRadius.circular(r), side: side);
+      RoundedSuperellipseBorder(
+        borderRadius: BorderRadius.circular(r),
+        side: side,
+      );
 }
 
 /// Durations and curves. Everything eases out; nothing bounces except a
 /// released drag.
 abstract final class OMotion {
-  static const fast = Duration(milliseconds: 140);
-  static const base = Duration(milliseconds: 240);
-  static const slow = Duration(milliseconds: 380);
+  static const fast = OTokenMotion.fast;
+  static const base = OTokenMotion.base;
+  static const slow = OTokenMotion.slow;
 
-  static const standard = Cubic(0.2, 0, 0, 1);
-  static const emphasized = Cubic(0.05, 0.7, 0.1, 1);
-  static const exit = Cubic(0.3, 0, 1, 1);
+  static const standard = OTokenMotion.standard;
+  static const emphasized = OTokenMotion.emphasized;
+  static const exit = OTokenMotion.exit;
 
   /// Zero when the system asks for reduced motion.
   static Duration of(BuildContext context, Duration d) =>
@@ -150,13 +155,10 @@ abstract final class OMotion {
 /// Shadows are rare: borders separate things; only floating layers lift.
 abstract final class OShadow {
   static List<BoxShadow> floating(Brightness b) => b == Brightness.light
-      ? const [
-          BoxShadow(color: Color(0x14000000), blurRadius: 32, offset: Offset(0, 12)),
-          BoxShadow(color: Color(0x0A000000), blurRadius: 3, offset: Offset(0, 1)),
-        ]
-      : const [BoxShadow(color: Color(0x66000000), blurRadius: 32, offset: Offset(0, 12))];
+      ? OTokenShadow.floatingLight
+      : OTokenShadow.floatingDark;
 
   static List<BoxShadow> subtle(Brightness b) => b == Brightness.light
-      ? const [BoxShadow(color: Color(0x0D000000), blurRadius: 8, offset: Offset(0, 2))]
-      : const [];
+      ? OTokenShadow.subtleLight
+      : OTokenShadow.subtleDark;
 }

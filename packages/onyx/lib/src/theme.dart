@@ -2,9 +2,8 @@ import 'package:flutter/widgets.dart';
 
 import 'finish.dart';
 import 'tokens.dart';
+import 'tokens.g.dart';
 
-const _font = 'Inter';
-const _display = 'InterDisplay';
 const _pkg = 'onyx';
 
 /// The type ramp. Inter for text, Inter Display for big numbers; tight
@@ -27,37 +26,31 @@ class OType {
   });
 
   factory OType.of(OColors c) {
-    TextStyle s(
-      double size,
-      FontWeight w, {
-      double? tracking,
-      double height = 1.35,
-      Color? color,
-      bool display = false,
-    }) => TextStyle(
-      fontFamily: display ? _display : _font,
+    // Sizes, weights, tracking and line heights come from tokens/onyx.tokens.json.
+    TextStyle s(OTypeToken t) => TextStyle(
+      fontFamily: t.display ? OTokenType.displayFamily : OTokenType.family,
       package: _pkg,
-      fontSize: size,
-      fontWeight: w,
-      letterSpacing: tracking,
-      height: height,
-      color: color ?? c.ink,
+      fontSize: t.size,
+      fontWeight: t.weight,
+      letterSpacing: t.tracking,
+      height: t.height,
+      color: t.ink == OTypeInk.inkSoft ? c.inkSoft : c.ink,
       // Inter's open digits, straight 6/9 and disambiguated l/I.
-      fontFeatures: const [FontFeature('cv05'), FontFeature('cv08')],
+      fontFeatures: OTokenType.features,
     );
     return OType(
-      hero: s(56, FontWeight.w600, tracking: -2.2, height: 1.05, display: true),
-      display: s(36, FontWeight.w600, tracking: -1.2, height: 1.1, display: true),
-      title1: s(28, FontWeight.w600, tracking: -0.7, height: 1.15),
-      title2: s(22, FontWeight.w600, tracking: -0.45, height: 1.2),
-      title3: s(17, FontWeight.w600, tracking: -0.2, height: 1.3),
-      body: s(15, FontWeight.w400, tracking: -0.1),
-      bodyStrong: s(15, FontWeight.w500, tracking: -0.1),
-      small: s(13, FontWeight.w400, color: c.inkSoft),
-      smallStrong: s(13, FontWeight.w500),
-      caption: s(12, FontWeight.w500, tracking: 0.1, color: c.inkSoft),
-      label: s(15, FontWeight.w600, tracking: -0.1, height: 1.2),
-      overline: s(11, FontWeight.w600, tracking: 0.8, color: c.inkSoft),
+      hero: s(OTokenType.hero),
+      display: s(OTokenType.display),
+      title1: s(OTokenType.title1),
+      title2: s(OTokenType.title2),
+      title3: s(OTokenType.title3),
+      body: s(OTokenType.body),
+      bodyStrong: s(OTokenType.bodyStrong),
+      small: s(OTokenType.small),
+      smallStrong: s(OTokenType.smallStrong),
+      caption: s(OTokenType.caption),
+      label: s(OTokenType.label),
+      overline: s(OTokenType.overline),
     );
   }
 
@@ -88,7 +81,9 @@ class OType {
 
 extension TextStyleX on TextStyle {
   /// Same-width digits, so amounts line up and don't jitter as they count.
-  TextStyle get tabular => copyWith(fontFeatures: [...?fontFeatures, const FontFeature.tabularFigures()]);
+  TextStyle get tabular => copyWith(
+    fontFeatures: [...?fontFeatures, const FontFeature.tabularFigures()],
+  );
   TextStyle tint(Color c) => copyWith(color: c);
   TextStyle get medium => copyWith(fontWeight: FontWeight.w500);
   TextStyle get semibold => copyWith(fontWeight: FontWeight.w600);
@@ -98,10 +93,16 @@ enum OThemeMode { system, light, dark }
 
 @immutable
 class OThemeData {
-  OThemeData({required this.brightness, required this.colors, this.finish = OFinish.raised}) : type = OType.of(colors);
+  OThemeData({
+    required this.brightness,
+    required this.colors,
+    this.finish = OFinish.raised,
+  }) : type = OType.of(colors);
 
-  factory OThemeData.light() => OThemeData(brightness: Brightness.light, colors: OColors.light);
-  factory OThemeData.dark() => OThemeData(brightness: Brightness.dark, colors: OColors.dark);
+  factory OThemeData.light() =>
+      OThemeData(brightness: Brightness.light, colors: OColors.light);
+  factory OThemeData.dark() =>
+      OThemeData(brightness: Brightness.dark, colors: OColors.dark);
 
   final Brightness brightness;
   final OColors colors;
@@ -110,8 +111,9 @@ class OThemeData {
   /// How pressable things look; see [OFinish].
   final OFinish finish;
 
-  OThemeData withFinish(OFinish f) =>
-      f == finish ? this : OThemeData(brightness: brightness, colors: colors, finish: f);
+  OThemeData withFinish(OFinish f) => f == finish
+      ? this
+      : OThemeData(brightness: brightness, colors: colors, finish: f);
 
   bool get isDark => brightness == Brightness.dark;
 }
@@ -129,7 +131,9 @@ class OTheme extends InheritedWidget {
 
   @override
   bool updateShouldNotify(OTheme old) =>
-      old.data.brightness != data.brightness || old.data.colors != data.colors || old.data.finish != data.finish;
+      old.data.brightness != data.brightness ||
+      old.data.colors != data.colors ||
+      old.data.finish != data.finish;
 }
 
 extension OContext on BuildContext {

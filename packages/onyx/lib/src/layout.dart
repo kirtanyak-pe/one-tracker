@@ -9,10 +9,18 @@ import 'pressable.dart';
 import 'surface.dart';
 import 'theme.dart';
 import 'tokens.dart';
+import 'tokens.g.dart';
 
 /// A pushed screen: canvas, an optional [OTopBar] and the body below it.
 class OScreen extends StatelessWidget {
-  const OScreen({super.key, this.title, this.trailing, required this.body, this.bottom, this.back = true});
+  const OScreen({
+    super.key,
+    this.title,
+    this.trailing,
+    required this.body,
+    this.bottom,
+    this.back = true,
+  });
 
   final String? title;
   final Widget? trailing;
@@ -32,14 +40,25 @@ class OScreen extends StatelessWidget {
             child: OTopBar(title: title ?? '', trailing: trailing, back: back),
           ),
         Expanded(
-          child: MediaQuery.removePadding(context: context, removeTop: title != null || back, child: body),
+          child: MediaQuery.removePadding(
+            context: context,
+            removeTop: title != null || back,
+            child: body,
+          ),
         ),
         if (bottom != null)
           Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.viewInsetsOf(context).bottom,
+            ),
             child: SafeArea(
               top: false,
-              minimum: const EdgeInsets.fromLTRB(OSpace.gutter, OSpace.sm, OSpace.gutter, OSpace.md),
+              minimum: const EdgeInsets.fromLTRB(
+                OSpace.gutter,
+                OSpace.sm,
+                OSpace.gutter,
+                OSpace.md,
+              ),
               child: bottom!,
             ),
           ),
@@ -50,7 +69,12 @@ class OScreen extends StatelessWidget {
 
 /// Back · centred title · trailing.
 class OTopBar extends StatelessWidget {
-  const OTopBar({super.key, required this.title, this.trailing, this.back = true});
+  const OTopBar({
+    super.key,
+    required this.title,
+    this.trailing,
+    this.back = true,
+  });
 
   final String title;
   final Widget? trailing;
@@ -130,7 +154,8 @@ class _OTabPageState extends State<OTabPage> {
   bool _onScroll(ScrollNotification n) {
     if (n.depth != 0 || n.metrics.axis != Axis.vertical) return false;
     final under = n.metrics.pixels > 0;
-    final swapped = widget.scrolledTitle != null && n.metrics.pixels > widget.swapAfter;
+    final swapped =
+        widget.scrolledTitle != null && n.metrics.pixels > widget.swapAfter;
     if (under != _under || swapped != _swapped) {
       setState(() {
         _under = under;
@@ -160,37 +185,62 @@ class _OTabPageState extends State<OTabPage> {
                       duration: d,
                       switchInCurve: OMotion.emphasized,
                       switchOutCurve: OMotion.exit,
-                      layoutBuilder: (cur, prev) => Stack(alignment: Alignment.centerLeft, children: [...prev, ?cur]),
+                      layoutBuilder: (cur, prev) => Stack(
+                        alignment: Alignment.centerLeft,
+                        children: [...prev, ?cur],
+                      ),
                       transitionBuilder: (child, a) => FadeTransition(
                         opacity: a,
                         child: SlideTransition(
-                          position: Tween(begin: const Offset(0, 0.35), end: Offset.zero).animate(a),
+                          position: Tween(
+                            begin: const Offset(0, 0.35),
+                            end: Offset.zero,
+                          ).animate(a),
                           child: child,
                         ),
                       ),
                       child: _swapped
                           ? KeyedSubtree(
                               key: const ValueKey('swapped'),
-                              child: DefaultTextStyle.merge(style: t.title2, child: widget.scrolledTitle!),
+                              child: DefaultTextStyle.merge(
+                                style: t.title2,
+                                child: widget.scrolledTitle!,
+                              ),
                             )
                           : Semantics(
                               key: const ValueKey('title'),
                               header: true,
-                              child: Text(widget.title, style: t.title2, maxLines: 1, overflow: TextOverflow.ellipsis),
+                              child: Text(
+                                widget.title,
+                                style: t.title2,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                     ),
                   ),
-                  for (final (i, a) in widget.actions.indexed) ...[if (i > 0) const SizedBox(width: OSpace.sm), a],
+                  for (final (i, a) in widget.actions.indexed) ...[
+                    if (i > 0) const SizedBox(width: OSpace.sm),
+                    a,
+                  ],
                 ],
               ),
             ),
           ),
         ),
-        AnimatedOpacity(opacity: _under ? 1 : 0, duration: d, child: const ODivider()),
+        AnimatedOpacity(
+          opacity: _under ? 1 : 0,
+          duration: d,
+          child: const ODivider(),
+        ),
         Expanded(
           child: NotificationListener<ScrollNotification>(
             onNotification: _onScroll,
-            child: MediaQuery.removePadding(context: context, removeTop: true, child: widget.body),
+            child: MediaQuery.removePadding(
+              context: context,
+              removeTop: true,
+              child: widget.body,
+            ),
           ),
         ),
       ],
@@ -209,7 +259,9 @@ class _OTabPageState extends State<OTabPage> {
                       decoration: BoxDecoration(
                         gradient: RadialGradient(
                           colors: [
-                            c.accent.withValues(alpha: context.onyx.isDark ? 0.26 : 0.12),
+                            c.accent.withValues(
+                              alpha: context.onyx.isDark ? 0.26 : 0.12,
+                            ),
                             c.accent.withValues(alpha: 0),
                           ],
                         ),
@@ -230,7 +282,12 @@ typedef OTab = ({IconData icon, String label});
 /// The floating tab bar: a surface capsule; the selected tab becomes an ink
 /// pill with its label.
 class OTabBar extends StatelessWidget {
-  const OTabBar({super.key, required this.tabs, required this.index, required this.onSelect});
+  const OTabBar({
+    super.key,
+    required this.tabs,
+    required this.index,
+    required this.onSelect,
+  });
 
   final List<OTab> tabs;
   final int index;
@@ -257,7 +314,9 @@ class OTabBar extends StatelessWidget {
             final n = tabs.length;
             final unit = box.maxWidth / (3 * n + 2);
             // How selected each tab is right now, 0–1; they sum to 1.
-            final sel = [for (var i = 0; i < n; i++) (1 - (t - i).abs()).clamp(0.0, 1.0)];
+            final sel = [
+              for (var i = 0; i < n; i++) (1 - (t - i).abs()).clamp(0.0, 1.0),
+            ];
             final widths = [for (final s in sel) unit * (3 + 2 * s)];
             final lefts = [0.0];
             for (var i = 0; i < n - 1; i++) {
@@ -292,7 +351,11 @@ class OTabBar extends StatelessWidget {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(tab.icon, size: 20, color: Color.lerp(c.inkSoft, c.onInk, sel[i])),
+                                Icon(
+                                  tab.icon,
+                                  size: 20,
+                                  color: Color.lerp(c.inkSoft, c.onInk, sel[i]),
+                                ),
                                 if (sel[i] > 0.01)
                                   Flexible(
                                     child: ClipRect(
@@ -302,13 +365,16 @@ class OTabBar extends StatelessWidget {
                                         child: Opacity(
                                           opacity: sel[i],
                                           child: Padding(
-                                            padding: const EdgeInsets.only(left: OSpace.sm),
+                                            padding: const EdgeInsets.only(
+                                              left: OSpace.sm,
+                                            ),
                                             child: Text(
                                               tab.label,
                                               maxLines: 1,
                                               softWrap: false,
                                               overflow: TextOverflow.fade,
-                                              style: context.type.smallStrong.tint(c.onInk),
+                                              style: context.type.smallStrong
+                                                  .tint(c.onInk),
                                             ),
                                           ),
                                         ),
@@ -337,24 +403,46 @@ class OTabBar extends StatelessWidget {
       // mode, where the blur would cost frames).
       OFinish.glass => Container(
         height: height,
-        decoration: ShapeDecoration(shape: const StadiumBorder(), shadows: OShadow.floating(context.onyx.brightness)),
+        decoration: ShapeDecoration(
+          shape: const StadiumBorder(),
+          shadows: OShadow.floating(context.onyx.brightness),
+        ),
         child: ClipPath(
           clipper: const ShapeBorderClipper(shape: StadiumBorder()),
           child: (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
-              ? OFinishBox(color: c.surface, depth: ODepth.soft, finish: OFinish.flat, child: bar)
+              ? OFinishBox(
+                  color: c.surface,
+                  depth: ODepth.soft,
+                  finish: OFinish.flat,
+                  child: bar,
+                )
               : BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                  child: OFinishBox(color: c.surface, depth: ODepth.soft, child: bar),
+                  filter: ImageFilter.blur(
+                    sigmaX: OTokenShadow.tabBarBlurSigma,
+                    sigmaY: OTokenShadow.tabBarBlurSigma,
+                  ),
+                  child: OFinishBox(
+                    color: c.surface,
+                    depth: ODepth.soft,
+                    child: bar,
+                  ),
                 ),
         ),
       ),
       _ => Container(
         height: height,
-        decoration: ShapeDecoration(shape: const StadiumBorder(), shadows: OShadow.floating(context.onyx.brightness)),
+        decoration: ShapeDecoration(
+          shape: const StadiumBorder(),
+          shadows: OShadow.floating(context.onyx.brightness),
+        ),
         child: OFinishBox(
           color: c.surface,
           depth: ODepth.surface,
-          shape: StadiumBorder(side: finish.hairlines ? BorderSide(color: c.line) : BorderSide.none),
+          shape: StadiumBorder(
+            side: finish.hairlines
+                ? BorderSide(color: c.line)
+                : BorderSide.none,
+          ),
           child: bar,
         ),
       ),

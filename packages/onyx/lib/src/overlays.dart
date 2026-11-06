@@ -7,6 +7,7 @@ import 'button.dart';
 import 'finish.dart';
 import 'theme.dart';
 import 'tokens.dart';
+import 'tokens.g.dart';
 
 /// Opens a bottom sheet: a surface that rises from the bottom over a scrim,
 /// with a grab handle, dismissed by a tap outside or a downward drag.
@@ -15,13 +16,20 @@ Future<T?> showOSheet<T>(
   required WidgetBuilder builder,
   bool dismissible = true,
   bool useRootNavigator = true,
-}) => Navigator.of(
-  context,
-  rootNavigator: useRootNavigator,
-).push<T>(_SheetRoute<T>(builder: builder, dismissible: dismissible, theme: OTheme.of(context)));
+}) => Navigator.of(context, rootNavigator: useRootNavigator).push<T>(
+  _SheetRoute<T>(
+    builder: builder,
+    dismissible: dismissible,
+    theme: OTheme.of(context),
+  ),
+);
 
 class _SheetRoute<T> extends PopupRoute<T> {
-  _SheetRoute({required this.builder, required this.dismissible, required this.theme});
+  _SheetRoute({
+    required this.builder,
+    required this.dismissible,
+    required this.theme,
+  });
 
   final WidgetBuilder builder;
   final bool dismissible;
@@ -43,7 +51,11 @@ class _SheetRoute<T> extends PopupRoute<T> {
   Duration get reverseTransitionDuration => const Duration(milliseconds: 260);
 
   @override
-  Widget buildPage(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation) => OTheme(
+  Widget buildPage(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+  ) => OTheme(
     data: theme,
     child: _Sheet(
       route: this,
@@ -87,12 +99,19 @@ class _SheetState extends State<_Sheet> {
   Widget build(BuildContext context) {
     final c = context.colors;
     final mq = MediaQuery.of(context);
-    final a = CurvedAnimation(parent: widget.route.animation!, curve: OMotion.emphasized, reverseCurve: OMotion.exit);
+    final a = CurvedAnimation(
+      parent: widget.route.animation!,
+      curve: OMotion.emphasized,
+      reverseCurve: OMotion.exit,
+    );
     return Align(
       alignment: Alignment.bottomCenter,
       child: AnimatedBuilder(
         animation: a,
-        builder: (context, child) => FractionalTranslation(translation: Offset(0, 1 - a.value), child: child),
+        builder: (context, child) => FractionalTranslation(
+          translation: Offset(0, 1 - a.value),
+          child: child,
+        ),
         child: AnimatedContainer(
           duration: _drag == 0 ? OMotion.base : Duration.zero,
           curve: OMotion.standard,
@@ -102,12 +121,17 @@ class _SheetState extends State<_Sheet> {
             onVerticalDragEnd: _end,
             child: ConstrainedBox(
               key: _key,
-              constraints: BoxConstraints(maxHeight: mq.size.height - mq.padding.top - OSpace.xxl, maxWidth: 640),
+              constraints: BoxConstraints(
+                maxHeight: mq.size.height - mq.padding.top - OSpace.xxl,
+                maxWidth: 640,
+              ),
               child: OFinishBox(
                 color: c.surface,
                 depth: ODepth.surface,
                 shape: const RoundedSuperellipseBorder(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(ORadius.xl)),
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(ORadius.xl),
+                  ),
                 ),
                 child: Padding(
                   padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
@@ -118,7 +142,10 @@ class _SheetState extends State<_Sheet> {
                       Container(
                         width: 36,
                         height: 4,
-                        decoration: ShapeDecoration(color: c.lineStrong, shape: const StadiumBorder()),
+                        decoration: ShapeDecoration(
+                          color: c.lineStrong,
+                          shape: const StadiumBorder(),
+                        ),
                       ),
                       Flexible(
                         child: MediaQuery.removeViewInsets(
@@ -160,14 +187,23 @@ class OSheetBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final body = Padding(
-      padding: const EdgeInsets.fromLTRB(OSpace.gutter, OSpace.lg, OSpace.gutter, OSpace.lg),
+      padding: const EdgeInsets.fromLTRB(
+        OSpace.gutter,
+        OSpace.lg,
+        OSpace.gutter,
+        OSpace.lg,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (title != null) Text(title!, style: context.type.title2),
-          if (subtitle != null) ...[const SizedBox(height: OSpace.xs + 2), Text(subtitle!, style: context.type.small)],
-          if (title != null || subtitle != null) const SizedBox(height: OSpace.xl),
+          if (subtitle != null) ...[
+            const SizedBox(height: OSpace.xs + 2),
+            Text(subtitle!, style: context.type.small),
+          ],
+          if (title != null || subtitle != null)
+            const SizedBox(height: OSpace.xl),
           child,
         ],
       ),
@@ -179,11 +215,19 @@ class OSheetBody extends StatelessWidget {
         Flexible(child: scroll ? SingleChildScrollView(child: body) : body),
         if (actions.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.fromLTRB(OSpace.gutter, 0, OSpace.gutter, OSpace.md),
+            padding: const EdgeInsets.fromLTRB(
+              OSpace.gutter,
+              0,
+              OSpace.gutter,
+              OSpace.md,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (var i = 0; i < actions.length; i++) ...[if (i > 0) const SizedBox(height: OSpace.sm), actions[i]],
+                for (var i = 0; i < actions.length; i++) ...[
+                  if (i > 0) const SizedBox(height: OSpace.sm),
+                  actions[i],
+                ],
               ],
             ),
           ),
@@ -193,7 +237,11 @@ class OSheetBody extends StatelessWidget {
 }
 
 /// A centred dialog that fades and scales in over a blurred scrim.
-Future<T?> showODialog<T>(BuildContext context, {required WidgetBuilder builder, bool dismissible = true}) {
+Future<T?> showODialog<T>(
+  BuildContext context, {
+  required WidgetBuilder builder,
+  bool dismissible = true,
+}) {
   final theme = OTheme.of(context);
   return Navigator.of(context, rootNavigator: true).push<T>(
     RawDialogRoute<T>(
@@ -206,12 +254,22 @@ Future<T?> showODialog<T>(BuildContext context, {required WidgetBuilder builder,
         child: Builder(builder: builder),
       ),
       transitionBuilder: (context, a, _, child) {
-        final curved = CurvedAnimation(parent: a, curve: OMotion.emphasized, reverseCurve: OMotion.exit);
+        final curved = CurvedAnimation(
+          parent: a,
+          curve: OMotion.emphasized,
+          reverseCurve: OMotion.exit,
+        );
         return BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 6 * a.value, sigmaY: 6 * a.value),
+          filter: ImageFilter.blur(
+            sigmaX: OTokenShadow.scrimBlurSigma * a.value,
+            sigmaY: OTokenShadow.scrimBlurSigma * a.value,
+          ),
           child: FadeTransition(
             opacity: curved,
-            child: ScaleTransition(scale: Tween(begin: 0.94, end: 1.0).animate(curved), child: child),
+            child: ScaleTransition(
+              scale: Tween(begin: 0.94, end: 1.0).animate(curved),
+              child: child,
+            ),
           ),
         );
       },
@@ -222,7 +280,14 @@ Future<T?> showODialog<T>(BuildContext context, {required WidgetBuilder builder,
 /// A dialog's card: title, message or content, and actions laid out as
 /// full-width stacked pills (primary first).
 class ODialog extends StatelessWidget {
-  const ODialog({super.key, required this.title, this.message, this.content, this.actions = const [], this.icon});
+  const ODialog({
+    super.key,
+    required this.title,
+    this.message,
+    this.content,
+    this.actions = const [],
+    this.icon,
+  });
 
   final String title;
   final String? message;
@@ -236,7 +301,12 @@ class ODialog extends StatelessWidget {
     final mq = MediaQuery.of(context);
     return SafeArea(
       child: Padding(
-        padding: EdgeInsets.fromLTRB(OSpace.xxl, OSpace.xxl, OSpace.xxl, OSpace.xxl + mq.viewInsets.bottom),
+        padding: EdgeInsets.fromLTRB(
+          OSpace.xxl,
+          OSpace.xxl,
+          OSpace.xxl,
+          OSpace.xxl + mq.viewInsets.bottom,
+        ),
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 400),
@@ -263,17 +333,29 @@ class ODialog extends StatelessWidget {
                               color: c.raised,
                               depth: ODepth.surface,
                               shape: ORadius.smooth(ORadius.sm),
-                              child: SizedBox.square(dimension: 44, child: Icon(icon, size: 22, color: c.ink)),
+                              child: SizedBox.square(
+                                dimension: 44,
+                                child: Icon(icon, size: 22, color: c.ink),
+                              ),
                             ),
                           ),
                           const SizedBox(height: OSpace.lg),
                         ],
-                        Text(title, style: context.type.title3.copyWith(fontSize: 19)),
+                        Text(
+                          title,
+                          style: context.type.title3.copyWith(fontSize: 19),
+                        ),
                         if (message != null) ...[
                           const SizedBox(height: OSpace.sm),
-                          Text(message!, style: context.type.body.tint(c.inkSoft)),
+                          Text(
+                            message!,
+                            style: context.type.body.tint(c.inkSoft),
+                          ),
                         ],
-                        if (content != null) ...[const SizedBox(height: OSpace.lg), content!],
+                        if (content != null) ...[
+                          const SizedBox(height: OSpace.lg),
+                          content!,
+                        ],
                         if (actions.isNotEmpty) ...[
                           const SizedBox(height: OSpace.xxl),
                           for (var i = 0; i < actions.length; i++) ...[
@@ -320,7 +402,11 @@ Future<bool> showOConfirm(
             Navigator.pop(context, true);
           },
         ),
-        OButton.ghost(label: cancel, expand: true, onPressed: () => Navigator.pop(context, false)),
+        OButton.ghost(
+          label: cancel,
+          expand: true,
+          onPressed: () => Navigator.pop(context, false),
+        ),
       ],
     ),
   );
@@ -329,7 +415,12 @@ Future<bool> showOConfirm(
 
 /// Tap (or long-press) [child] to show [message] in a dark bubble above it.
 class OTooltip extends StatefulWidget {
-  const OTooltip({super.key, required this.message, required this.child, this.tapToShow = false});
+  const OTooltip({
+    super.key,
+    required this.message,
+    required this.child,
+    this.tapToShow = false,
+  });
 
   final String message;
   final Widget child;
@@ -341,7 +432,8 @@ class OTooltip extends StatefulWidget {
   State<OTooltip> createState() => _OTooltipState();
 }
 
-class _OTooltipState extends State<OTooltip> with SingleTickerProviderStateMixin {
+class _OTooltipState extends State<OTooltip>
+    with SingleTickerProviderStateMixin {
   final _portal = OverlayPortalController();
   final _link = LayerLink();
   late final _fade = AnimationController(vsync: this, duration: OMotion.fast);
@@ -378,7 +470,10 @@ class _OTooltipState extends State<OTooltip> with SingleTickerProviderStateMixin
           overlayChildBuilder: (_) => Stack(
             children: [
               Positioned.fill(
-                child: GestureDetector(behavior: HitTestBehavior.translucent, onTapDown: (_) => _hide()),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTapDown: (_) => _hide(),
+                ),
               ),
               CompositedTransformFollower(
                 link: _link,
@@ -394,12 +489,20 @@ class _OTooltipState extends State<OTooltip> with SingleTickerProviderStateMixin
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 260),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: ShapeDecoration(color: const Color(0xFF1A1E25), shape: ORadius.smooth(ORadius.sm)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: ShapeDecoration(
+                          color: const Color(0xFF1A1E25),
+                          shape: ORadius.smooth(ORadius.sm),
+                        ),
                         child: Text(
                           widget.message,
                           textAlign: TextAlign.center,
-                          style: theme.type.caption.tint(const Color(0xFFF2F5F9)),
+                          style: theme.type.caption.tint(
+                            const Color(0xFFF2F5F9),
+                          ),
                         ),
                       ),
                     ),

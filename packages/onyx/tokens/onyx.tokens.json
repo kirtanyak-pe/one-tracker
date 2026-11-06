@@ -1,0 +1,202 @@
+{
+  "$description": "Onyx design tokens: the one source for One Tracker (Flutter) and One Split (CSS). Edit here, then run `node packages/onyx/tokens/generate.mjs` from ~/auto_split (or `npm run tokens` in One Split). Never edit tokens.g.dart or tokens.g.css by hand. Alphas are 0-1. A tint is [colour, alpha]; a shadow is [colour, alpha, blur, dy, dx] (dx optional, default 0). Tint colours: black, white, accent (the mode's accent), glow (the fill's own colour if it is saturated, else the accent; CSS has no fill to read, so it uses the accent).",
+
+  "color": {
+    "$description": "Colour roles (OColors). Cool monochrome: blue-grey ink on a cool canvas, one accent for focus and selection, and three status colours that only ever mean status. Light-mode positive, negative and warning are darkened so small text passes WCAG AA (4.5:1) on white, canvas and raised; the dark values pass on all three. inkFaint is for placeholders and disabled labels only (inactive text is exempt from AA). Scrim is {color, alpha}. CSS also derives --o-on-negative from onInk.",
+    "light": {
+      "canvas": "#F5F7FA",
+      "surface": "#FFFFFF",
+      "raised": "#ECEFF3",
+      "line": "#E3E7ED",
+      "lineStrong": "#C9CFD8",
+      "ink": "#0A0D14",
+      "inkSoft": "#5A6272",
+      "inkFaint": "#99A1AE",
+      "onInk": "#FFFFFF",
+      "accent": "#3E63DD",
+      "onAccent": "#FFFFFF",
+      "positive": "#0B7A4D",
+      "negative": "#C4262F",
+      "warning": "#8F5700",
+      "scrim": { "color": "#0A0D14", "alpha": 0.4 }
+    },
+    "dark": {
+      "canvas": "#07090C",
+      "surface": "#12151A",
+      "raised": "#1A1E24",
+      "line": "#222730",
+      "lineStrong": "#333A45",
+      "ink": "#F2F5F9",
+      "inkSoft": "#9EA6B4",
+      "inkFaint": "#646C7A",
+      "onInk": "#0A0D14",
+      "accent": "#7C9CFF",
+      "onAccent": "#0A0D14",
+      "positive": "#34D399",
+      "negative": "#FF6370",
+      "warning": "#F5B544",
+      "scrim": { "color": "#000000", "alpha": 0.6 }
+    }
+  },
+
+  "space": {
+    "$description": "4-pt spacing scale in logical px (OSpace). gutter is the horizontal page margin.",
+    "xxs": 2, "xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 20, "xxl": 24, "xxxl": 32, "huge": 48,
+    "gutter": 20
+  },
+
+  "radius": {
+    "$description": "Corner radii in px (ORadius). Cards and sheets use the smooth (superellipse) shape; pill is a full stadium.",
+    "xs": 8, "sm": 12, "md": 16, "lg": 22, "xl": 28, "pill": 999
+  },
+
+  "type": {
+    "$description": "The type ramp (OType). Inter for text, Inter Display for big numbers; tight tracking as sizes grow. size in px, weight 100-900, tracking (letter spacing) in px or null, height is line height as a multiple of size, color is ink or inkSoft. features are OpenType features: open digits, straight 6/9 and a disambiguated l/I. Money adds tabular figures.",
+    "family": "Inter",
+    "displayFamily": "InterDisplay",
+    "cssFamily": "'Inter', system-ui, sans-serif",
+    "cssDisplayFamily": "'Inter Display', 'Inter', system-ui, sans-serif",
+    "features": ["cv05", "cv08"],
+    "styles": {
+      "hero":        { "$description": "Display numbers (a balance, a total).", "size": 56, "weight": 600, "tracking": -2.2, "height": 1.05, "display": true, "color": "ink" },
+      "display":     { "$description": "Large numbers on detail screens.", "size": 36, "weight": 600, "tracking": -1.2, "height": 1.1, "display": true, "color": "ink" },
+      "title1":      { "size": 28, "weight": 600, "tracking": -0.7, "height": 1.15, "display": false, "color": "ink" },
+      "title2":      { "size": 22, "weight": 600, "tracking": -0.45, "height": 1.2, "display": false, "color": "ink" },
+      "title3":      { "size": 17, "weight": 600, "tracking": -0.2, "height": 1.3, "display": false, "color": "ink" },
+      "body":        { "size": 15, "weight": 400, "tracking": -0.1, "height": 1.35, "display": false, "color": "ink" },
+      "bodyStrong":  { "size": 15, "weight": 500, "tracking": -0.1, "height": 1.35, "display": false, "color": "ink" },
+      "small":       { "$description": "Secondary text.", "size": 13, "weight": 400, "tracking": null, "height": 1.35, "display": false, "color": "inkSoft" },
+      "smallStrong": { "size": 13, "weight": 500, "tracking": null, "height": 1.35, "display": false, "color": "ink" },
+      "caption":     { "$description": "Metadata.", "size": 12, "weight": 500, "tracking": 0.1, "height": 1.35, "display": false, "color": "inkSoft" },
+      "label":       { "$description": "Buttons and controls.", "size": 15, "weight": 600, "tracking": -0.1, "height": 1.2, "display": false, "color": "ink" },
+      "overline":    { "$description": "UPPERCASE section labels.", "size": 11, "weight": 600, "tracking": 0.8, "height": 1.35, "display": false, "color": "inkSoft" }
+    }
+  },
+
+  "motion": {
+    "$description": "Durations (ms) and curves (cubic-bezier x1, y1, x2, y2) (OMotion). Everything eases out; nothing bounces except a released drag. Zero when the system asks for reduced motion.",
+    "duration": { "fast": 140, "base": 240, "slow": 380 },
+    "easing": {
+      "standard": [0.2, 0, 0, 1],
+      "emphasized": [0.05, 0.7, 0.1, 1],
+      "exit": [0.3, 0, 1, 1]
+    }
+  },
+
+  "elevation": {
+    "$description": "Shadows are rare: borders separate things; only floating layers lift (OShadow). Shadows are [colour, alpha, blur, dy, dx].",
+    "floating": {
+      "light": [["black", 0.08, 32, 12], ["black", 0.04, 3, 1]],
+      "dark": [["black", 0.4, 32, 12]]
+    },
+    "subtle": {
+      "light": [["black", 0.05, 8, 2]],
+      "dark": []
+    }
+  },
+
+  "blur": {
+    "$description": "Backdrop blur. tabBarSigma: the glass tab bar blurs what scrolls under it. scrimSigma: the dimmed page behind a sheet or dialog, at full open. cssSaturate: extra saturation CSS adds to the glass backdrop blur (web only).",
+    "tabBarSigma": 18,
+    "scrimSigma": 6,
+    "cssSaturate": 1.6
+  },
+
+  "finish": {
+    "$description": "The five finishes (OFinish), each defined per mode (light, dark) and per depth: strong (solid fills: main buttons, selected chips), soft (light or outlined pressables), surface (cards, bars, dialogs) and well (fields, trays, tracks). Colours never change; a finish adds light and depth on top. A recipe has: fill ('canvas' = take the page colour, pillow surfaces), fillAlpha (frosted fills), sheen (top-to-bottom gradient [tint, tint]) with sheenStops (0-1, default 0 and 1), sheenOnWhite (the sheen to use instead when the fill is near white, since a white sheen can't show on white; CSS uses it in light mode), highlight (1px light line along the top edge, inside), shade (1px along the bottom edge, inside), rim (1px line all round, inside), shadows (cast outside), insets (cast inward, as if pressed into the canvas), pressedShade (the inward shade while held).",
+    "hairlines": {
+      "$description": "Finishes whose cards keep their 1px hairline border; the others draw their own edge.",
+      "finishes": ["flat", "raised"]
+    },
+    "referenceWidth": {
+      "$description": "CSS only: the screen width in px that background-wash radii are scaled to (the washes are fractions of the width in Flutter).",
+      "px": 400
+    },
+    "pressedShade": ["black", 0.251],
+    "recipes": {
+      "flat": { "$description": "Plain fills: no recipe, every depth is empty." },
+
+      "raised": {
+        "$description": "Lemonnade's raised look: a faint sheen, a light top edge and a dark bottom edge (lit from above), and a small drop shadow. The default finish. On a light canvas a dark drop reads as dirt, so light shadows are shorter and crisper.",
+        "light": {
+          "strong":  { "sheen": [["white", 0.14], ["black", 0.10]], "highlight": ["white", 0.22], "shade": ["black", 0.35], "shadows": [["black", 0.16, 3, 1], ["black", 0.10, 10, 4]] },
+          "soft":    { "sheen": [["white", 0.10], ["white", 0]], "sheenOnWhite": [["black", 0], ["black", 0.04]], "highlight": ["white", 1], "shade": ["black", 0.10], "shadows": [["black", 0.08, 3, 1], ["black", 0.05, 8, 3]] },
+          "surface": { "shade": ["black", 0.04], "shadows": [["black", 0.04, 2, 1], ["black", 0.03, 12, 4]] },
+          "well":    { "shade": ["white", 0.7], "insets": [["black", 0.06, 3, 1]] }
+        },
+        "dark": {
+          "strong":  { "sheen": [["white", 0.20], ["black", 0.15]], "highlight": ["white", 0.25], "shade": ["black", 0.30], "shadows": [["black", 0.20, 4, 1], ["black", 0.30, 6, 2]] },
+          "soft":    { "sheen": [["white", 0.05], ["white", 0]], "highlight": ["white", 0.05], "shade": ["black", 0.20], "shadows": [["black", 0.20, 4, 1]] },
+          "surface": { "highlight": ["white", 0.04], "shadows": [["black", 0.30, 8, 2]] },
+          "well":    { "shade": ["white", 0.04], "insets": [["black", 0.35, 3, 1]] }
+        }
+      },
+
+      "pillow": {
+        "$description": "Soft and pillowy: lit from the top left, with a light and a dark shadow either side, so things rise out of the canvas. Surfaces and wells take the canvas colour and are shaped only by light. Soft is 0.7 of strong.",
+        "light": {
+          "strong":  { "sheen": [["white", 0.16], ["black", 0.10]], "shadows": [["black", 0.16, 14, 5, 5], ["white", 0.95, 12, -5, -5]], "pressedShade": ["black", 0.18] },
+          "soft":    { "sheen": [["white", 0.10], ["black", 0.03]], "sheenOnWhite": [["white", 0], ["black", 0.03]], "shadows": [["black", 0.112, 9.8, 3.5, 3.5], ["white", 0.95, 8.4, -3.5, -3.5]], "pressedShade": ["black", 0.18] },
+          "surface": { "fill": "canvas", "shadows": [["black", 0.08, 16, 4, 4], ["white", 1, 16, -4, -4]] },
+          "well":    { "fill": "canvas", "insets": [["black", 0.10, 4, 2, 2], ["white", 0.9, 4, -2, -2]] }
+        },
+        "dark": {
+          "strong":  { "sheen": [["white", 0.16], ["black", 0.10]], "shadows": [["black", 0.60, 14, 5, 5], ["white", 0.05, 12, -5, -5]], "pressedShade": ["black", 0.55] },
+          "soft":    { "sheen": [["white", 0.10], ["black", 0.03]], "sheenOnWhite": [["white", 0], ["black", 0.03]], "shadows": [["black", 0.42, 9.8, 3.5, 3.5], ["white", 0.05, 8.4, -3.5, -3.5]], "pressedShade": ["black", 0.55] },
+          "surface": { "fill": "canvas", "shadows": [["black", 0.45, 16, 4, 4], ["white", 0.03, 16, -4, -4]] },
+          "well":    { "fill": "canvas", "insets": [["black", 0.50, 4, 2, 2], ["white", 0.04, 4, -2, -2]] }
+        }
+      },
+
+      "glass": {
+        "$description": "Frosted: a slightly see-through fill, a gloss on the top half, a bright rim and a wide soft shadow. The tab bar blurs what is behind it. Cards carry a surface sheen too.",
+        "light": {
+          "strong":  { "fillAlpha": 0.92, "sheen": [["white", 0.30], ["white", 0]], "sheenStops": [0, 0.55], "rim": ["white", 0.35], "shadows": [["black", 0.18, 18, 6]] },
+          "soft":    { "fillAlpha": 0.62, "sheen": [["white", 0.45], ["white", 0]], "sheenStops": [0, 0.55], "rim": ["white", 0.80], "shadows": [["black", 0.07, 18, 6]] },
+          "surface": { "fillAlpha": 0.6, "sheen": [["white", 0.5], ["white", 0]], "sheenStops": [0, 0.5], "rim": ["white", 0.9], "shadows": [["black", 0.05, 24, 8]] },
+          "well":    { "fillAlpha": 0.5, "rim": ["white", 0.6], "insets": [["black", 0.05, 3, 1]] }
+        },
+        "dark": {
+          "strong":  { "fillAlpha": 0.92, "sheen": [["white", 0.30], ["white", 0]], "sheenStops": [0, 0.55], "rim": ["white", 0.22], "shadows": [["black", 0.40, 18, 6]] },
+          "soft":    { "fillAlpha": 0.62, "sheen": [["white", 0.10], ["white", 0]], "sheenStops": [0, 0.55], "rim": ["white", 0.12], "shadows": [["black", 0.22, 18, 6]] },
+          "surface": { "fillAlpha": 0.55, "sheen": [["white", 0.06], ["white", 0]], "sheenStops": [0, 0.5], "rim": ["white", 0.08], "shadows": [["black", 0.30, 24, 8]] },
+          "well":    { "fillAlpha": 0.5, "rim": ["white", 0.05], "insets": [["black", 0.30, 3, 1]] }
+        }
+      },
+
+      "glow": {
+        "$description": "Solid fills cast a glow in their own colour. Ink (black or white) has no colour to glow in, so it takes the accent. Light canvas: a tighter, paler halo plus a crisp contact shadow, so it reads as lit rather than smudged.",
+        "light": {
+          "strong":  { "sheen": [["white", 0.16], ["white", 0]], "highlight": ["white", 0.30], "shadows": [["glow", 0.30, 16, 6], ["black", 0.12, 2, 1]] },
+          "soft":    { "highlight": ["white", 0.6], "rim": ["accent", 0.18], "shadows": [["accent", 0.10, 14, 4]] },
+          "surface": { "rim": ["accent", 0.12], "shadows": [["accent", 0.08, 26, 8]] },
+          "well":    { "rim": ["accent", 0.10], "insets": [["black", 0.05, 3, 1]] }
+        },
+        "dark": {
+          "strong":  { "sheen": [["white", 0.16], ["white", 0]], "highlight": ["white", 0.30], "shadows": [["glow", 0.45, 22, 6], ["glow", 0.30, 4, 1]] },
+          "soft":    { "highlight": ["white", 0.06], "rim": ["accent", 0.22], "shadows": [["accent", 0.20, 14, 4]] },
+          "surface": { "rim": ["accent", 0.16], "shadows": [["accent", 0.12, 26, 8]] },
+          "well":    { "rim": ["accent", 0.10], "insets": [["black", 0.35, 3, 1]] }
+        }
+      }
+    },
+
+    "background": {
+      "$description": "Washes behind every screen (_BackgroundPainter): radial gradients from a colour at alpha to transparent. x, y are fractions of the screen (y of height, or of width when yOf is 'width'); radius is a fraction of the width; color is 'accent' or a hex. Only glass and glow have washes. One Split overrides the glass wash with a balance mood (see its tokens.css).",
+      "glass": {
+        "light": [
+          { "x": 0.1,  "y": 0.1,  "radius": 0.8,  "color": "accent",  "alpha": 0.16 },
+          { "x": 0.95, "y": 0.55, "radius": 0.85, "color": "#8B5CF6", "alpha": 0.12 }
+        ],
+        "dark": [
+          { "x": 0.1,  "y": 0.1,  "radius": 0.8,  "color": "accent",  "alpha": 0.22 },
+          { "x": 0.95, "y": 0.55, "radius": 0.85, "color": "#8B5CF6", "alpha": 0.18 }
+        ]
+      },
+      "glow": {
+        "light": [{ "x": 0.5, "y": -0.15, "yOf": "width", "radius": 1.1, "color": "accent", "alpha": 0.10 }],
+        "dark":  [{ "x": 0.5, "y": -0.15, "yOf": "width", "radius": 1.1, "color": "accent", "alpha": 0.20 }]
+      }
+    }
+  }
+}
