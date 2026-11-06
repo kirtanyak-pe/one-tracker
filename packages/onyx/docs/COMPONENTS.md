@@ -32,18 +32,22 @@ while held (0.94 for icon buttons and tab labels) and dims to 0.38 when disabled
 - **Icon button**: 40 circle (44 tap area; 44 filled on tab pages), icon 20, **soft** with hairline when `filled`, bare otherwise; pressed scale 0.9 (CSS `.iconBtn` is a 40 **surface** circle, 0.94).
 - **Text button**: `smallStrong` semibold, padding 8 x 4, no fill; pressed = 0.5 opacity.
 - One primary per screen. In a dialog or sheet, actions stack full width with 8 between (CSS 10), primary on top.
+- **One Split rules (round 2)**: disabled = `raised` fill, `inkSoft` label, hairline edge (text must reach 4.5:1; no opacity fade in CSS). Icon buttons are 44 in CSS everywhere. Text buttons, chips, "See all" and snackbar actions keep a 44 hit area (a `::after` outset) even when drawn smaller. Row-action buttons (Pay, Remind, Remove, Settle up) in a list all use one `btnRow` style: sm height 36, min width 88, padding 12, centred label, so they line up.
 
 ## Row and group
 - Row: min height 56, padding 16 x 12, 14 between leading, text and trailing. Title `bodyStrong`, subtitle `small` (inkSoft), 2 between. Trailing amount is tabular and right-aligned.
 - Group: rows in one card (**surface**), a 1px divider (`line`) between them, inset 16 from the left.
+- Selectable row: on = 2px ink ring + a filled tick mark (`PickMark`); off = a visible empty ring. Never rely on fill alone.
 
 ## Card and inset
 - Card: radius `lg` 22 (smooth), padding 20, **surface**; hairline when the finish allows it; selected = 1.5 ink border.
+- One Split: always a 1px `--o-line` ring plus the finish shadow, so cards read in light mode and in finishes with no hairline.
 - Inset: a well inside a card, radius `md` 16, padding 16, **well**, fill `raised`.
 
 ## Chip
 - Height 36 (dense 30), padding 14 (dense 10), icon 16 (dense 14) with 6 gap, label `smallStrong` medium (dense: `caption`). Stadium.
 - Off = **soft** on `surface` with a `lineStrong` outline; on = **strong** ink with an onInk label. Pressed scales 0.97.
+- Chip rows that overflow scroll sideways with an edge fade (`ChipRow`). Person chips ("With") wrap, with outline + tick when on.
 
 ## Segmented
 - Track: height 40, padding 3, stadium, **well** on `raised`. Thumb: stadium, **soft** on `surface`, slides to the choice. Labels `smallStrong`, inkSoft off, ink on; 6 gap to an icon.
@@ -55,10 +59,12 @@ while held (0.94 for icon buttons and tab labels) and dims to 0.38 when disabled
 ## Sheet
 - Slides up from the bottom, max width 640, top radius `xl` 28, **surface** plus `--f-floating`; in glass it blurs what is behind it. Grab handle 36 x 4 (`lineStrong`) 8 below the top. Drag down past 35 % of its height, or fling, to close.
 - Content padding 20 sides, 16 top and bottom. Title `title2`, 6 gap, subtitle `small`, 20 gap, then the content. Actions below, stacked, 20 sides, 12 bottom. Scrim = `--o-scrim`, fading in `motion.base`; the page behind blurs up to `blur.scrimSigma` while it opens. Open 380 ms (`emphasized`).
+- **Sheets are for choices only.** Always a title row with a 44 close button, then one scrolling body; never a scroll card nested inside. Max height 88 %. The scrim covers the tab bar.
 
 ## Dialog
 - Centered, max width 400, 24 from the screen edge, radius `xl` 28, padding 24, **surface** plus `--f-floating`. Optional 40 icon tile (radius `sm`, **surface**), then title (`title2`), message (`small`), actions: stacked full width, 8 gap, primary on top, cancel last. Pops in `motion.base`.
 - Confirm = title as a question, message says what will happen, two buttons (see WRITING.md). Destructive confirms use the danger kind.
+- **Dialogs are for confirmations only**: destructive confirms use the one `btnDanger` button, with a plain Cancel below. Menus are only the ⋮ popover; no third overlay type.
 
 ## Tab bar
 - Floating stadium, height 64, padding 6, 20 from the sides, 14 above the bottom inset. **Surface** plus `--f-floating` (pillow and glass use **soft**; glass blurs with `blur.tabBarSigma` and, in CSS, saturates 1.6).
@@ -66,6 +72,7 @@ while held (0.94 for icon buttons and tab labels) and dims to 0.38 when disabled
 
 ## Top bar
 - Height 56, padding 10, 52-wide slots left and right (back button, actions), title `title3` centered, one line. Tab pages use a 60 tall bar with the 20 gutter and 44 filled icon buttons.
+- Empty and error states use a 40 muted icon (stroke 1.5, `inkSoft`), no tile. Type: Display 56 / Title 22 / Heading 17 600 / Body 15 500 / Caption 13 / Label 12 500, nothing under 12 (One Split overrides `overline` to 12 locally), amounts tabular, always via `--o-type-*`. One section-header style (`SectionHeader`), including month labels.
 
 ## Snackbar / toast
 - Floating above the tab bar (96 + bottom inset), 16 from the sides, max width 480, min height 48, radius `md` 16, padding 16 x 8 (6 right with an action), `smallStrong`. Icon 18 with 10 gap. Action = a pill (12 x 8) at 12 % of the text colour, semibold; in CSS an underlined text button.
