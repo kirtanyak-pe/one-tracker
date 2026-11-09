@@ -5,6 +5,8 @@ notifications on your phone, and hands payments to the Splitwise app to split.
 Android-first. Fully offline: the app has no internet permission, and
 transactions never leave the phone.
 
+**Download:** [latest APK](https://github.com/kirtanyak-pe/one-tracker/releases/latest) (64-bit Android). Open it on the phone and allow installing from your browser.
+
 ```
 Bank SMS (inbox scan) ─┐
                        ├─► parser ─► ingest (dedupe SMS + app twins) ─► stored facts
