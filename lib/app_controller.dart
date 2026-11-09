@@ -31,7 +31,6 @@ import 'split/split_models.dart';
 import 'split/suggest.dart';
 import 'storage/app_store.dart';
 import 'storage/backup.dart';
-import 'ui/app_lock.dart';
 import 'ui/payee_logo.dart';
 import 'ui/perf.dart';
 
@@ -153,7 +152,6 @@ class AppController extends ChangeNotifier {
     }
     loading = false;
     notifyListeners();
-    await _maybeAskContacts();
     await _pushWidget();
   }
 
@@ -264,15 +262,6 @@ class AppController extends ChangeNotifier {
     if (await Permission.contacts.request().isPermanentlyDenied) await openAppSettings();
     await refreshPermissions();
     if (contactsGranted && !was) ContactPhotos.instance.retry();
-  }
-
-  /// Asks for Contacts once, the first time there are People payments to
-  /// put faces on.
-  Future<void> _maybeAskContacts() async {
-    if (!isAndroid || contactsGranted || await _store.readContactsAsked()) return;
-    if (!ledger.items.any((e) => e.category == Category.people)) return;
-    await AppLock.whenOpen(); // never on top of the unlock sheet
-    await requestContacts();
   }
 
   Future<void> requestSms() async {

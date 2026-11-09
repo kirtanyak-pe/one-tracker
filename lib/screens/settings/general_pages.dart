@@ -6,6 +6,7 @@ import '../../model/appearance.dart';
 import '../../sources/backup_bridge.dart';
 import '../../sources/widget_bridge.dart';
 import '../../storage/backup.dart';
+import '../../ui/access_disclosure.dart';
 import '../../ui/format.dart';
 
 import 'package:onyx/onyx.dart';
@@ -309,19 +310,19 @@ class SourcesPage extends StatelessWidget {
                 subtitle: app.lastScan == null
                     ? 'Reads bank alerts, instantly as they arrive'
                     : 'Instant. Last full read ${friendlyTime(app.lastScan!)}',
-                trailing: allow(app.smsGranted, app.requestSms),
+                trailing: allow(app.smsGranted, () => askAccess(context, Access.sms)),
               ),
               SettingsRow(
                 icon: LucideIcons.bellRing,
                 title: 'Payment notifications',
                 subtitle: 'Also catches UPI app payments',
-                trailing: allow(app.notificationsGranted, app.requestNotifications),
+                trailing: allow(app.notificationsGranted, () => askAccess(context, Access.notifications)),
               ),
               SettingsRow(
                 icon: LucideIcons.contactRound,
                 title: 'Contact photos',
                 subtitle: 'Faces on payments to people you know',
-                trailing: allow(app.contactsGranted, app.requestContacts),
+                trailing: allow(app.contactsGranted, () => askAccess(context, Access.contacts)),
               ),
             ],
           ),

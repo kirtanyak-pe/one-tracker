@@ -5,6 +5,7 @@ import '../app_controller.dart';
 import '../engine/recurring.dart';
 import '../engine/summary.dart';
 import '../money.dart';
+import '../ui/access_disclosure.dart';
 import '../ui/format.dart';
 import '../ui/motion.dart';
 
@@ -286,7 +287,7 @@ class _SetupTray extends StatelessWidget {
             size: 44,
             background: t.ink,
             color: t.onInk,
-            onPressed: smsFirst ? app.requestSms : app.requestNotifications,
+            onPressed: () => askAccess(context, smsFirst ? Access.sms : Access.notifications),
           ),
         ],
       ),
