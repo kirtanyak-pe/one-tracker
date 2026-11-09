@@ -1,11 +1,13 @@
 import 'package:flutter/widgets.dart';
 import 'package:onyx/onyx.dart';
 
+import '../ui/app_lock.dart';
 import '../ui/motion.dart';
 
 import 'activity_screen.dart';
 import 'home_screen.dart';
 import 'widgets/split_prompt_card.dart';
+import 'widgets/welcome_sheet.dart';
 import 'insights_screen.dart';
 import 'split_tab.dart';
 import '../app_controller.dart';
@@ -35,10 +37,20 @@ class _AppShellState extends State<AppShell> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // A payment came in while the app is open: offer the split here.
-    AppScope.of(context).onSplitSuggestion = (payment) {
+    final app = AppScope.of(context);
+    app.onSplitSuggestion = (payment) {
       if (mounted) showSplitPromptSheet(context, payment);
     };
+    // First run: the privacy sheet, once loading is done and the app is unlocked.
+    if (!app.loading && !app.welcomed && !_welcoming) {
+      _welcoming = true;
+      AppLock.whenOpen().then((_) {
+        if (mounted) showWelcomeSheet(context);
+      });
+    }
   }
+
+  bool _welcoming = false;
 
   /// Tabs are built the first time they're opened, not all at start-up.
   final _visited = <int>{0};

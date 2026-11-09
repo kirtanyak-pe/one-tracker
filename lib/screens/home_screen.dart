@@ -33,7 +33,7 @@ class HomeTab extends StatelessWidget {
     final text = context.type;
     final m = app.month;
     final review = app.toReview;
-    final needsSetup = app.isAndroid && (!app.smsGranted || !app.notificationsGranted);
+    final needsSetup = app.isAndroid && (!app.smsGranted || (!app.notificationsGranted && !app.notificationsSkipped));
     final upcoming = app.isCurrentMonth ? app.upcoming() : const <Recurring>[];
 
     return OTabPage(
@@ -250,6 +250,8 @@ class _ChangeLine extends StatelessWidget {
   }
 }
 
+/// Asks for the access that's still missing. SMS is the one the app needs;
+/// notification access is optional and can be put off.
 class _SetupTray extends StatelessWidget {
   const _SetupTray({required this.app});
 
@@ -259,35 +261,62 @@ class _SetupTray extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.colors;
     final text = context.type;
-    final smsFirst = !app.smsGranted;
-    return OInset(
-      padding: const EdgeInsets.all(OSpace.xl),
-      radius: ORadius.lg,
-      child: Row(
+    final sms = !app.smsGranted;
+    final (icon, title, body, action) = !sms
+        ? (
+            LucideIcons.bellRing,
+            'Catch payments instantly',
+            'Optional. Notification access picks up UPI app payments as they happen.',
+            'Allow',
+          )
+        : app.smsBlocked
+        ? (
+            LucideIcons.messageSquareOff,
+            'SMS access is off',
+            'One Tracker finds your spending in bank SMS. Turn on SMS in Settings, or add payments yourself.',
+            'Open settings',
+          )
+        : (
+            LucideIcons.messageSquareText,
+            'Read your bank SMS',
+            'Finds the last 90 days of spending. Nothing leaves your phone.',
+            'Allow',
+          );
+    void ask() => askAccess(context, sms ? Access.sms : Access.notifications);
+    return OCard(
+      onTap: ask,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(smsFirst ? 'Read your bank SMS' : 'Catch payments instantly', style: text.title3),
-                const SizedBox(height: OSpace.xs),
-                Text(
-                  smsFirst
-                      ? 'Finds the last 90 days of spending. Nothing leaves your phone.'
-                      : 'Notification access picks up UPI app payments as they happen.',
-                  style: text.small.copyWith(color: t.inkSoft),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: OSpace.xxs),
+                child: Icon(icon, size: 20, color: t.ink),
+              ),
+              const SizedBox(width: OSpace.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: text.title3),
+                    const SizedBox(height: OSpace.xs),
+                    Text(body, style: text.small.copyWith(color: t.inkSoft)),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(width: OSpace.md),
-          OIconButton(
-            icon: smsFirst ? LucideIcons.messageSquareText : LucideIcons.bellRing,
-            label: smsFirst ? 'Allow SMS access' : 'Allow notification access',
-            size: 44,
-            background: t.ink,
-            color: t.onInk,
-            onPressed: () => askAccess(context, smsFirst ? Access.sms : Access.notifications),
+          const SizedBox(height: OSpace.lg),
+          Row(
+            children: [
+              OButton(label: action, size: OButtonSize.sm, onPressed: ask),
+              if (!sms) ...[
+                const SizedBox(width: OSpace.sm),
+                OButton.ghost(label: 'Not now', size: OButtonSize.sm, onPressed: app.skipNotifications),
+              ],
+            ],
           ),
         ],
       ),

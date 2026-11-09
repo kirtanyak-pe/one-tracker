@@ -35,6 +35,9 @@ class AppStore {
   static const _appearance = 'appearance_v1';
   static const _parserVersion = 'parser_version';
   static const _contactsAsked = 'contacts_asked_v1';
+  static const _welcomed = 'welcomed_v1';
+  static const _notificationsSkipped = 'notifications_skipped_v1';
+  static const _smsBlocked = 'sms_blocked_v1';
 
   // A year of SMS is a few MB of JSON: decode/encode off the UI thread.
   Future<List<Txn>> readTxns() async {
@@ -59,6 +62,15 @@ class AppStore {
   /// Contact photos: the one-time Contacts permission ask has happened.
   Future<bool> readContactsAsked() async => (await _prefs.getBool(_contactsAsked)) ?? false;
   Future<void> writeContactsAsked() => _prefs.setBool(_contactsAsked, true);
+
+  Future<bool> readWelcomed() async => (await _prefs.getBool(_welcomed)) ?? false;
+  Future<void> writeWelcomed() => _prefs.setBool(_welcomed, true);
+
+  Future<bool> readNotificationsSkipped() async => (await _prefs.getBool(_notificationsSkipped)) ?? false;
+  Future<void> writeNotificationsSkipped() => _prefs.setBool(_notificationsSkipped, true);
+
+  Future<bool> readSmsBlocked() async => (await _prefs.getBool(_smsBlocked)) ?? false;
+  Future<void> writeSmsBlocked(bool blocked) => _prefs.setBool(_smsBlocked, blocked);
 
   Future<Map<String, PayeeRule>> readRules() async {
     final raw = await _prefs.getString(_rules);

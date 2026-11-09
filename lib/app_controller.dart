@@ -142,6 +142,8 @@ class AppController extends ChangeNotifier {
     // Bank SMS arriving while we're running come straight here.
     SmsSource.listenLive(_onLiveSms);
     lastScan = await _store.readLastScan();
+    welcomed = await _store.readWelcomed();
+    notificationsSkipped = await _store.readNotificationsSkipped();
     await _recompute();
     await _applyPendingSplitActions();
     await refreshPermissions();
@@ -246,6 +248,9 @@ class AppController extends ChangeNotifier {
   Future<void> refreshPermissions() async {
     await SmsSource.upgradeToLive();
     smsGranted = await SmsSource.hasPermission();
+    // Android only says "denied for good" in answer to a request, so it's remembered.
+    if (smsGranted && smsBlocked) await _store.writeSmsBlocked(false);
+    smsBlocked = !smsGranted && await _store.readSmsBlocked();
     notificationsGranted = await NotificationSource.hasPermission();
     postNotificationsGranted = !isAndroid || await Permission.notification.isGranted;
     contactsGranted = isAndroid && await Permission.contacts.isGranted;
@@ -256,6 +261,14 @@ class AppController extends ChangeNotifier {
   /// Contacts access, for people's photos on their payments.
   bool contactsGranted = false;
 
+  /// Whether the first-run privacy sheet has been seen.
+  bool welcomed = true;
+
+  Future<void> markWelcomed() async {
+    welcomed = true;
+    await _store.writeWelcomed();
+  }
+
   Future<void> requestContacts() async {
     await _store.writeContactsAsked();
     final was = contactsGranted;
@@ -264,8 +277,17 @@ class AppController extends ChangeNotifier {
     if (contactsGranted && !was) ContactPhotos.instance.retry();
   }
 
+  /// SMS was denied twice or for good: Android shows no prompt any more, only
+  /// the app's page in Settings can turn it on.
+  bool smsBlocked = false;
+
   Future<void> requestSms() async {
-    await SmsSource.requestPermission();
+    if (!isAndroid) return;
+    if (smsBlocked) {
+      await openAppSettings(); // back in the app, _onResume picks it up
+      return;
+    }
+    if ((await Permission.sms.request()).isPermanentlyDenied) await _store.writeSmsBlocked(true);
     await refreshPermissions();
     if (smsGranted) await scanSms(full: true);
   }
@@ -273,6 +295,15 @@ class AppController extends ChangeNotifier {
   Future<void> requestNotifications() async {
     await NotificationSource.requestPermission();
     await refreshPermissions();
+  }
+
+  /// Notification access is optional: "Not now" hides its card on Home.
+  bool notificationsSkipped = false;
+
+  Future<void> skipNotifications() async {
+    notificationsSkipped = true;
+    notifyListeners();
+    await _store.writeNotificationsSkipped();
   }
 
   /// Reads new bank SMS. [full] re-reads the last 90 days.
@@ -620,8 +651,10 @@ class AppController extends ChangeNotifier {
       await _pushWidget();
     }
     await _loadSplitState();
+    final hadSms = smsGranted;
     await refreshPermissions();
-    await scanSms();
+    // Turned on in Android's Settings: read the last 90 days, as from the prompt.
+    await scanSms(full: !hadSms && smsGranted);
   }
 
   // ── Splitwise ──────────────────────────────────────────────────────

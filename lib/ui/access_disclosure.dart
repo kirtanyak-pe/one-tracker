@@ -43,7 +43,9 @@ Future<bool> explainAccess(BuildContext context, Access access) {
 /// Explains [access], then asks Android for it if the person agreed.
 Future<void> askAccess(BuildContext context, Access access) async {
   final app = AppScope.of(context);
-  if (!await explainAccess(context, access)) return;
+  // Already explained and denied for good: straight to Android's Settings.
+  final blocked = access == Access.sms && app.smsBlocked;
+  if (!blocked && !await explainAccess(context, access)) return;
   await switch (access) {
     Access.sms => app.requestSms(),
     Access.notifications => app.requestNotifications(),
